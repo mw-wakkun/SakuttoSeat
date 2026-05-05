@@ -19,5 +19,5 @@ jobs:
         xcodebuild test \
           -project SakuttoSeat.xcodeproj \
           -scheme SakuttoSeat \
-          -destination 'platform=iOS Simulator,name=Any iOS Simulator Device' \
+          -destination 'platform=iOS Simulator,OS=26.2,name=iPhone 16' \
           -quiet
