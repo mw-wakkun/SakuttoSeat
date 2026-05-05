@@ -13,11 +13,11 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-
+    
     - name: Build and Test
       run: |
         xcodebuild test \
           -project SakuttoSeat.xcodeproj \
           -scheme SakuttoSeat \
-          -destination 'platform=iOS Simulator,OS=26.2,name=iPhone 16' \
+          -destination 'platform=iOS Simulator,name=Any iOS Simulator Device' \
           -quiet
