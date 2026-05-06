@@ -1,5 +1,8 @@
-![Build Status](https://github.com/mw-wakkun/SakuttoSeat/actions/workflows/swift.yml/badge.svg)
 # サクッと席決め (SakuttoSeat)
+
+![Build Status](https://github.com/mw-wakkun/SakuttoSeat/actions/workflows/swift.yml/badge.svg)
+![iOS 18.0+](https://img.shields.io/badge/iOS-18.0%2B-blue.svg)
+![Swift 6.0](https://img.shields.io/badge/Swift-6.0-orange.svg)
 
 席替えを「サクッと」終わらせるための、iOS向け席決め抽選アプリです。
 VIPERアーキテクチャを採用し、モダンなSwiftUIと最新のSwift Testingで構築されています。
