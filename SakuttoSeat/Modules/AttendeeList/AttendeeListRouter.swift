@@ -8,6 +8,7 @@
 import SwiftUI
 
 class AttendeeListRouter {
+    @MainActor
     static func assembleModule() -> some View {
         let interactor = AttendeeListInteractor()
         let router = AttendeeListRouter()
