@@ -1,3 +1,4 @@
+![Build Status](https://github.com/mw-wakkun/SakuttoSeat/actions/workflows/swift.yml/badge.svg)
 # サクッと席決め (SakuttoSeat)
 
 席替えを「サクッと」終わらせるための、iOS向け席決め抽選アプリです。
