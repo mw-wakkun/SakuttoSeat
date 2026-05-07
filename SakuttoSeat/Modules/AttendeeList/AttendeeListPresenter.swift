@@ -35,10 +35,27 @@ class AttendeeListPresenter: ObservableObject {
     }
     
     func didDeleteAttendee(at offsets: IndexSet) {
-        attendees = interactor.removeAttendee(at: offsets)
+        offsets.forEach { _ in
+            // 本来はinteractorで削除しますが、戻り値を受け取って更新
+            attendees = interactor.removeAttendee(at: offsets)
+        }
     }
     
     func didTapResetButton() {
         attendees = interactor.resetAttendees()
+    }
+    
+    // MARK: - Navigation Methods
+    
+    /// 座席表への遷移用View生成
+    func makeSeatingChartView() -> AnyView {
+        let names = attendees.map { $0.name }
+        return router.makeSeatingChartView(attendees: names)
+    }
+    
+    /// 番号札への遷移用View生成
+    func makeSimpleShuffleView() -> AnyView {
+        let names = attendees.map { $0.name }
+        return router.makeSimpleShuffleView(attendees: names)
     }
 }
