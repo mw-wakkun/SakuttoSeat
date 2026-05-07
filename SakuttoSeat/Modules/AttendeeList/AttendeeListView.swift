@@ -15,7 +15,7 @@ struct AttendeeListView: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
+            VStack(spacing: 20) {
                 inputSection
                 
                 ZStack {
@@ -105,37 +105,55 @@ private extension AttendeeListView {
     }
     
     var shuffleButton: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
-                presenter.didTapShuffleButton()
+        VStack(spacing: 12) {
+            // 1. 本格的な座席表
+            NavigationLink(destination: presenter.makeSeatingChartView()) {
+                buttonLabel(text: "座席表で決める", icon: "square.grid.2x2.fill", isPrimary: true)
             }
-        }) {
-            Text("席をシャッフルする")
-                .font(.headline).bold()
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.sakuttoGradient)
-                .cornerRadius(15)
-                .shadow(color: .sakuttoBlueStart.opacity(0.3), radius: 8, x: 0, y: 4)
+            .disabled(presenter.attendees.isEmpty)
+            
+            // 2. サクッと番号だけ
+            NavigationLink(destination: presenter.makeSimpleShuffleView()) {
+                buttonLabel(text: "番号札で決める（シンプル）", icon: "list.number", isPrimary: false)
+            }
+            .disabled(presenter.attendees.isEmpty)
         }
-        .padding()
-        .disabled(presenter.attendees.count < 2)
+        .padding(.horizontal, 24)
+        .padding(.bottom, 10)
+        // 参加者0人の時は全体を少し薄くする
+        .opacity(presenter.attendees.isEmpty ? 0.5 : 1.0)
     }
     
-    var resetButton: some View {
-        Button(role: .destructive) {
+    // ボタンの見た目を生成するヘルパー関数
+    private func buttonLabel(text: String, icon: String, isPrimary: Bool) -> some View {
+        HStack {
+            Image(systemName: icon)
+            Text(text)
+        }
+        .font(.headline).bold()
+        .foregroundColor(isPrimary ? .white : .blue)
+        .frame(maxWidth: .infinity)
+        .frame(height: 56) // 高さを固定して揃える
+        .background(
+            isPrimary ?
+            AnyView(Color.sakuttoGradient) :
+                AnyView(Color.blue.opacity(0.1))
+        )
+        .cornerRadius(15)
+        .shadow(
+            color: (isPrimary ? Color.sakuttoBlueStart : Color.blue).opacity(0.3),
+            radius: 8, x: 0, y: 4
+        )
+    }
+    
+    private var resetButton: some View {
+        Button(action: {
             isShowingResetAlert = true
-        } label: {
-            Text("リセット")
-                .font(.subheadline).bold()
-                .foregroundColor(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.white.opacity(0.2))
-                .cornerRadius(20)
+        }) {
+            Image(systemName: "trash")
         }
         .disabled(presenter.attendees.isEmpty)
+        .opacity(presenter.attendees.isEmpty ? 0.3 : 1.0)
     }
     
     func addAttendeeProcess() {
