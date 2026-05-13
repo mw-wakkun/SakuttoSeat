@@ -3,14 +3,19 @@
 ![Build Status](https://github.com/mw-wakkun/SakuttoSeat/actions/workflows/swift.yml/badge.svg)
 ![iOS 18.0+](https://img.shields.io/badge/iOS-18.0%2B-blue.svg)
 ![Swift 6.0](https://img.shields.io/badge/Swift-6.0-orange.svg)
+![Version 1.1.0](https://img.shields.io/badge/version-1.1.0-green.svg)
 
 席替えを「サクッと」終わらせるための、iOS向け席決め抽選アプリです。
 VIPERアーキテクチャを採用し、モダンなSwiftUIと最新のSwift Testingで構築されています。
 
 ## 特徴
 - **爆速入力**: 連続して参加者をスピーディに追加できるスムーズなUI。
-- **安心の抽選ロジック**: 前回と同じ並び順にならないよう配慮したシャッフルアルゴリズム。
-- **プロフェッショナルな設計**: VIPERアーキテクチャによる高い保守性とテストコードによる品質担保。
+- **2つの抽選モード**:
+    - **番号札モード**: 1人ずつ番号を割り振るシンプルなリスト表示。
+    - **座席表モード(v1.1.0)**: テーブル配置を自由に変更し、実際の会場に近いイメージで座席を決定。
+- **上品なアニメーション**: 抽選時のカードの入れ替えなど、触っていて心地よいUI/UXを追求。
+- **安心の抽選ロジック**: 偏りのないシャッフルアルゴリズムを採用。
+- **プロフェッショナルな設計**: VIPERアーキテクチャによる高い保守性と、単体テストによる品質担保。
 
 ## 技術スタック
 - **Language**: Swift 6.0
@@ -32,9 +37,9 @@ VIPERアーキテクチャを採用し、モダンなSwiftUIと最新のSwift Te
 - 重複した結果が生成されないかの検証
 
 ## スクリーンショット
-| 入力画面 | 抽選結果 |
-| --- | --- |
-| <img width="1206" height="2622" alt="Simulator Screenshot - iPhone 17 Pro - 2026-05-05 at 22 24 40" src="https://github.com/user-attachments/assets/634784c2-474d-47ae-aaae-5d2825b6c501" /> | <img width="1206" height="2622" alt="Simulator Screenshot - iPhone 17 Pro - 2026-05-05 at 22 25 23" src="https://github.com/user-attachments/assets/96bf2776-7c7d-4d6d-9f79-3f01f7e6c8ee" /> |
+| 入力画面 | 座席表モード (v1.1.0) | 番号札モード |
+| --- | --- | --- |
+| <img src="https://github.com/user-attachments/assets/ff33adc0-26ee-4121-a974-1c58fff7fa89" width="300"> | <img src="https://github.com/user-attachments/assets/01368bb6-e813-4f0a-9716-d5281f2324ea" width="300"> | <img src="https://github.com/user-attachments/assets/976fcf35-3955-4760-9228-04764784d339" width="300"> |
 
 ## 開発者
-- mw-wakkun
+- [mw-wakkun](https://github.com/mw-wakkun)
