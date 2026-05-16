@@ -12,6 +12,8 @@ struct AttendeeListView: View {
     @State private var newName: String = ""
     @State private var isShowingResetAlert = false
     @FocusState private var isTextFieldFocused: Bool
+    @State private var isNavigateToSeatingChart = false
+    @State private var isNavigateToSimpleShuffle = false
     
     var body: some View {
         NavigationStack {
@@ -25,7 +27,6 @@ struct AttendeeListView: View {
                         attendeeList
                     }
                 }
-                
                 shuffleButton
             }
             .navigationTitle("サクッと席決め")
@@ -55,6 +56,12 @@ struct AttendeeListView: View {
             }
             .onTapGesture {
                 isTextFieldFocused = false
+            }
+            .navigationDestination(isPresented: $isNavigateToSeatingChart) {
+                presenter.makeSeatingChartView()
+            }
+            .navigationDestination(isPresented: $isNavigateToSimpleShuffle) {
+                presenter.makeSimpleShuffleView()
             }
         }
     }
@@ -106,22 +113,27 @@ private extension AttendeeListView {
     
     var shuffleButton: some View {
         VStack(spacing: 12) {
-            // 1. 本格的な座席表
-            NavigationLink(destination: presenter.makeSeatingChartView()) {
+            // 1. 本格的な座席表ボタン
+            Button(action: {
+                isTextFieldFocused = false
+                isNavigateToSeatingChart = true
+            }) {
                 buttonLabel(text: "座席表で決める", icon: "square.grid.2x2.fill", isPrimary: true)
             }
-            .disabled(presenter.attendees.isEmpty)
+            .disabled(presenter.attendees.isEmpty || !newName.isEmpty)
             
-            // 2. サクッと番号だけ
-            NavigationLink(destination: presenter.makeSimpleShuffleView()) {
+            // 2. サクッと番号札ボタン
+            Button(action: {
+                isTextFieldFocused = false
+                isNavigateToSimpleShuffle = true
+            }) {
                 buttonLabel(text: "番号札で決める（シンプル）", icon: "list.number", isPrimary: false)
             }
-            .disabled(presenter.attendees.isEmpty)
+            .disabled(presenter.attendees.isEmpty || !newName.isEmpty)
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 10)
-        // 参加者0人の時は全体を少し薄くする
-        .opacity(presenter.attendees.isEmpty ? 0.5 : 1.0)
+        .opacity((presenter.attendees.isEmpty || !newName.isEmpty) ? 0.5 : 1.0)
     }
     
     // ボタンの見た目を生成するヘルパー関数
