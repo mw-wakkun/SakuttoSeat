@@ -9,18 +9,22 @@ import SwiftUI
 
 struct SeatingChartView: View {
     @StateObject var presenter: SeatingChartPresenter
-    @State private var isShowingEditAlert = false
     @State private var editingTable: SeatingTable?
     
+    // 画面を左右に2分割するグリッド定義
+    let columns = [
+        GridItem(.flexible(), spacing: 16),
+        GridItem(.flexible(), spacing: 16)
+    ]
+    
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 160))], spacing: 20) {
+                LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(presenter.tables) { table in
-                        SeatingTableView(table: table, presenter: presenter)
-                            .onTapGesture {
-                                editingTable = table
-                            }
+                        SeatingTableView(table: table, presenter: presenter, onEditTarget: {
+                            editingTable = table
+                        })
                     }
                     
                     // テーブル追加ボタン
@@ -32,8 +36,8 @@ struct SeatingChartView: View {
                                 .font(.largeTitle)
                             Text("テーブル追加")
                         }
-                        .frame(minHeight: 120)
                         .frame(maxWidth: .infinity)
+                        .frame(minHeight: 120) // 他のテーブルと高さを合わせる
                         .background(Color.secondary.opacity(0.1))
                         .cornerRadius(12)
                     }
@@ -41,7 +45,7 @@ struct SeatingChartView: View {
                 .padding()
             }
             
-            // シャッフルボタン
+            // 下部の確定ボタン
             Button(action: {
                 presenter.shuffle()
             }) {
@@ -60,7 +64,6 @@ struct SeatingChartView: View {
             TableEditView(table: table, presenter: presenter)
         }
         .onAppear {
-            // まだ誰も配置されていない（全テーブルの assignedMembers が空）場合のみ実行
             if presenter.tables.allSatisfy({ $0.assignedMembers.isEmpty }) {
                 presenter.shuffle()
             }
@@ -72,62 +75,59 @@ struct SeatingChartView: View {
 struct SeatingTableView: View {
     let table: SeatingTable
     @ObservedObject var presenter: SeatingChartPresenter
-    
-    // 2列のグリッドレイアウトを定義（左と右）
-    let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible())
-    ]
+    let onEditTarget: () -> Void // 編集画面を開くためのクロージャを追加
+    let columns = [GridItem(.flexible()), GridItem(.flexible())]
     
     var body: some View {
-        VStack(alignment: .center, spacing: 5) {
-            // 向きラベルの追加
-            if table.orientation != .none {
-                Text(table.orientation.rawValue)
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.orange)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(Color.orange.opacity(0.1))
-                    .cornerRadius(4)
-            }
+        VStack(alignment: .center, spacing: 8) {
             Text(table.name)
                 .font(.caption)
                 .bold()
                 .foregroundColor(.secondary)
             
-            // --- 4人掛けテーブルの視覚的レイアウト ---
             LazyVGrid(columns: columns, spacing: 12) {
-                ForEach(0..<table.capacity, id: \.self) { index in
-                    SeatView(member: index < table.assignedMembers.count ? table.assignedMembers[index] : nil)
+                // 【修正】インデックスではなく、実在するメンバーを直接展開する
+                ForEach(table.assignedMembers) { member in
+                    SeatView(member: member)
+                        .id(member.id.uuidString) // IDを確実に固定
                         .onTapGesture {
-                            if index < table.assignedMembers.count {
-                                presenter.toggleLock(tableId: table.id, memberId: table.assignedMembers[index].id)
-                            }
+                            // 確実にタップされたmember本人のIDが渡る
+                            presenter.toggleLock(tableId: table.id, memberId: member.id)
                         }
                 }
+                
+                // 空席分がある場合は、その数だけ空のシートを描画（タップ不可）
+                if table.assignedMembers.count < table.capacity {
+                    ForEach(0..<(table.capacity - table.assignedMembers.count), id: \.self) { emptyIndex in
+                        SeatView(member: nil)
+                            .id("\(table.id.uuidString)-empty-\(emptyIndex)")
+                    }
+                }
             }
+            .animation(.spring(response: 0.6, dampingFraction: 0.8), value: table.assignedMembers)
         }
         .padding(15)
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: 120)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onEditTarget()
+        }
         .background(
-            // 中央の「机」を表現する背景
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.blue.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.blue.opacity(0.2), lineWidth: 1)
-                )
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white)
+                .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
         )
-        .padding(10)
-        .background(Color.white)
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.blue.opacity(0.1), lineWidth: 1)
+        )
     }
 }
 
-// 1つ1つの「座席」を表現する小さなパーツ
+// 1つ1つの「座席」
 struct SeatView: View {
-    let member: SeatingMember? // StringからSeatingMemberに変更
+    let member: SeatingMember?
     
     var body: some View {
         VStack(spacing: 4) {
@@ -147,16 +147,16 @@ struct SeatView: View {
             Text(member?.name ?? "空席")
                 .font(.system(size: 11, weight: member?.isLocked == true ? .bold : .medium))
                 .foregroundColor(member == nil ? .gray.opacity(0.5) : (member!.isLocked ? .red : .primary))
+                .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
         .background(member?.isLocked == true ? Color.red.opacity(0.05) : Color.gray.opacity(0.03))
         .cornerRadius(6)
-        .animation(.easeInOut, value: member?.id)
     }
 }
 
-// MARK: - 編集用画面 (別ファイルにしてもOK)
+// MARK: - 編集用画面
 struct TableEditView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var presenter: SeatingChartPresenter
@@ -217,11 +217,15 @@ struct TableEditView: View {
                 }
             }
         }
-        .presentationDetents([.medium]) // 半分の高さで表示
+        .presentationDetents([.medium])
     }
 }
 
 // MARK: - Preview用
 #Preview {
-    SeatingChartRouter.assembleModule(attendees: ["田中", "佐藤", "鈴木", "高橋", "伊藤", "渡辺"])
+    let previewAttendees = [
+        Attendee(name: "田中"),
+        Attendee(name: "佐藤")
+    ]
+    return SeatingChartRouter.assembleModule(attendees: previewAttendees)
 }

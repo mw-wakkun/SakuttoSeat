@@ -12,13 +12,11 @@ protocol SeatingChartRouterProtocol {
 }
 
 class SeatingChartRouter: SeatingChartRouterProtocol {
-    // VIPERの各パーツを組み立ててViewを返す静的メソッド
-    static func assembleModule(attendees: [String]) -> AnyView {
+    static func assembleModule(attendees: [Attendee]) -> AnyView {
         let interactor = SeatingChartInteractor()
         let router = SeatingChartRouter()
         let presenter = SeatingChartPresenter(interactor: interactor, router: router, attendees: attendees)
         let view = SeatingChartView(presenter: presenter)
-        
         return AnyView(view)
     }
 }

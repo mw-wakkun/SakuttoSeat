@@ -10,24 +10,38 @@ import Combine
 
 class SeatingChartPresenter: ObservableObject {
     @Published var tables: [SeatingTable] = []
-    
+    private let attendees: [Attendee]
     private let interactor: SeatingChartInteractorProtocol
     private let router: SeatingChartRouterProtocol
     
-    // 前の画面（AttendeeList）から受け取る参加者の名前リスト
-    private let attendees: [String]
-    
-    init(interactor: SeatingChartInteractorProtocol, router: SeatingChartRouterProtocol, attendees: [String]) {
+    init(interactor: SeatingChartInteractorProtocol, router: SeatingChartRouterProtocol, attendees: [Attendee]) {
         self.interactor = interactor
         self.router = router
         self.attendees = attendees
+        setupInitialTables()
+    }
+    
+    private func setupInitialTables() {
+        let attendeeCount = attendees.count
+        let baseCapacity = 4 // 飲み会で一般的な4名席を基準にする
         
-        // 初期レイアウト（テーブルを3つ用意）
-        self.tables = [
-            SeatingTable(name: "テーブルA", capacity: 4),
-            SeatingTable(name: "テーブルB", capacity: 4),
-            SeatingTable(name: "テーブルC", capacity: 6)
-        ]
+        // 必要なテーブル数を算出（例：5人なら2テーブル）
+        let numberOfTables = max(1, Int(ceil(Double(attendeeCount) / Double(baseCapacity))))
+        
+        var initialTables: [SeatingTable] = []
+        
+        for i in 0..<numberOfTables {
+            let letter = String(UnicodeScalar(UInt8(65 + i)))
+            let newTable = SeatingTable(
+                name: "テーブル\(letter)",
+                capacity: baseCapacity,
+                orientation: .none,
+                assignedMembers: []
+            )
+            initialTables.append(newTable)
+        }
+        
+        self.tables = initialTables
     }
     
     // テーブルを追加する処理

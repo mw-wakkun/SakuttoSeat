@@ -49,8 +49,7 @@ class AttendeeListPresenter: ObservableObject {
     
     /// 座席表への遷移用View生成
     func makeSeatingChartView() -> AnyView {
-        let names = attendees.map { $0.name }
-        return router.makeSeatingChartView(attendees: names)
+        return router.makeSeatingChartView(attendees: self.attendees)
     }
     
     /// 番号札への遷移用View生成
