@@ -115,7 +115,7 @@ struct SeatingTableView: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
+                .fill(Color(.secondarySystemGroupedBackground))
                 .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
         )
         .overlay(
@@ -151,7 +151,11 @@ struct SeatView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
-        .background(member?.isLocked == true ? Color.red.opacity(0.05) : Color.gray.opacity(0.03))
+        .background(
+            member?.isLocked == true
+                ? Color.red.opacity(0.1)
+                : Color(.tertiarySystemGroupedBackground)
+        )
         .cornerRadius(6)
     }
 }
