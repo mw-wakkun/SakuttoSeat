@@ -24,7 +24,24 @@ class AttendeeListInteractor: AttendeeListInteractorProtocol {
     }
     
     func addAttendee(name: String) -> [Attendee] {
-        let newAttendee = Attendee(name: name)
+        // 前後の余計な空白や改行をカット
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 空文字の場合は何もせず現在のリストを返す
+        guard !trimmedName.isEmpty else { return attendees }
+        
+        var finalName = trimmedName
+        var count = 2
+        
+        // 【自動リネームロジック】
+        // 既存のリストに全く同じ名前が存在する限り、末尾の番号をインクリメントしながらループ
+        while attendees.contains(where: { $0.name == finalName }) {
+            finalName = "\(trimmedName)(\(count))"
+            count += 1
+        }
+        
+        // 最終的にユニークになった名前で登録
+        let newAttendee = Attendee(name: finalName)
         attendees.append(newAttendee)
         return attendees
     }
