@@ -50,14 +50,19 @@ struct SeatingChartView: View {
                 presenter.shuffle()
             }) {
                 Text("席をサクッと決める")
-                    .font(.headline)
+                    .font(.headline).bold()
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
+                    .frame(height: 56)
+                    .background(Color.sakuttoGradient)
                     .cornerRadius(15)
+                    .shadow(
+                        color: Color.sakuttoBlueStart.opacity(0.3),
+                        radius: 8, x: 0, y: 4
+                    )
             }
-            .padding()
+            .padding(.horizontal, 24)
+            .padding(.bottom, 10)
         }
         .navigationTitle("座席表")
         .sheet(item: $editingTable) { table in
@@ -153,8 +158,8 @@ struct SeatView: View {
         .padding(.vertical, 8)
         .background(
             member?.isLocked == true
-                ? Color.red.opacity(0.1)
-                : Color(.tertiarySystemGroupedBackground)
+            ? Color.red.opacity(0.1)
+            : Color(.tertiarySystemGroupedBackground)
         )
         .cornerRadius(6)
     }
