@@ -25,8 +25,8 @@ class AttendeeListRouter {
     
     /// 座席表画面（SeatingChart）を組み立てて返す
     @MainActor
-    func makeSeatingChartView(attendees: [String]) -> AnyView {
-        // SeatingChartRouter側の組み立てメソッドを呼び出す
+    func makeSeatingChartView(attendees: [Attendee]) -> AnyView {
+        // mapで名前だけにせず、attendeesをそのまま渡す
         return SeatingChartRouter.assembleModule(attendees: attendees)
     }
     

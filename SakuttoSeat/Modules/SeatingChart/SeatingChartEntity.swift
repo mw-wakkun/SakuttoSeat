@@ -28,16 +28,16 @@ enum TableOrientation: String, CaseIterable, Identifiable {
 
 // 参加者モデル
 struct SeatingMember: Identifiable, Equatable {
-    let id = UUID()
+    let id: UUID
     let name: String
     var isLocked: Bool = false
 }
 
-// テーブルモデル（ここを修正！）
+// テーブルモデル
 struct SeatingTable: Identifiable {
     let id = UUID()
     var name: String
     var capacity: Int // 定員
-    var orientation: TableOrientation = .none // ← これを追加！
+    var orientation: TableOrientation = .none
     var assignedMembers: [SeatingMember] = []
 }
