@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		7FBE04182FB8B7F9001D0C1B /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 7FBE04172FB8B7F9001D0C1B /* GoogleMobileAds */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		7FBFFD4A2FAA1C6600797766 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,9 +25,22 @@
 		7FBFFD462FAA1C6600797766 /* SakuttoSeatTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SakuttoSeatTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		7F71C23A2FB8B2C40032B5B6 /* Exceptions for "SakuttoSeat" folder in "SakuttoSeat" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 7F68159E2FA9A76800E0386C /* SakuttoSeat */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		7F6815A12FA9A76800E0386C /* SakuttoSeat */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				7F71C23A2FB8B2C40032B5B6 /* Exceptions for "SakuttoSeat" folder in "SakuttoSeat" target */,
+			);
 			path = SakuttoSeat;
 			sourceTree = "<group>";
 		};
@@ -39,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7FBE04182FB8B7F9001D0C1B /* GoogleMobileAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -57,6 +75,7 @@
 			children = (
 				7F6815A12FA9A76800E0386C /* SakuttoSeat */,
 				7FBFFD472FAA1C6600797766 /* SakuttoSeatTests */,
+				7FBE04162FB8B7F9001D0C1B /* Frameworks */,
 				7F6815A02FA9A76800E0386C /* Products */,
 			);
 			sourceTree = "<group>";
@@ -68,6 +87,13 @@
 				7FBFFD462FAA1C6600797766 /* SakuttoSeatTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		7FBE04162FB8B7F9001D0C1B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -90,6 +116,7 @@
 			);
 			name = SakuttoSeat;
 			packageProductDependencies = (
+				7FBE04172FB8B7F9001D0C1B /* GoogleMobileAds */,
 			);
 			productName = SakuttoSeat;
 			productReference = 7F68159F2FA9A76800E0386C /* SakuttoSeat.app */;
@@ -147,6 +174,9 @@
 			);
 			mainGroup = 7F6815962FA9A76800E0386C;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				7F71C2382FB8B1D00032B5B6 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7F6815A02FA9A76800E0386C /* Products */;
 			projectDirPath = "";
@@ -330,6 +360,7 @@
 				DEVELOPMENT_TEAM = H6KKP4L92Z;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SakuttoSeat/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "サクッと席決め";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -364,6 +395,7 @@
 				DEVELOPMENT_TEAM = H6KKP4L92Z;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SakuttoSeat/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "サクッと席決め";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -463,6 +495,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		7F71C2382FB8B1D00032B5B6 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 13.3.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		7FBE04172FB8B7F9001D0C1B /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7F71C2382FB8B1D00032B5B6 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 7F6815972FA9A76800E0386C /* Project object */;
 }

@@ -17,17 +17,40 @@ struct AttendeeListView: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                inputSection
+            ZStack(alignment: .bottom) {
+                Color(.systemBackground)
+                    .ignoresSafeArea()
                 
-                ZStack {
+                VStack(spacing: 0) {
                     if presenter.attendees.isEmpty {
-                        emptyStateView
+                        Spacer()
+                        VStack(spacing: 24) {
+                            inputSection
+                            emptyStateView
+                                .padding(.horizontal, 24)
+                        }
+                        Spacer()
                     } else {
+                        inputSection
                         attendeeList
                     }
+                    Spacer()
+                        .frame(height: presenter.attendees.isEmpty ? 140 : 190)
                 }
-                shuffleButton
+                
+                VStack(spacing: 0) {
+                    shuffleButton
+                        .padding(.horizontal, 24)
+                        .padding(.top, 16)
+                        .padding(.bottom, 8)
+                        .background(Color(.systemBackground))
+                    
+                    AdBannerView()
+                        .frame(width: 320, height: 50)
+                        .padding(.vertical, 4)
+                        .frame(maxWidth: .infinity)
+                        .background(Color(.systemBackground))
+                }
             }
             .navigationTitle("サクッと席決め")
             .navigationBarTitleDisplayMode(.inline)
@@ -49,7 +72,6 @@ struct AttendeeListView: View {
             }
             .onAppear {
                 presenter.onAppear()
-                // 初回起動時にキーボードを自動展開
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     isTextFieldFocused = true
                 }
@@ -131,8 +153,6 @@ private extension AttendeeListView {
             }
             .disabled(presenter.attendees.isEmpty || !newName.isEmpty)
         }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 10)
         .opacity((presenter.attendees.isEmpty || !newName.isEmpty) ? 0.5 : 1.0)
     }
     
@@ -169,8 +189,9 @@ private extension AttendeeListView {
     }
     
     func addAttendeeProcess() {
-        guard !newName.isEmpty else { return }
-        presenter.didTapAddButton(name: newName)
+        let trimmedName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+        presenter.didTapAddButton(name: trimmedName)
         newName = ""
         isTextFieldFocused = true
     }
