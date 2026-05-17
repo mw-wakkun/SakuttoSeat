@@ -12,41 +12,49 @@ struct SimpleShuffleView: View {
     @StateObject var presenter: SimpleShufflePresenter
     
     var body: some View {
-        List {
-            Section {
-                // 2. presenter.attendees を参照するように修正
-                ForEach(presenter.attendees, id: \.self) { name in
-                    HStack {
-                        ZStack {
-                            Circle()
-                                .fill(Color.blue.opacity(0.1))
-                                .frame(width: 32, height: 32)
-                            if let index = presenter.attendees.firstIndex(of: "\(name)") {
-                                Text("\(index + 1)")
-                                    .font(.system(.subheadline, design: .rounded))
-                                    .bold()
-                                    .foregroundColor(.blue)
+        VStack(spacing: 0) {
+            List {
+                Section {
+                    // 2. presenter.attendees を参照するように修正
+                    ForEach(presenter.attendees, id: \.self) { name in
+                        HStack {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.blue.opacity(0.1))
+                                    .frame(width: 32, height: 32)
+                                if let index = presenter.attendees.firstIndex(of: "\(name)") {
+                                    Text("\(index + 1)")
+                                        .font(.system(.subheadline, design: .rounded))
+                                        .bold()
+                                        .foregroundColor(.blue)
+                                }
                             }
+                            
+                            // 3. presenter から名前を取得
+                            Text(name)
+                                .font(.body)
+                                .padding(.leading, 8)
+                            
+                            Spacer()
+                            
+                            Text("番席")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
                         }
-                        
-                        // 3. presenter から名前を取得
-                        Text(name)
-                            .font(.body)
-                            .padding(.leading, 8)
-                        
-                        Spacer()
-                        
-                        Text("番席")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
+                } header: {
+                    Text("シャッフル結果")
+                } footer: {
+                    Text("この番号の席に座ってもらいましょう。")
                 }
-            } header: {
-                Text("シャッフル結果")
-            } footer: {
-                Text("この番号の席に座ってもらいましょう。")
             }
+            
+            AdBannerView()
+                .frame(width: 320, height: 50)
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity)
+                .background(Color(.systemGroupedBackground))
         }
         .navigationTitle("番号札モード")
         .navigationBarTitleDisplayMode(.inline)
