@@ -10,6 +10,21 @@ import GoogleMobileAds
 
 @main
 struct SakuttoSeatApp: App {
+    init() {
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(Color.sakuttoBlueStart)
+        
+        appearance.titleTextAttributes = [.foregroundColor: UIColor.white, .font: UIFont.boldSystemFont(ofSize: 17)]
+        appearance.largeTitleTextAttributes = [.foregroundColor: UIColor.white]
+        
+        UINavigationBar.appearance().standardAppearance = appearance
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
+        
+        UINavigationBar.appearance().tintColor = .white
+    }
+    
     var body: some Scene {
         WindowGroup {
             AttendeeListRouter.assembleModule()
