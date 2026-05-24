@@ -8,14 +8,20 @@
 import SwiftUI
 
 struct SimpleShuffleView: View {
-    // 1. 引数を Presenter に変更
-    @StateObject var presenter: SimpleShufflePresenter
+    @ObservedObject var presenter: SimpleShufflePresenter
+    
+    private var shareText: String {
+        var text = "【サクッと席決め】シャッフル結果\n"
+        for (index, name) in presenter.attendees.enumerated() {
+            text += "\(index + 1)番席: \(name)\n"
+        }
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
     
     var body: some View {
         VStack(spacing: 0) {
             List {
                 Section {
-                    // 2. presenter.attendees を参照するように修正
                     ForEach(presenter.attendees, id: \.self) { name in
                         HStack {
                             ZStack {
@@ -30,7 +36,6 @@ struct SimpleShuffleView: View {
                                 }
                             }
                             
-                            // 3. presenter から名前を取得
                             Text(name)
                                 .font(.body)
                                 .padding(.leading, 8)
@@ -59,12 +64,44 @@ struct SimpleShuffleView: View {
         .navigationTitle("番号札モード")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    presentShareSheet(with: shareText)
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 4)
+                }
+            }
+            
             ToolbarItem(placement: .primaryAction) {
-                // 4. Presenter のメソッドを呼び出す
-                Button("再シャッフル") {
+                Button {
                     presenter.didTapShuffleButton()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 4)
                 }
             }
         }
+    }
+    
+    private func presentShareSheet(with text: String) {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = windowScene.windows.first?.rootViewController else {
+            return
+        }
+        
+        let activityVC = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        
+        if let popoverController = activityVC.popoverPresentationController {
+            popoverController.sourceView = rootViewController.view
+            popoverController.sourceRect = CGRect(x: rootViewController.view.bounds.midX, y: rootViewController.view.bounds.midY, width: 0, height: 0)
+            popoverController.permittedArrowDirections = []
+        }
+        
+        rootViewController.present(activityVC, animated: true, completion: nil)
     }
 }

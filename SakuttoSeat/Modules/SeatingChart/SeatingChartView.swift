@@ -17,6 +17,36 @@ struct SeatingChartView: View {
         GridItem(.flexible(), spacing: 16)
     ]
     
+    // 座席表の結果を共有するためのテキスト組み立て
+    private var shareText: String {
+        var text = "【サクッと席決め】座席表のシャッフル結果です！\n\n"
+        
+        for table in presenter.tables {
+            text += "━━━━━━━━━━━━━━━━━\n"
+            text += "▼ \(table.name)\n"
+            text += "━━━━━━━━━━━━━━━━━\n"
+            
+            let members = table.assignedMembers
+            
+            if members.isEmpty {
+                text += "（まだメンバーが配置されていません）\n"
+            } else {
+                // テーブル内の各座席の位置をインデックスから判定して記述
+                for (index, member) in members.enumerated() {
+                    // 2列のグリッド（左・右）を想定した位置のラベリング例
+                    let row = (index / 2) + 1  // 行数（1行目、2行目...）
+                    let side = (index % 2 == 0) ? "左" : "右" // 奇数偶数で左右を判定
+                    
+                    text += "🪑 [\(row)列目 · \(side)] : \(member.name)\n"
+                }
+            }
+            text += "\n"
+        }
+        
+        text += "#サクッと席決め"
+        return text
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -65,6 +95,19 @@ struct SeatingChartView: View {
             .padding(.bottom, 10)
         }
         .navigationTitle("座席表")
+        // toolbar（番号札モードと同じデザインを適用）
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    presentShareSheet(with: shareText)
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 4)
+                }
+            }
+        }
         .sheet(item: $editingTable) { table in
             TableEditView(table: table, presenter: presenter)
         }
@@ -74,13 +117,31 @@ struct SeatingChartView: View {
             }
         }
     }
+    
+    // シェアシートを呼び出す
+    private func presentShareSheet(with text: String) {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = windowScene.windows.first?.rootViewController else {
+            return
+        }
+        
+        let activityVC = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        
+        if let popoverController = activityVC.popoverPresentationController {
+            popoverController.sourceView = rootViewController.view
+            popoverController.sourceRect = CGRect(x: rootViewController.view.bounds.midX, y: rootViewController.view.bounds.midY, width: 0, height: 0)
+            popoverController.permittedArrowDirections = []
+        }
+        
+        rootViewController.present(activityVC, animated: true, completion: nil)
+    }
 }
 
 // MARK: - 個別のテーブル表示用コンポーネント
 struct SeatingTableView: View {
     let table: SeatingTable
     @ObservedObject var presenter: SeatingChartPresenter
-    let onEditTarget: () -> Void // 編集画面を開くためのクロージャを追加
+    let onEditTarget: () -> Void
     let columns = [GridItem(.flexible()), GridItem(.flexible())]
     
     var body: some View {
@@ -91,17 +152,14 @@ struct SeatingTableView: View {
                 .foregroundColor(.secondary)
             
             LazyVGrid(columns: columns, spacing: 12) {
-                // 【修正】インデックスではなく、実在するメンバーを直接展開する
                 ForEach(table.assignedMembers) { member in
                     SeatView(member: member)
-                        .id(member.id.uuidString) // IDを確実に固定
+                        .id(member.id.uuidString)
                         .onTapGesture {
-                            // 確実にタップされたmember本人のIDが渡る
                             presenter.toggleLock(tableId: table.id, memberId: member.id)
                         }
                 }
                 
-                // 空席分がある場合は、その数だけ空のシートを描画（タップ不可）
                 if table.assignedMembers.count < table.capacity {
                     ForEach(0..<(table.capacity - table.assignedMembers.count), id: \.self) { emptyIndex in
                         SeatView(member: nil)
@@ -228,13 +286,4 @@ struct TableEditView: View {
         }
         .presentationDetents([.medium])
     }
-}
-
-// MARK: - Preview用
-#Preview {
-    let previewAttendees = [
-        Attendee(name: "田中"),
-        Attendee(name: "佐藤")
-    ]
-    return SeatingChartRouter.assembleModule(attendees: previewAttendees)
 }
