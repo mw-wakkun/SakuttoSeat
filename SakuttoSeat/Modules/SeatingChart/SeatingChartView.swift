@@ -31,11 +31,9 @@ struct SeatingChartView: View {
             if members.isEmpty {
                 text += "（まだメンバーが配置されていません）\n"
             } else {
-                // テーブル内の各座席の位置をインデックスから判定して記述
                 for (index, member) in members.enumerated() {
-                    // 2列のグリッド（左・右）を想定した位置のラベリング例
-                    let row = (index / 2) + 1  // 行数（1行目、2行目...）
-                    let side = (index % 2 == 0) ? "左" : "右" // 奇数偶数で左右を判定
+                    let row = (index / 2) + 1
+                    let side = (index % 2 == 0) ? "左" : "右"
                     
                     text += "🪑 [\(row)列目 · \(side)] : \(member.name)\n"
                 }
@@ -48,7 +46,11 @@ struct SeatingChartView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack(alignment: .bottom) {
+            Color(.systemBackground)
+                .ignoresSafeArea()
+            
+            // メインの座席表コンテンツ（下部の広告に被らないようセーフエリアを考慮）
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(presenter.tables) { table in
@@ -67,44 +69,41 @@ struct SeatingChartView: View {
                             Text("テーブル追加")
                         }
                         .frame(maxWidth: .infinity)
-                        .frame(minHeight: 120) // 他のテーブルと高さを合わせる
+                        .frame(minHeight: 120)
                         .background(Color.secondary.opacity(0.1))
                         .cornerRadius(12)
                     }
                 }
                 .padding()
+                // 広告バナーと最後のコンテンツが被らないように底上げの余白を確保
+                .padding(.bottom, 70)
             }
             
-            // 下部の確定ボタン
-            Button(action: {
-                presenter.shuffle()
-            }) {
-                Text("席をサクッと決める")
-                    .font(.headline).bold()
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(Color.sakuttoGradient)
-                    .cornerRadius(15)
-                    .shadow(
-                        color: Color.sakuttoBlueStart.opacity(0.3),
-                        radius: 8, x: 0, y: 4
-                    )
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 10)
+            // 下部：広告バナーエリアのみをすっきり配置
+            AdBannerView()
+                .frame(width: 320, height: 50)
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity)
+                .background(Color(.systemBackground))
         }
         .navigationTitle("座席表")
-        // toolbar（番号札モードと同じデザインを適用）
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                // シェアボタン
                 Button {
                     presentShareSheet(with: shareText)
                 } label: {
                     Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 4)
+                        .font(.body)
+                }
+                
+                // 再シャッフルボタン
+                Button {
+                    presenter.shuffle()
+                } label: {
+                    Image(systemName: "shuffle")
+                        .font(.body).bold()
                 }
             }
         }

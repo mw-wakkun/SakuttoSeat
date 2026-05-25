@@ -64,25 +64,21 @@ struct SimpleShuffleView: View {
         .navigationTitle("番号札モード")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                // シェアボタン
                 Button {
                     presentShareSheet(with: shareText)
                 } label: {
                     Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 4)
+                        .font(.body)
                 }
-            }
-            
-            ToolbarItem(placement: .primaryAction) {
+                
+                // 再シャッフルボタン
                 Button {
                     presenter.didTapShuffleButton()
                 } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 4)
+                    Image(systemName: "shuffle")
+                        .font(.body).bold()
                 }
             }
         }
