@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct AttendeeListView: View {
     @StateObject var presenter: AttendeeListPresenter
@@ -14,6 +15,16 @@ struct AttendeeListView: View {
     @FocusState private var isTextFieldFocused: Bool
     @State private var isNavigateToSeatingChart = false
     @State private var isNavigateToSimpleShuffle = false
+    
+    // MARK: - SwiftDataのモデルコンテキスト
+    @Environment(\.modelContext) private var modelContext
+    
+    // MARK: - お気に入り機能用のState
+    @Query(sort: \GroupFavorite.createdAt, order: .reverse) private var favoriteGroups: [GroupFavorite]
+    @State private var isShowingSaveAlert = false
+    @State private var isShowingLimitAlert = false
+    @State private var isShowingFavoriteSheet = false
+    @State private var newGroupName: String = ""
     
     var body: some View {
         NavigationStack {
@@ -58,8 +69,40 @@ struct AttendeeListView: View {
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    resetButton
+                ToolbarItem(placement: .navigationBarLeading) {
+                    // お気に入りアイコン
+                    Button(action: {
+                        isTextFieldFocused = false
+                        isShowingFavoriteSheet = true
+                    }) {
+                        Image(systemName: "star.fill")
+                            .font(.body)
+                    }
+                }
+                
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    // 保存ボタン
+                    Button(action: {
+                        isTextFieldFocused = false
+                        if favoriteGroups.count >= 3 {
+                            isShowingLimitAlert = true
+                        } else {
+                            isShowingSaveAlert = true
+                        }
+                    }) {
+                        Image(systemName: "square.and.arrow.down")
+                    }
+                    .disabled(presenter.attendees.isEmpty)
+                    .opacity(presenter.attendees.isEmpty ? 0.3 : 1.0)
+                    
+                    // リセットボタン
+                    Button(action: {
+                        isShowingResetAlert = true
+                    }) {
+                        Image(systemName: "trash")
+                    }
+                    .disabled(presenter.attendees.isEmpty)
+                    .opacity(presenter.attendees.isEmpty ? 0.3 : 1.0)
                 }
             }
             .alert("参加者のリセット", isPresented: $isShowingResetAlert) {
@@ -69,6 +112,26 @@ struct AttendeeListView: View {
                 }
             } message: {
                 Text("参加者リストを全員削除してもよろしいですか？")
+            }
+            // グループ保存用名入れアラート
+            .alert("お気に入り登録", isPresented: $isShowingSaveAlert) {
+                TextField("グループ名（例: 同期、〇〇課）", text: $newGroupName)
+                Button("キャンセル", role: .cancel) { newGroupName = "" }
+                Button("保存") {
+                    saveCurrentAttendeesProcess()
+                }
+            } message: {
+                Text("現在のメンバーをグループとして保存します。")
+            }
+            // 上限到達アラート
+            .alert("お気に入り上限", isPresented: $isShowingLimitAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("保存できるグループは最大3個までとなっています。新しいグループを保存するには、お気に入り一覧から既存のグループを削除してください。")
+            }
+            // お気に入り一覧を表示するハーフシート
+            .sheet(isPresented: $isShowingFavoriteSheet) {
+                favoriteGroupSheetView
             }
             .onAppear {
                 presenter.onAppear()
@@ -89,7 +152,104 @@ struct AttendeeListView: View {
     }
 }
 
-// MARK: - Subviews
+// MARK: - サブビュー（お気に入り関連）
+private extension AttendeeListView {
+    var favoriteMenuButton: some View {
+        Button(action: {
+            isTextFieldFocused = false
+            isShowingFavoriteSheet = true
+        }) {
+            HStack(spacing: 4) {
+                Image(systemName: "star.fill")
+                Text("お気に入り")
+                    .font(.subheadline).bold()
+            }
+        }
+    }
+    
+    var saveGroupButton: some View {
+        Button(action: {
+            isTextFieldFocused = false
+            if favoriteGroups.count >= 3 {
+                isShowingLimitAlert = true
+            } else {
+                isShowingSaveAlert = true
+            }
+        }) {
+            Image(systemName: "square.and.arrow.down")
+        }
+        .disabled(presenter.attendees.isEmpty)
+        .opacity(presenter.attendees.isEmpty ? 0.3 : 1.0)
+    }
+    
+    func saveCurrentAttendeesProcess() {
+        let trimmedGroupName = newGroupName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedGroupName.isEmpty else { return }
+        
+        // PresenterにContextを渡して保存
+        presenter.didTapSaveFavoriteGroup(name: trimmedGroupName, context: modelContext)
+        newGroupName = ""
+    }
+    
+    // MARK: - お気に入り一覧を表示するハーフシート
+    var favoriteGroupSheetView: some View {
+        NavigationStack {
+            Group {
+                if favoriteGroups.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "star.slash")
+                            .font(.system(size: 50))
+                            .foregroundColor(.gray.opacity(0.5))
+                        Text("登録されているグループはありません")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                } else {
+                    List {
+                        ForEach(favoriteGroups) { group in
+                            Button(action: {
+                                presenter.didSelectFavoriteGroup(group)
+                                isShowingFavoriteSheet = false
+                            }) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(group.name)
+                                        .font(.headline)
+                                        .foregroundColor(.primary)
+                                    Text(group.members.joined(separator: ", "))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
+                        }
+                        .onDelete { offsets in
+                            for index in offsets {
+                                let group = favoriteGroups[index]
+                                presenter.didDeleteFavoriteGroup(group, context: modelContext)
+                            }
+                        }
+                    }
+                    .listStyle(.plain)
+                }
+            }
+            .navigationTitle("お気に入りグループ")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                // 左側：編集ボタン（編集中は「完了」に自動で切り替わります）
+                ToolbarItem(placement: .navigationBarLeading) {
+                    EditButton()
+                }
+                
+                // 右側：閉じるボタン
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("閉じる") { isShowingFavoriteSheet = false }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+}
+
 private extension AttendeeListView {
     var inputSection: some View {
         HStack {
@@ -135,7 +295,6 @@ private extension AttendeeListView {
     
     var shuffleButton: some View {
         VStack(spacing: 12) {
-            // 1. 本格的な座席表ボタン
             Button(action: {
                 isTextFieldFocused = false
                 isNavigateToSeatingChart = true
@@ -144,7 +303,6 @@ private extension AttendeeListView {
             }
             .disabled(presenter.attendees.isEmpty || !newName.isEmpty)
             
-            // 2. サクッと番号札ボタン
             Button(action: {
                 isTextFieldFocused = false
                 isNavigateToSimpleShuffle = true
@@ -156,7 +314,6 @@ private extension AttendeeListView {
         .opacity((presenter.attendees.isEmpty || !newName.isEmpty) ? 0.5 : 1.0)
     }
     
-    // ボタンの見た目を生成するヘルパー関数
     private func buttonLabel(text: String, icon: String, isPrimary: Bool) -> some View {
         HStack {
             Image(systemName: icon)
@@ -165,7 +322,7 @@ private extension AttendeeListView {
         .font(.headline).bold()
         .foregroundColor(isPrimary ? .white : .blue)
         .frame(maxWidth: .infinity)
-        .frame(height: 56) // 高さを固定して揃える
+        .frame(height: 56)
         .background(
             isPrimary ?
             AnyView(Color.sakuttoGradient) :
@@ -197,6 +354,7 @@ private extension AttendeeListView {
     }
 }
 
+// MARK: - Row & Colors
 struct AttendeeRow: View {
     let index: Int
     let name: String
@@ -227,7 +385,6 @@ struct AttendeeRow: View {
     }
 }
 
-// MARK: - Theme Colors
 extension Color {
     static let sakuttoBlueStart = Color(red: 0.0, green: 0.4, blue: 0.9)
     static let sakuttoBlueEnd = Color(red: 0.3, green: 0.7, blue: 1.0)

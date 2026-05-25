@@ -7,6 +7,7 @@
 
 import SwiftUI
 import GoogleMobileAds
+import SwiftData
 
 @main
 struct SakuttoSeatApp: App {
@@ -32,5 +33,6 @@ struct SakuttoSeatApp: App {
                     await MobileAds.shared.start()
                 }
         }
+        .modelContainer(for: GroupFavorite.self)
     }
 }
