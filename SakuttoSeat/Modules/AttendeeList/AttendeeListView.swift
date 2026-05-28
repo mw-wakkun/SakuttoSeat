@@ -195,42 +195,49 @@ private extension AttendeeListView {
     var favoriteGroupSheetView: some View {
         NavigationStack {
             Group {
-                if favoriteGroups.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "star.slash")
-                            .font(.system(size: 50))
-                            .foregroundColor(.gray.opacity(0.5))
-                        Text("登録されているグループはありません")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                } else {
-                    List {
-                        ForEach(favoriteGroups) { group in
-                            Button(action: {
-                                presenter.didSelectFavoriteGroup(group)
-                                isShowingFavoriteSheet = false
-                            }) {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(group.name)
-                                        .font(.headline)
-                                        .foregroundColor(.primary)
-                                    Text(group.members.joined(separator: ", "))
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
+                // Always show a List to avoid switching between a List and another
+                // container view (which can trigger UICollectionView batch update
+                // inconsistencies when the data source changes during updates).
+                List {
+                    if favoriteGroups.isEmpty {
+                        Section {
+                            VStack(spacing: 16) {
+                                Image(systemName: "star.slash")
+                                    .font(.system(size: 50))
+                                    .foregroundColor(.gray.opacity(0.5))
+                                Text("登録されているグループはありません")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 120)
+                            .listRowInsets(EdgeInsets())
+                        }
+                    } else {
+                        Section {
+                            ForEach(favoriteGroups, id: \.id) { group in
+                                Button(action: {
+                                    presenter.didSelectFavoriteGroup(group)
+                                    isShowingFavoriteSheet = false
+                                }) {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text(group.name)
+                                            .font(.headline)
+                                            .foregroundColor(.primary)
+                                        Text(group.members.joined(separator: ", "))
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(1)
+                                    }
                                 }
                             }
-                        }
-                        .onDelete { offsets in
-                            for index in offsets {
-                                let group = favoriteGroups[index]
-                                presenter.didDeleteFavoriteGroup(group, context: modelContext)
+                            .onDelete { offsets in
+                                // Let Presenter resolve offsets and perform deletion safely.
+                                presenter.didDeleteFavoriteGroups(at: offsets, context: modelContext)
                             }
                         }
                     }
-                    .listStyle(.plain)
                 }
+                .listStyle(.plain)
             }
             .navigationTitle("お気に入りグループ")
             .navigationBarTitleDisplayMode(.inline)
