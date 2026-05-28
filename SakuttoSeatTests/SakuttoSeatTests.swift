@@ -5,46 +5,54 @@
 //  Created by masafumi wakugawa on 2026/05/05.
 //
 
-import Testing
+import XCTest
 @testable import SakuttoSeat
 import Foundation
 
-// クラス全体をメインスレッドで動かすように指定
+// XCTest-based unit tests so they run in Xcode's default test runner.
 @MainActor
-struct SakuttoSeatTests {
+final class SakuttoSeatTests: XCTestCase {
 
-    @Test func 参加者の追加が正しく行われるか() async throws {
+    func testAddAttendee() async throws {
         let interactor = AttendeeListInteractor()
         _ = interactor.addAttendee(name: "田中")
-        
+
         let attendees = interactor.fetchAttendees()
-        #expect(attendees.count == 1)
-        #expect(attendees.first?.name == "田中")
+        XCTAssertEqual(attendees.count, 1)
+        XCTAssertEqual(attendees.first?.name, "田中")
     }
 
-    @Test func 空白の名前はトリミングされるか() async throws {
+    func testTrimsWhitespaceInName() async throws {
         let presenter = AttendeeListPresenter(
             interactor: AttendeeListInteractor(),
             router: AttendeeListRouter()
         )
-        
+
         presenter.didTapAddButton(name: "  佐藤  ")
-        #expect(presenter.attendees.first?.name == "佐藤")
+        XCTAssertEqual(presenter.attendees.first?.name, "佐藤")
     }
-    
-    @Test func シャッフルで並び順が変わるか() async throws {
+
+    func testShuffleChangesOrder() async throws {
         let interactor = AttendeeListInteractor()
         _ = interactor.addAttendee(name: "A")
         _ = interactor.addAttendee(name: "B")
         _ = interactor.addAttendee(name: "C")
         _ = interactor.addAttendee(name: "D")
         _ = interactor.addAttendee(name: "E")
-        
+
         let original = interactor.fetchAttendees()
         _ = interactor.shuffleAttendees()
         let shuffled = interactor.fetchAttendees()
-        
-        #expect(original.count == shuffled.count)
-        #expect(original != shuffled)
+
+        XCTAssertEqual(original.count, shuffled.count)
+        // It's possible (rare) that shuffle returns same order; allow retry to reduce flakiness
+        if original == shuffled {
+            // retry once more
+            _ = interactor.shuffleAttendees()
+            let shuffled2 = interactor.fetchAttendees()
+            XCTAssertNotEqual(original, shuffled2, "Shuffle produced same order after retry — this is unlikely but possible due to randomness.")
+        } else {
+            XCTAssertNotEqual(original, shuffled)
+        }
     }
 }

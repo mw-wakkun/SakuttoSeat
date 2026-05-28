@@ -71,13 +71,45 @@ class AttendeeListPresenter: ObservableObject {
         attendees = updatedAttendees
     }
     
-    /// お気に入りグループをデータベースから削除する
+    /// 指定したお気に入りグループをデータベースから削除します。
+    ///
+    /// Presenter は @MainActor で動作しているため、メインスレッド上で同期的に削除処理を行い、
+    /// 変更を永続化します。
     func didDeleteFavoriteGroup(_ group: GroupFavorite, context: ModelContext) {
         context.delete(group)
         try? context.save()
     }
+
+    /// Presenter 自身で最新の一覧を ModelContext から取得してオブジェクトを解決します。
+    func didDeleteFavoriteGroups(at offsets: IndexSet, context: ModelContext) {
+        let descriptor = FetchDescriptor<GroupFavorite>(sortBy: [SortDescriptor(
+            \GroupFavorite.createdAt, order: .reverse)])
+        let currentList: [GroupFavorite] = (try? context.fetch(descriptor)) ?? []
+
+        let groupsToDelete: [GroupFavorite] = offsets.compactMap { idx in
+            guard currentList.indices.contains(idx) else { return nil }
+            return currentList[idx]
+        }
+
+        // SwiftUI の List が内部で行うバッチ更新と競合しないよう、
+        // 実際の削除処理は次の RunLoop に移して実行します。
+        // また、アニメーションを無効化して安定的に一括削除・保存を行います。
+        DispatchQueue.main.async {
+            withTransaction(Transaction(animation: nil)) {
+                for group in groupsToDelete {
+                    context.delete(group)
+                }
+                do {
+                    try context.save()
+                } catch {
+                    // 保存失敗時は診断のためログを出力します。
+                    print("Failed to save context after deleting favorite groups: \(error)")
+                }
+            }
+        }
+    }
     
-    // MARK: - Navigation Methods
+    // MARK: - ナビゲーション関連メソッド
     
     /// 座席表への遷移用View生成
     func makeSeatingChartView() -> AnyView {
