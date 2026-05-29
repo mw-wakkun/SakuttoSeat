@@ -145,10 +145,23 @@ struct SeatingTableView: View {
     
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
-            Text(table.name)
-                .font(.caption)
-                .bold()
-                .foregroundColor(.secondary)
+            VStack(spacing: 4) {
+                Text(table.name)
+                    .font(.caption)
+                    .bold()
+                    .foregroundColor(.secondary)
+                
+                // 「設定なし」以外の場合に、ステージ側や窓際などの向きバッジを表示
+                if table.orientation != .none {
+                    Text(table.orientation.rawValue)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(4)
+                }
+            }
             
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(table.assignedMembers) { member in

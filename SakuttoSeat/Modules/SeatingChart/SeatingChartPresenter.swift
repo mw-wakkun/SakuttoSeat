@@ -70,10 +70,16 @@ class SeatingChartPresenter: ObservableObject {
     
     func updateTable(id: UUID, newName: String, newCapacity: Int, newOrientation: TableOrientation) {
         if let index = tables.firstIndex(where: { $0.id == id }) {
-            tables[index].name = newName
-            tables[index].capacity = newCapacity
-            tables[index].orientation = newOrientation
-            // 向きの変更だけならシャッフルし直す必要はないので、そのままにする
+            // アニメーション付きで変更を確実にViewへ通知する
+            withAnimation(.easeInOut(duration: 0.25)) {
+                var updatedTable = tables[index]
+                updatedTable.name = newName
+                updatedTable.capacity = newCapacity
+                updatedTable.orientation = newOrientation
+                
+                // 配列の要素自体を新しい構造体で置き換えることで、@Published の変更通知を確実に飛ばします
+                tables[index] = updatedTable
+            }
         }
     }
     
