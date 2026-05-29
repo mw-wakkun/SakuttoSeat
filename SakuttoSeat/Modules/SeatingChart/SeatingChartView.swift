@@ -271,6 +271,7 @@ struct TableEditView: View {
                 }
             }
             .navigationTitle("テーブル編集")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
