@@ -18,7 +18,7 @@ struct AdBannerView: UIViewRepresentable {
         // デバッグ時は、Google公式テストIDを使用
         banner.adUnitID = "ca-app-pub-3940256099942544/2934735716"
         #else
-        banner.adUnitID = "ca-app-pub-4933931445771146/1029143922"
+        banner.adUnitID = "ca-app-pub-9676260030977388/3254679876"
         #endif
         
         // 広告を表示するViewControllerを設定
