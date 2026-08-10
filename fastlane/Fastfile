@@ -1,0 +1,59 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:ios)
+
+platform :ios do
+  desc "App Store Connectへのビルド・アップロード・タグ付け・GitHub Releaseの全自動化"
+  lane :release do |options|
+    if options[:version]
+      increment_version_number(
+        version_number: options[:version],
+        xcodeproj: "SakuttoSeat.xcodeproj" # ※実際の .xcodeproj 名
+      )
+    end
+
+    increment_build_number(
+      xcodeproj: "SakuttoSeat.xcodeproj"
+    )
+
+    build_app(
+      scheme: "SakuttoSeat", # ※実際の Scheme 名
+      export_method: "app-store"
+    )
+
+    upload_to_app_store(
+      skip_metadata: true,
+      skip_screenshots: true,
+      force: true
+    )
+
+    version = get_version_number(xcodeproj: "SakuttoSeat.xcodeproj")
+    build = get_build_number(xcodeproj: "SakuttoSeat.xcodeproj")
+    
+    git_commit(path: ".", message: "bump: Release v#{version} (#{build})")
+    add_git_tag(tag: "v#{version}")
+    push_to_git_remote
+
+    # GitHub Release を自動作成
+    set_github_release(
+      repository_name: "mw-wakkun/SakuttoSeat", # ※実際の GitHub リポジトリ名 (ユーザー名/リポジトリ名)
+      api_token: ENV["GITHUB_TOKEN"],
+      name: "v#{version}",
+      tag_name: "v#{version}",
+      is_generate_release_notes: true
+    )
+  end
+end
