@@ -40,7 +40,7 @@ git commit -m "$MESSAGE"
 # 2. Fastlaneの実行（レーン名: release を指定）
 # ※バージョン番号の更新、ビルド、アップロード、リリース用コミット＆タグ付け、PushまでをFastlaneに任せる
 echo "🍎 2. FastlaneでApp Storeへアップロード＆リリース処理を実行しています..."
-bundle exec fastlane release version:"$VERSION"
+fastlane release version:"$VERSION"
 
 echo "----------------------------------------"
 echo "✅ すべての処理が完了しました！"
