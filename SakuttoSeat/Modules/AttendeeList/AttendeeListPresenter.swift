@@ -22,27 +22,26 @@ class AttendeeListPresenter: ObservableObject {
     }
     
     func onAppear() {
-        attendees = interactor.fetchAttendees()
+        attendees = interactor.allAttendees()
     }
     
     func didTapAddButton(name: String) {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty else { return }
-        attendees = interactor.addAttendee(name: trimmedName)
+        // インタラクターがトリミングと検証を処理するため、PresenterはシンプルなままにするPolicyで統一
+        attendees = interactor.add(name: name)
     }
     
     func didTapShuffleButton() {
-        attendees = interactor.shuffleAttendees()
+        attendees = interactor.shuffle()
     }
     
     func didDeleteAttendee(at offsets: IndexSet) {
         offsets.forEach { _ in
-            attendees = interactor.removeAttendee(at: offsets)
+            attendees = interactor.remove(atOffsets: offsets)
         }
     }
     
     func didTapResetButton() {
-        attendees = interactor.resetAttendees()
+        attendees = interactor.removeAll()
     }
     
     // MARK: - お気に入りグループ機能
@@ -59,12 +58,12 @@ class AttendeeListPresenter: ObservableObject {
     /// 選択されたお気に入りグループから参加者リストを上書き読み込みする
     func didSelectFavoriteGroup(_ group: GroupFavorite) {
         // 現在のリストをリセット
-        _ = interactor.resetAttendees()
+        _ = interactor.removeAll()
         
         // グループに保存されている名前を順番にインスペクター経由で追加
         var updatedAttendees: [Attendee] = []
         for name in group.members {
-            updatedAttendees = interactor.addAttendee(name: name)
+            updatedAttendees = interactor.add(name: name)
         }
         
         // 画面の表示を更新
@@ -120,5 +119,11 @@ class AttendeeListPresenter: ObservableObject {
     func makeSimpleShuffleView() -> AnyView {
         let names = attendees.map { $0.name }
         return router.makeSimpleShuffleView(attendees: names)
+    }
+    
+    func didTapBulkAddButton(text: String) {
+        interactor.add(fromText: text)
+        // インタラクターから最新の参加者リストを取得して画面を更新
+        attendees = interactor.allAttendees()
     }
 }

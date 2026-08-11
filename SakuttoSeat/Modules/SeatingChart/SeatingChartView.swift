@@ -11,13 +11,13 @@ struct SeatingChartView: View {
     @StateObject var presenter: SeatingChartPresenter
     @State private var editingTable: SeatingTable?
     
-    // 画面を左右に2分割するグリッド定義
+    // 画面全体（テーブル同士）を左右に2分割するグリッド定義
     let columns = [
         GridItem(.flexible(), spacing: 16),
         GridItem(.flexible(), spacing: 16)
     ]
     
-    // 座席表の結果を共有するためのテキスト組み立て
+    // 座席表 Result を共有するためのテキスト組み立て（列数に対応）
     private var shareText: String {
         var text = "【サクッと席決め】座席表のシャッフル結果です！\n\n"
         
@@ -27,15 +27,21 @@ struct SeatingChartView: View {
             text += "━━━━━━━━━━━━━━━━━\n"
             
             let members = table.assignedMembers
+            let colCount = max(1, table.columnCount)
             
             if members.isEmpty {
                 text += "（まだメンバーが配置されていません）\n"
             } else {
                 for (index, member) in members.enumerated() {
-                    let row = (index / 2) + 1
-                    let side = (index % 2 == 0) ? "左" : "右"
+                    let row = (index / colCount) + 1
+                    let col = (index % colCount) + 1
                     
-                    text += "🪑 [\(row)列目 · \(side)] : \(member.name)\n"
+                    if colCount == 2 {
+                        let side = (index % 2 == 0) ? "左" : "右"
+                        text += "🪑 [\(row)列目 · \(side)] : \(member.name)\n"
+                    } else {
+                        text += "🪑 [\(row)行\(col)列目] : \(member.name)\n"
+                    }
                 }
             }
             text += "\n"
@@ -50,7 +56,7 @@ struct SeatingChartView: View {
             Color(.systemBackground)
                 .ignoresSafeArea()
             
-            // メインの座席表コンテンツ（下部の広告に被らないようセーフエリアを考慮）
+            // メインの座席表コンテンツ
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(presenter.tables) { table in
@@ -75,11 +81,10 @@ struct SeatingChartView: View {
                     }
                 }
                 .padding()
-                // 広告バナーと最後のコンテンツが被らないように底上げの余白を確保
                 .padding(.bottom, 70)
             }
             
-            // 下部：広告バナーエリアのみをすっきり配置
+            // 下部：広告バナーエリア
             AdBannerView()
                 .frame(width: 320, height: 50)
                 .padding(.vertical, 4)
@@ -141,7 +146,11 @@ struct SeatingTableView: View {
     let table: SeatingTable
     @ObservedObject var presenter: SeatingChartPresenter
     let onEditTarget: () -> Void
-    let columns = [GridItem(.flexible()), GridItem(.flexible())]
+    
+    // テーブルの設定列数に応じた動的グリッド
+    private var tableColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 8), count: max(1, table.columnCount))
+    }
     
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
@@ -151,7 +160,6 @@ struct SeatingTableView: View {
                     .bold()
                     .foregroundColor(.secondary)
                 
-                // 「設定なし」以外の場合に、ステージ側や窓際などの向きバッジを表示
                 if table.orientation != .none {
                     Text(table.orientation.rawValue)
                         .font(.system(size: 10, weight: .semibold))
@@ -163,7 +171,7 @@ struct SeatingTableView: View {
                 }
             }
             
-            LazyVGrid(columns: columns, spacing: 12) {
+            LazyVGrid(columns: tableColumns, spacing: 12) {
                 ForEach(table.assignedMembers) { member in
                     SeatView(member: member)
                         .id(member.id.uuidString)
@@ -242,6 +250,7 @@ struct TableEditView: View {
     
     @State private var name: String
     @State private var capacity: Int
+    @State private var columnCount: Int
     @State private var orientation: TableOrientation
     let tableId: UUID
     
@@ -250,6 +259,7 @@ struct TableEditView: View {
         self.tableId = table.id
         _name = State(initialValue: table.name)
         _capacity = State(initialValue: table.capacity)
+        _columnCount = State(initialValue: table.columnCount)
         _orientation = State(initialValue: table.orientation)
     }
     
@@ -259,6 +269,7 @@ struct TableEditView: View {
                 Section("基本設定") {
                     TextField("テーブル名", text: $name)
                     Stepper("定員: \(capacity)人", value: $capacity, in: 2...10)
+                    Stepper("横の列数: \(columnCount)列", value: $columnCount, in: 1...4)
                 }
                 
                 Section("会場レイアウト（向き）") {
@@ -288,7 +299,13 @@ struct TableEditView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
-                        presenter.updateTable(id: tableId, newName: name, newCapacity: capacity, newOrientation: orientation)
+                        presenter.updateTable(
+                            id: tableId,
+                            newName: name,
+                            newCapacity: capacity,
+                            newColumnCount: columnCount,
+                            newOrientation: orientation
+                        )
                         dismiss()
                     }
                 }
@@ -297,6 +314,6 @@ struct TableEditView: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
     }
 }

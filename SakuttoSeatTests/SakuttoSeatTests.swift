@@ -9,15 +9,15 @@ import XCTest
 @testable import SakuttoSeat
 import Foundation
 
-// XCTest-based unit tests so they run in Xcode's default test runner.
+// Xcode のデフォルトテストランナーで実行できるXCTestベースのユニットテスト
 @MainActor
 final class SakuttoSeatTests: XCTestCase {
 
     func testAddAttendee() async throws {
         let interactor = AttendeeListInteractor()
-        _ = interactor.addAttendee(name: "田中")
+        _ = interactor.add(name: "田中")
 
-        let attendees = interactor.fetchAttendees()
+        let attendees = interactor.allAttendees()
         XCTAssertEqual(attendees.count, 1)
         XCTAssertEqual(attendees.first?.name, "田中")
     }
@@ -34,23 +34,23 @@ final class SakuttoSeatTests: XCTestCase {
 
     func testShuffleChangesOrder() async throws {
         let interactor = AttendeeListInteractor()
-        _ = interactor.addAttendee(name: "A")
-        _ = interactor.addAttendee(name: "B")
-        _ = interactor.addAttendee(name: "C")
-        _ = interactor.addAttendee(name: "D")
-        _ = interactor.addAttendee(name: "E")
+        _ = interactor.add(name: "A")
+        _ = interactor.add(name: "B")
+        _ = interactor.add(name: "C")
+        _ = interactor.add(name: "D")
+        _ = interactor.add(name: "E")
 
-        let original = interactor.fetchAttendees()
-        _ = interactor.shuffleAttendees()
-        let shuffled = interactor.fetchAttendees()
+        let original = interactor.allAttendees()
+        _ = interactor.shuffle()
+        let shuffled = interactor.allAttendees()
 
         XCTAssertEqual(original.count, shuffled.count)
-        // It's possible (rare) that shuffle returns same order; allow retry to reduce flakiness
+        // シャッフルが同じ順序を返す可能性は低いが存在するため、リトライで安定性を確保
         if original == shuffled {
-            // retry once more
-            _ = interactor.shuffleAttendees()
-            let shuffled2 = interactor.fetchAttendees()
-            XCTAssertNotEqual(original, shuffled2, "Shuffle produced same order after retry — this is unlikely but possible due to randomness.")
+            // もう一度リトライ
+            _ = interactor.shuffle()
+            let shuffled2 = interactor.allAttendees()
+            XCTAssertNotEqual(original, shuffled2, "シャッフルがリトライ後も同じ順序を返した — ランダム性により稀だが可能")
         } else {
             XCTAssertNotEqual(original, shuffled)
         }

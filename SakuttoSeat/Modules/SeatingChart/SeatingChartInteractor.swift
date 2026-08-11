@@ -8,6 +8,7 @@
 import Foundation
 
 protocol SeatingChartInteractorProtocol {
+    /// 参加者リストを指定されたテーブル群に分配・シャッフルしてテーブル配置を更新する
     func shuffleAndAssign(attendees: [Attendee], to tables: [SeatingTable]) -> [SeatingTable]
 }
 
@@ -15,7 +16,7 @@ class SeatingChartInteractor: SeatingChartInteractorProtocol {
     func shuffleAndAssign(attendees: [Attendee], to tables: [SeatingTable]) -> [SeatingTable] {
         var updatedTables = tables
         var lockedMembers: [UUID: (member: SeatingMember, tableIndex: Int, seatIndex: Int)] = [:]
-        var currentlyAssignedIDs: Set<UUID> = [] // IDで管理
+        var currentlyAssignedIDs: Set<UUID> = [] // IDで管理（Equatable比較の安定性のため）
         
         for (tIndex, table) in tables.enumerated() {
             for (sIndex, member) in table.assignedMembers.enumerated() {

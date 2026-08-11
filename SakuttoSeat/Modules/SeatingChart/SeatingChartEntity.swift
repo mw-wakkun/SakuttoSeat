@@ -38,6 +38,7 @@ struct SeatingTable: Identifiable {
     let id = UUID()
     var name: String
     var capacity: Int // 定員
+    var columnCount: Int = 2 // ★ 横の列数（デフォルト2列）
     var orientation: TableOrientation = .none
     var assignedMembers: [SeatingMember] = []
 }

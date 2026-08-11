@@ -58,13 +58,20 @@ class SeatingChartPresenter: ObservableObject {
         }
     }
     
-    // 指定したテーブルの情報を更新するメソッドを追加
-    func updateTable(id: UUID, newName: String, newCapacity: Int) {
+    // 指定したテーブルの情報を更新するメソッド
+    func updateTable(id: UUID, newName: String, newCapacity: Int, newColumnCount: Int, newOrientation: TableOrientation) {
         if let index = tables.firstIndex(where: { $0.id == id }) {
-            tables[index].name = newName
-            tables[index].capacity = newCapacity
-            // 設定が変わったので、一度メンバーの割り当てをリセット（または再配置）
-            shuffle()
+            // アニメーション付きで変更を確実にViewへ通知する
+            withAnimation(.easeInOut(duration: 0.25)) {
+                var updatedTable = tables[index]
+                updatedTable.name = newName
+                updatedTable.capacity = newCapacity
+                updatedTable.columnCount = newColumnCount // ★ 列数の更新を追加
+                updatedTable.orientation = newOrientation
+                
+                // 配列の要素自体を新しい構造体で置き換えることで、@Published の変更通知を確実に飛ばします
+                tables[index] = updatedTable
+            }
         }
     }
     
