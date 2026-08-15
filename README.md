@@ -4,7 +4,7 @@
 ![iOS CI](https://img.shields.io/badge/iOS_CI-passing-brightgreen)
 ![iOS](https://img.shields.io/badge/iOS-18.0+-blue)
 ![Swift](https://img.shields.io/badge/Swift-6.0-orange)
-![version](https://img.shields.io/badge/version-v1.5.1-green)
+[![GitHub release](https://img.shields.io/github/v/release/mw-wakkun/SakuttoSeat?label=version&color=green&style=flat-square)](https://github.com/mw-wakkun/SakuttoSeat/releases)
 
 席替えを「サクッと」終わらせるための、iOS向け席決め抽選アプリです。
 VIPERアーキテクチャを採用し、モダンなSwiftUIと最新のSwift Testingで構築されています。
@@ -47,32 +47,7 @@ VIPERアーキテクチャを採用し、モダンなSwiftUIと最新のSwift Te
 - [mw-wakkun](https://github.com/mw-wakkun)
 
 ## 変更履歴
-### [1.4.3] - 2026-08-06
-- **改善**: 広告表示およびシステム内部処理の最適化を行い、アプリ動作の安定性を向上
-- **対応**: App Store Review Guidelinesへの準拠（広告配信設定およびコンテンツ属性設定の整備）
-
-### [1.4.2] - 2026-05-31
-- **修正**: 座席表モードのテーブル編集画面を開いた際に、ナビゲーションタイトルが隠れてしまうレイアウト崩れを修正
-- **修正**: テーブル編集画面で設定した「会場レイアウト（ステージ側、窓際など）」の向きの情報が、座席表のメイン画面に正しく反映されない不具合を解消
-
-### [1.4.1] - 2026-05-28
-- **修正**: 「お気に入り機能」において、特定のデータ操作を行った際にアプリの動作が不安定になる不具合を修正し、安定性を向上
-
-### [1.4.0] - 2026-05-27
-- **新機能**: よく使う参加者リストを保存していつでも呼び出せる「お気に入り登録機能」を追加
-- **改善**: 広告配信の健全性（app-ads.txt）対応のため、マーケティングURLをGitHub Pagesのルートドメインに最適化
-
-### [1.3.0] - 2026-05-25
-- **改善**: 内部構造のリファクタリングおよびパフォーマンスの最適化
-
-### [1.2.0] - 2026-05-24
-- **改善**: アプリの動作をより快適にするための調整を行いました。
-- **修正**: 軽微なバグの修正と、一部画面のレイアウト調整を行い、さらに使いやすく改善しました。
-
-### [1.1.1] - 2026-05-16
-- **修正**: 座席表画面の決定ボタンにグラデーションとシャドウを適用し、全体のUIデザインを統一
-- **修正**: 特定の条件下で発生していた一部表示崩れの調整
-- **改善**: XcodeのLocalization設定を見直し、App Storeおよびアプリ本体の日本語対応を最適化
+すべてのアップデート履歴および詳細な変更点は [Releases ページ](https://github.com/mw-wakkun/SakuttoSeat/releases) をご確認ください。
 
 ## その他
 * [プライバシーポリシー](https://shore-drifter-687.notion.site/SakuttoSeat-3586b12b81ca8032b6b1ebd43c47af28)
