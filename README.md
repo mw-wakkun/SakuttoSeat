@@ -72,3 +72,7 @@ VIPERアーキテクチャを採用し、モダンなSwiftUIと最新のSwift Te
 - **修正**: 座席表画面の決定ボタンにグラデーションとシャドウを適用し、全体のUIデザインを統一
 - **修正**: 特定の条件下で発生していた一部表示崩れの調整
 - **改善**: XcodeのLocalization設定を見直し、App Storeおよびアプリ本体の日本語対応を最適化
+
+## その他
+* [プライバシーポリシー](https://shore-drifter-687.notion.site/SakuttoSeat-3586b12b81ca8032b6b1ebd43c47af28)
+* [ライセンス (MIT)](LICENSE)
