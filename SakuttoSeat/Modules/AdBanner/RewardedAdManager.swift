@@ -20,11 +20,11 @@ final class RewardedAdManager: NSObject, ObservableObject, FullScreenContentDele
     var adUnitID: String {
         // 環境に応じてIDを自動切り替え
         #if DEBUG
-        // テスト用広告ユニットID
-        return "ca-app-pub-3940256099942544/2934735716"
+        // ★ リワード広告用の Google 公式テストIDに修正
+        return "ca-app-pub-3940256099942544/5224354917"
         #else
         // AdMob管理画面で発行した本番用の広告ユニットID
-        return "ca-app-pub-9676260030977388/3254679876"
+        return "ca-app-pub-9676260030977388/5413826350"
         #endif
     }
     
