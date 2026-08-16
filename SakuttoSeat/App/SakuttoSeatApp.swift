@@ -33,6 +33,6 @@ struct SakuttoSeatApp: App {
                     await MobileAds.shared.start()
                 }
         }
-        .modelContainer(for: GroupFavorite.self)
+        .modelContainer(for: [GroupFavorite.self, SeatingLayoutTemplate.self])
     }
 }

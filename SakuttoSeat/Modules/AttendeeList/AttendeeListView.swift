@@ -29,6 +29,11 @@ struct AttendeeListView: View {
     @State private var isShowingFavoriteSheet = false
     @State private var newGroupName: String = ""
     
+    @StateObject private var stateManager = AppStateManager.shared
+    @StateObject private var adManager = RewardedAdManager.shared
+    @State private var showingUnlockSheet = false
+    @State private var shouldShowAdOnDismiss = false
+    
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
@@ -118,6 +123,35 @@ struct AttendeeListView: View {
             .navigationDestination(isPresented: $isNavigateToSimpleShuffle) {
                 presenter.makeSimpleShuffleView()
             }
+        }
+        .sheet(isPresented: $showingUnlockSheet, onDismiss: {
+            // シートが閉じ終わったら広告を表示する
+            if shouldShowAdOnDismiss {
+                shouldShowAdOnDismiss = false
+                
+                // シート閉鎖アニメーション完了を待つため少しだけ遅延実行
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    adManager.showAd {
+                        // 動画視聴完了後の処理
+                        stateManager.hasUnlockedUnlimitedGroups = true
+                        isShowingSaveAlert = true
+                    }
+                }
+            }
+        }) {
+            UnlockSheetView {
+                shouldShowAdOnDismiss = true
+            }
+        }
+    }
+    // 保存ボタンが押された時の呼び出し関数
+    private func onSaveButtonTapped() {
+        // ★ @Queryで取得しているfavoriteGroupsを参照します
+        let currentCount = favoriteGroups.count
+        if stateManager.canSaveMoreGroups(currentCount: currentCount) {
+            isShowingSaveAlert = true
+        } else {
+            showingUnlockSheet = true
         }
     }
 }
@@ -333,81 +367,27 @@ private extension AttendeeListView {
     // MARK: - アクションボタン
     /// 一括追加・保存・リセット・お気に入りボタンを横並びで表示
     var actionButtons: some View {
-        HStack(spacing: 6) {
-            // お気に入いボタン
-            Button(action: {
+        ActionButtonsView(
+            // 1番目：お気に入りグループ読込
+            button1: .init(title: "お気に入り", icon: "star.fill", color: .orange, action: {
                 isTextFieldFocused = false
                 isShowingFavoriteSheet = true
-            }) {
-                VStack(spacing: 4) {
-                    Image(systemName: "star.fill")
-                        .font(.body)
-                    Text("お気に入り")
-                        .font(.caption2)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(Color.orange.opacity(0.1))
-                .cornerRadius(8)
-                .foregroundColor(.primary)
-            }
-            
-            // 一括追加ボタン
-            Button(action: {
+            }),
+            // 2番目：一括入力
+            button2: .init(title: "一括入力", icon: "list.star", color: .blue, action: {
                 isTextFieldFocused = false
                 isShowingBulkAddSheet = true
-            }) {
-                VStack(spacing: 4) {
-                    Image(systemName: "doc.on.clipboard")
-                        .font(.body)
-                    Text("一括追加")
-                        .font(.caption2)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(8)
-            }
-            
-            // 保存ボタン
-            Button(action: {
+            }),
+            // 3番目：保存
+            button3: .init(title: "保存", icon: "square.and.arrow.down", color: .green, action: {
                 isTextFieldFocused = false
-                if favoriteGroups.count >= 3 {
-                    isShowingLimitAlert = true
-                } else {
-                    isShowingSaveAlert = true
-                }
-            }) {
-                VStack(spacing: 4) {
-                    Image(systemName: "square.and.arrow.down")
-                        .font(.body)
-                    Text("保存")
-                        .font(.caption2)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(Color.green.opacity(0.1))
-                .cornerRadius(8)
-            }
-            .disabled(presenter.attendees.isEmpty)
-            
-            // 削除ボタン
-            Button(action: {
+                onSaveButtonTapped()
+            }, isDisabled: presenter.attendees.isEmpty),
+            // 4番目：削除
+            button4: .init(title: "削除", icon: "trash", color: .red, action: {
                 isShowingResetAlert = true
-            }) {
-                VStack(spacing: 4) {
-                    Image(systemName: "trash")
-                        .font(.body)
-                    Text("削除")
-                        .font(.caption2)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(Color.red.opacity(0.1))
-                .cornerRadius(8)
-            }
-            .disabled(presenter.attendees.isEmpty)
-        }
+            }, isDisabled: presenter.attendees.isEmpty)
+        )
     }
     
     private func buttonLabel(text: String, icon: String, isPrimary: Bool) -> some View {

@@ -6,10 +6,22 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct SeatingChartView: View {
     @StateObject var presenter: SeatingChartPresenter
+    @Environment(\.modelContext) private var modelContext
     @State private var editingTable: SeatingTable?
+    @State private var isShowingSaveAlert = false
+    @State private var templateName = ""
+    @State private var isShowingTemplateList = false
+    @State private var showTemplateLimitAlert = false
+    // MARK: - アンロック・広告管理
+    @StateObject private var stateManager = AppStateManager.shared
+    @StateObject private var adManager = RewardedAdManager.shared
+    
+    @State private var showingUnlockSheet = false
+    @State private var shouldShowAdOnDismiss = false
     
     // 画面全体（テーブル同士）を左右に2分割するグリッド定義
     let columns = [
@@ -52,10 +64,7 @@ struct SeatingChartView: View {
     }
     
     var body: some View {
-        ZStack(alignment: .bottom) {
-            Color(.systemBackground)
-                .ignoresSafeArea()
-            
+        VStack(spacing: 0) {
             // メインの座席表コンテンツ
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 16) {
@@ -81,36 +90,58 @@ struct SeatingChartView: View {
                     }
                 }
                 .padding()
-                .padding(.bottom, 70)
             }
             
-            // 下部：広告バナーエリア
-            AdBannerView()
-                .frame(width: 320, height: 50)
-                .padding(.vertical, 4)
-                .frame(maxWidth: .infinity)
-                .background(Color(.systemBackground))
+            // 下部エリア：アクションボタン ＆ 広告バナー
+            VStack(spacing: 8) {
+                // 共通化したアクションボタン
+                ActionButtonsView(
+                    // 1番目：お気に入り（テンプレート読込）
+                    button1: .init(title: "お気に入り", icon: "star.fill", color: .orange, action: {
+                        isShowingTemplateList = true
+                    }),
+                    // 2番目：保存
+                    button2: .init(title: "保存", icon: "square.and.arrow.down", color: .green, action: {
+                        templateName = ""
+                        // 動画で解放済み、または無料枠（3個未満）なら保存ダイアログを表示
+                        if stateManager.hasUnlockedUnlimitedGroups || presenter.canSaveTemplate(context: modelContext) {
+                            isShowingSaveAlert = true
+                        } else {
+                            // 3個以上かつ未解放の場合はアンロックシートを表示
+                            showingUnlockSheet = true
+                        }
+                    }, isDisabled: presenter.tables.isEmpty),
+                    // 3番目：共有
+                    button3: .init(title: "共有", icon: "square.and.arrow.up", color: .blue, action: {
+                        presentShareSheet(with: shareText)
+                    }, isDisabled: presenter.tables.isEmpty),
+                    // 4番目：シャッフル
+                    button4: .init(title: "シャッフル", icon: "shuffle", color: .purple, action: {
+                        presenter.shuffle()
+                    })
+                )
+                .padding(.horizontal, 16)
+                
+                // 下部：広告バナーエリア
+                AdBannerView()
+                    .frame(width: 320, height: 50)
+                    .padding(.bottom, 4)
+            }
+            .padding(.top, 8)
+            .background(Color(.systemBackground))
         }
+        .background(Color(.systemBackground))
         .navigationTitle("座席表")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItemGroup(placement: .navigationBarTrailing) {
-                // シェアボタン
-                Button {
-                    presentShareSheet(with: shareText)
-                } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.body)
-                }
-                
-                // 再シャッフルボタン
-                Button {
-                    presenter.shuffle()
-                } label: {
-                    Image(systemName: "shuffle")
-                        .font(.body).bold()
-                }
+        // テンプレート保存用アラート
+        .alert("レイアウトを保存", isPresented: $isShowingSaveAlert) {
+            TextField("テンプレート名 (例: デフォルト設定)", text: $templateName)
+            Button("キャンセル", role: .cancel) { }
+            Button("保存") {
+                presenter.saveLayoutAsTemplate(templateName: templateName, context: modelContext)
             }
+        } message: {
+            Text("現在のテーブル構成をテンプレートとして保存します。")
         }
         .sheet(item: $editingTable) { table in
             TableEditView(table: table, presenter: presenter)
@@ -118,6 +149,35 @@ struct SeatingChartView: View {
         .onAppear {
             if presenter.tables.allSatisfy({ $0.assignedMembers.isEmpty }) {
                 presenter.shuffle()
+            }
+        }
+        // テンプレート一覧シートの呼び出し
+        .sheet(isPresented: $isShowingTemplateList) {
+            SeatingTemplateListView { selectedTemplate in
+                presenter.applyTemplate(selectedTemplate)
+            }
+            .presentationDetents([.medium, .large])
+        }
+        .alert("テンプレート上限", isPresented: $showTemplateLimitAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("保存できるテンプレートは最大3個までとなっています。新しいテンプレートを保存するには、テンプレート読込一覧から既存のテンプレートを削除してください。")
+        }
+        .sheet(isPresented: $showingUnlockSheet, onDismiss: {
+            if shouldShowAdOnDismiss {
+                shouldShowAdOnDismiss = false
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    adManager.showAd {
+                        // 動画視聴完了でフラグを更新し、保存アラートを表示
+                        stateManager.hasUnlockedUnlimitedGroups = true
+                        isShowingSaveAlert = true // 既存の保存ダイアログフラグ
+                    }
+                }
+            }
+        }) {
+            UnlockSheetView {
+                shouldShowAdOnDismiss = true
             }
         }
     }

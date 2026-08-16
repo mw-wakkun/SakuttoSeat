@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import SwiftData
 
 class SeatingChartPresenter: ObservableObject {
     @Published var tables: [SeatingTable] = []
@@ -103,5 +104,61 @@ class SeatingChartPresenter: ObservableObject {
         // 削除後に再配置しないと、消えたテーブルにいた人が消えてしまうため
         // 自動でシャッフルし直すのが親切です
         shuffle()
+    }
+}
+
+extension SeatingChartPresenter {
+    // 現在のテーブル構成をテンプレートとして保存する
+    func saveLayoutAsTemplate(templateName: String, context: ModelContext) {
+        guard !tables.isEmpty else { return }
+        guard !templateName.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        
+        // 現在のSeatingTableから、レイアウト情報だけを抽出
+        let templateTables = tables.map { table in
+            TableTemplate(
+                name: table.name,
+                capacity: table.capacity,
+                columnCount: table.columnCount,
+                orientation: table.orientation
+            )
+        }
+        
+        let newTemplate = SeatingLayoutTemplate(name: templateName, tables: templateTables)
+        context.insert(newTemplate)
+        
+        do {
+            try context.save()
+        } catch {
+            print("レイアウトテンプレートの保存に失敗しました: \(error)")
+        }
+    }
+    
+    // 選択したテンプレートを現在の座席表に適用する
+    func applyTemplate(_ template: SeatingLayoutTemplate) {
+        // テンプレートのテーブル情報(TableTemplate)から、表示用の(SeatingTable)を生成
+        let restoredTables = template.tables.map { t in
+            SeatingTable(
+                name: t.name,
+                capacity: t.capacity,
+                columnCount: t.columnCount,
+                orientation: t.orientation,
+                assignedMembers: []
+            )
+        }
+        
+        // 新しいテーブル構成に現在の参加者を割り当てる
+        let newlyAssignedTables = interactor.shuffleAndAssign(attendees: attendees, to: restoredTables)
+        
+        // 参加者が割り当てられた完成形のテーブルで、画面をアニメーション更新
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+            self.tables = newlyAssignedTables
+        }
+    }
+    
+    func canSaveTemplate(context: ModelContext) -> Bool {
+        let descriptor = FetchDescriptor<SeatingLayoutTemplate>()
+        // データベースに保存されているテンプレートの数を取得
+        let count = (try? context.fetchCount(descriptor)) ?? 0
+        return count < 3
     }
 }

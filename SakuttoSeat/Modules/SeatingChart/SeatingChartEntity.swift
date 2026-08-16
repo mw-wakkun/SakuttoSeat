@@ -16,7 +16,7 @@ enum SeatPosition: Int, CaseIterable {
 }
 
 // 会場レイアウト（向き）の定義
-enum TableOrientation: String, CaseIterable, Identifiable {
+enum TableOrientation: String, CaseIterable, Identifiable, Codable {
     case none = "設定なし"
     case north = "▲ ステージ側"
     case south = "▼ 入り口側"
