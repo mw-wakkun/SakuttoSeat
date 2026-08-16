@@ -17,7 +17,16 @@ final class RewardedAdManager: NSObject, ObservableObject, FullScreenContentDele
     private var rewardedAd: RewardedAd?
     @Published var isAdReady: Bool = false
     
-    private let adUnitID = "ca-app-pub-3940256099942544/5224354917"
+    var adUnitID: String {
+        // 環境に応じてIDを自動切り替え
+        #if DEBUG
+        // テスト用広告ユニットID
+        return "ca-app-pub-3940256099942544/2934735716"
+        #else
+        // AdMob管理画面で発行した本番用の広告ユニットID
+        return "ca-app-pub-9676260030977388/3254679876"
+        #endif
+    }
     
     private override init() {
         super.init()
