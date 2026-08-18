@@ -333,12 +333,13 @@ struct TableEditView: View {
                 }
                 
                 Section("会場レイアウト（向き）") {
-                    Picker("向き", selection: $orientation) {
+                    Picker("", selection: $orientation) {
                         ForEach(TableOrientation.allCases) { option in
                             Text(option.rawValue).tag(option)
                         }
                     }
                     .pickerStyle(.inline)
+                    .labelsHidden()
                 }
                 
                 Section {
