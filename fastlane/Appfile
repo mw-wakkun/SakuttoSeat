@@ -1,8 +1,8 @@
-app_identifier("io.github.mw-wakkun.SakuttoSplit") # The bundle identifier of your app
-apple_id("abc123.wkwk.321cba@icloud.com") # Your Apple Developer Portal username
+app_identifier("io.github.mw-wakkun.SakuttoSeat")
+apple_id("abc123.wkwk.321cba@icloud.com")
 
-itc_team_id("128871705") # App Store Connect Team ID
-team_id("H6KKP4L92Z") # Developer Portal Team ID
+itc_team_id("128871705")
+team_id("H6KKP4L92Z")
 
 # For more information about the Appfile, see:
 #     https://docs.fastlane.tools/advanced/#appfile

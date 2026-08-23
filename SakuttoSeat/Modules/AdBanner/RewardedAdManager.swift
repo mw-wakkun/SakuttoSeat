@@ -16,6 +16,8 @@ final class RewardedAdManager: NSObject, ObservableObject, FullScreenContentDele
     
     private var rewardedAd: RewardedAd?
     @Published var isAdReady: Bool = false
+    private var onRewardEarned: (() -> Void)?
+    private var hasEarnedReward = false
     
     var adUnitID: String {
         // 環境に応じてIDを自動切り替え
@@ -36,16 +38,18 @@ final class RewardedAdManager: NSObject, ObservableObject, FullScreenContentDele
     func loadAd() {
         let request = Request()
         RewardedAd.load(with: adUnitID, request: request) { [weak self] ad, error in
-            guard let self = self else { return }
-            if let error = error {
-                print("リワード広告読み込み失敗: \(error.localizedDescription)")
-                self.isAdReady = false
-                return
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let error = error {
+                    print("リワード広告読み込み失敗: \(error.localizedDescription)")
+                    self.isAdReady = false
+                    return
+                }
+                self.rewardedAd = ad
+                self.rewardedAd?.fullScreenContentDelegate = self
+                self.isAdReady = true
+                print("リワード広告の準備が完了しました")
             }
-            self.rewardedAd = ad
-            self.rewardedAd?.fullScreenContentDelegate = self
-            self.isAdReady = true
-            print("リワード広告の準備が完了しました")
         }
     }
     
@@ -58,18 +62,30 @@ final class RewardedAdManager: NSObject, ObservableObject, FullScreenContentDele
             return
         }
         
-        rewardedAd.present(from: topViewController) {
-            onRewardEarned()
+        hasEarnedReward = false
+        self.onRewardEarned = onRewardEarned
+        
+        // 報酬付与は広告クローズ後に実行し、シェアシート等の後続UIと衝突しないようにする
+        rewardedAd.present(from: topViewController) { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.hasEarnedReward = true
+            }
         }
     }
     
     // MARK: - FullScreenContentDelegate
     func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
+        let handler = hasEarnedReward ? onRewardEarned : nil
+        hasEarnedReward = false
+        onRewardEarned = nil
         loadAd()
+        handler?()
     }
     
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         print("広告表示エラー: \(error.localizedDescription)")
+        hasEarnedReward = false
+        onRewardEarned = nil
         loadAd()
     }
 }

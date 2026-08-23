@@ -10,6 +10,15 @@ import SwiftUI
 struct SimpleShuffleView: View {
     @ObservedObject var presenter: SimpleShufflePresenter
     
+    // MARK: - アンロック・広告管理
+    @StateObject private var adManager = RewardedAdManager.shared
+    @StateObject private var premiumManager = PremiumManager.shared
+    
+    @State private var showingShareOptions = false
+    @State private var pendingShareSelection: ShareSelectionKind?
+    @State private var showingImageShareAdAlert = false
+    @State private var showingAdNotReadyAlert = false
+    
     private var shareText: String {
         var text = "【サクッと席決め】シャッフル結果\n"
         for (index, name) in presenter.attendees.enumerated() {
@@ -61,13 +70,13 @@ struct SimpleShuffleView: View {
                 .frame(maxWidth: .infinity)
                 .background(Color(.systemGroupedBackground))
         }
-        .navigationTitle("番号札モード")
+        .navigationTitle("番号札")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 // シェアボタン
                 Button {
-                    presentShareSheet(with: shareText)
+                    showingShareOptions = true
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                         .font(.body)
@@ -82,22 +91,139 @@ struct SimpleShuffleView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingShareOptions, onDismiss: {
+            guard let pendingShareSelection else { return }
+            self.pendingShareSelection = nil
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                switch pendingShareSelection {
+                case .text:
+                    presentShareSheet(with: shareText)
+                case .image:
+                    handleImageShareTapped()
+                }
+            }
+        }) {
+            ShareSelectionView { kind in
+                pendingShareSelection = kind
+            }
+        }
+        .alert("画像で共有", isPresented: $showingImageShareAdAlert) {
+            Button("キャンセル", role: .cancel) { }
+            Button("OK") {
+                playRewardedAdThenShareImage()
+            }
+        } message: {
+            Text("動画広告を視聴して画像を出力しますか？")
+        }
+        .alert("広告を読み込み中", isPresented: $showingAdNotReadyAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("広告の準備ができていません。しばらく待ってからもう一度お試しください。")
+        }
     }
     
-    private func presentShareSheet(with text: String) {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootViewController = windowScene.windows.first?.rootViewController else {
+    private func handleImageShareTapped() {
+        if premiumManager.isPro {
+            exportAndShareShuffleImage()
+        } else {
+            showingImageShareAdAlert = true
+        }
+    }
+    
+    private func playRewardedAdThenShareImage() {
+        guard adManager.isAdReady else {
+            adManager.loadAd()
+            showingAdNotReadyAlert = true
             return
         }
         
-        let activityVC = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            adManager.showAd {
+                exportAndShareShuffleImage()
+            }
+        }
+    }
+    
+    @MainActor
+    private func exportAndShareShuffleImage() {
+        let exportWidth: CGFloat = 400
+        let exportView = SimpleShuffleSnapshotView(attendees: presenter.attendees)
+            .frame(width: exportWidth)
+            .background(Color(.systemGroupedBackground))
+        
+        let renderer = ImageRenderer(content: exportView)
+        renderer.scale = UIScreen.main.scale
+        renderer.proposedSize = ProposedViewSize(width: exportWidth, height: nil)
+        
+        guard let image = renderer.uiImage else { return }
+        presentShareSheet(with: image)
+    }
+    
+    private func presentShareSheet(with item: Any) {
+        guard let topViewController = UIApplication.shared.topViewController else {
+            return
+        }
+        
+        let activityVC = UIActivityViewController(activityItems: [item], applicationActivities: nil)
         
         if let popoverController = activityVC.popoverPresentationController {
-            popoverController.sourceView = rootViewController.view
-            popoverController.sourceRect = CGRect(x: rootViewController.view.bounds.midX, y: rootViewController.view.bounds.midY, width: 0, height: 0)
+            popoverController.sourceView = topViewController.view
+            popoverController.sourceRect = CGRect(x: topViewController.view.bounds.midX, y: topViewController.view.bounds.midY, width: 0, height: 0)
             popoverController.permittedArrowDirections = []
         }
         
-        rootViewController.present(activityVC, animated: true, completion: nil)
+        topViewController.present(activityVC, animated: true, completion: nil)
+    }
+}
+
+// MARK: - 番号札モード用スナップショット
+private struct SimpleShuffleSnapshotView: View {
+    let attendees: [String]
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 4) {
+                Text("【サクッと席決め】")
+                    .font(.caption)
+                    .bold()
+                    .foregroundColor(.secondary)
+                Text("シャッフル結果（番号札）")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+            }
+            .padding(.top, 8)
+            
+            VStack(spacing: 8) {
+                ForEach(Array(attendees.enumerated()), id: \.offset) { index, name in
+                    HStack {
+                        ZStack {
+                            Circle()
+                                .fill(Color.blue.opacity(0.1))
+                                .frame(width: 32, height: 32)
+                            Text("\(index + 1)")
+                                .font(.system(.subheadline, design: .rounded))
+                                .bold()
+                                .foregroundColor(.blue)
+                        }
+                        
+                        Text(name)
+                            .font(.body)
+                            .foregroundColor(.primary)
+                            .padding(.leading, 8)
+                        
+                        Spacer()
+                        
+                        Text("番席")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(12)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .cornerRadius(8)
+                }
+            }
+        }
+        .padding(20)
     }
 }

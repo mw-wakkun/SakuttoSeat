@@ -19,9 +19,14 @@ struct SeatingChartView: View {
     // MARK: - アンロック・広告管理
     @StateObject private var stateManager = AppStateManager.shared
     @StateObject private var adManager = RewardedAdManager.shared
+    @StateObject private var premiumManager = PremiumManager.shared
     
     @State private var showingUnlockSheet = false
     @State private var shouldShowAdOnDismiss = false
+    @State private var showingShareOptions = false
+    @State private var pendingShareSelection: ShareSelectionKind?
+    @State private var showingImageShareAdAlert = false
+    @State private var showingAdNotReadyAlert = false
     
     // 画面全体（テーブル同士）を左右に2分割するグリッド定義
     let columns = [
@@ -113,7 +118,7 @@ struct SeatingChartView: View {
                     }, isDisabled: presenter.tables.isEmpty),
                     // 3番目：共有
                     button3: .init(title: "共有", icon: "square.and.arrow.up", color: .blue, action: {
-                        presentShareSheet(with: shareText)
+                        showingShareOptions = true
                     }, isDisabled: presenter.tables.isEmpty),
                     // 4番目：シャッフル
                     button4: .init(title: "シャッフル", icon: "shuffle", color: .purple, action: {
@@ -163,6 +168,36 @@ struct SeatingChartView: View {
         } message: {
             Text("保存できるテンプレートは最大3個までとなっています。新しいテンプレートを保存するには、テンプレート読込一覧から既存のテンプレートを削除してください。")
         }
+        .sheet(isPresented: $showingShareOptions, onDismiss: {
+            guard let pendingShareSelection else { return }
+            self.pendingShareSelection = nil
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                switch pendingShareSelection {
+                case .text:
+                    presentShareSheet(with: shareText)
+                case .image:
+                    handleImageShareTapped()
+                }
+            }
+        }) {
+            ShareSelectionView { kind in
+                pendingShareSelection = kind
+            }
+        }
+        .alert("画像で共有", isPresented: $showingImageShareAdAlert) {
+            Button("キャンセル", role: .cancel) { }
+            Button("OK") {
+                playRewardedAdThenShareImage()
+            }
+        } message: {
+            Text("動画広告を視聴して画像を出力しますか？")
+        }
+        .alert("広告を読み込み中", isPresented: $showingAdNotReadyAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("広告の準備ができていません。しばらく待ってからもう一度お試しください。")
+        }
         .sheet(isPresented: $showingUnlockSheet, onDismiss: {
             if shouldShowAdOnDismiss {
                 shouldShowAdOnDismiss = false
@@ -182,26 +217,94 @@ struct SeatingChartView: View {
         }
     }
     
-    // シェアシートを呼び出す
-    private func presentShareSheet(with text: String) {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootViewController = windowScene.windows.first?.rootViewController else {
+    private func handleImageShareTapped() {
+        if premiumManager.isPro {
+            exportAndShareSeatingChartImage()
+        } else {
+            showingImageShareAdAlert = true
+        }
+    }
+    
+    private func playRewardedAdThenShareImage() {
+        guard adManager.isAdReady else {
+            adManager.loadAd()
+            showingAdNotReadyAlert = true
             return
         }
         
-        let activityVC = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            adManager.showAd {
+                exportAndShareSeatingChartImage()
+            }
+        }
+    }
+    
+    @MainActor
+    private func exportAndShareSeatingChartImage() {
+        let exportWidth = UIScreen.main.bounds.width
+        
+        // ★修正点: 専用のSnapshotViewを呼び出し、presenterは不要に
+        let exportView = SeatingChartSnapshotView(tables: presenter.tables)
+            .frame(width: exportWidth)
+            .background(Color(.systemBackground))
+        
+        let renderer = ImageRenderer(content: exportView)
+        renderer.scale = UIScreen.main.scale
+        renderer.proposedSize = ProposedViewSize(width: exportWidth, height: nil)
+        
+        guard let image = renderer.uiImage else { return }
+        presentShareSheet(with: image)
+    }
+    
+    // シェアシートを呼び出す
+    private func presentShareSheet(with item: Any) {
+        guard let topViewController = UIApplication.shared.topViewController else {
+            return
+        }
+        
+        let activityVC = UIActivityViewController(activityItems: [item], applicationActivities: nil)
         
         if let popoverController = activityVC.popoverPresentationController {
-            popoverController.sourceView = rootViewController.view
-            popoverController.sourceRect = CGRect(x: rootViewController.view.bounds.midX, y: rootViewController.view.bounds.midY, width: 0, height: 0)
+            popoverController.sourceView = topViewController.view
+            popoverController.sourceRect = CGRect(x: topViewController.view.bounds.midX, y: topViewController.view.bounds.midY, width: 0, height: 0)
             popoverController.permittedArrowDirections = []
         }
         
-        rootViewController.present(activityVC, animated: true, completion: nil)
+        topViewController.present(activityVC, animated: true, completion: nil)
     }
 }
 
-// MARK: - 個別のテーブル表示用コンポーネント
+// MARK: - 画像出力用スナップショット
+private struct SeatingChartSnapshotView: View {
+    let tables: [SeatingTable]
+    // ★修正点: Snapshot専用なのでpresenterの監視を削除
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            ForEach(Array(tableRows.enumerated()), id: \.offset) { _, row in
+                HStack(alignment: .top, spacing: 16) {
+                    ForEach(row) { table in
+                        // ★修正点: 画像出力専用のLazyを使わないコンポーネントに変更
+                        SnapshotSeatingTableView(table: table)
+                    }
+                    if row.count == 1 {
+                        Color.clear
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+        .padding()
+    }
+    
+    private var tableRows: [[SeatingTable]] {
+        stride(from: 0, to: tables.count, by: 2).map { start in
+            Array(tables[start..<min(start + 2, tables.count)])
+        }
+    }
+}
+
+// MARK: - 個別のテーブル表示用コンポーネント (メイン画面用・変更なし)
 struct SeatingTableView: View {
     let table: SeatingTable
     @ObservedObject var presenter: SeatingChartPresenter
@@ -376,5 +479,64 @@ struct TableEditView: View {
             }
         }
         .presentationDetents([.medium, .large])
+    }
+}
+
+// MARK: - 新設: 画像出力専用のテーブル表示コンポーネント
+// ※ LazyVGridは画面外を描画しないため見切れる。こちらはVStack/HStackを使い全て即時描画する。
+struct SnapshotSeatingTableView: View {
+    let table: SeatingTable
+    
+    var body: some View {
+        VStack(alignment: .center, spacing: 8) {
+            VStack(spacing: 4) {
+                Text(table.name)
+                    .font(.caption)
+                    .bold()
+                    .foregroundColor(.secondary)
+                
+                if table.orientation != .none {
+                    Text(table.orientation.rawValue)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(4)
+                }
+            }
+            
+            // 全ての席（空席含む）の配列を作成
+            let allSeats = table.assignedMembers.map { $0 as SeatingMember? } + Array(repeating: nil, count: max(0, table.capacity - table.assignedMembers.count))
+            let colCount = max(1, table.columnCount)
+            let rowCount = (allSeats.count + colCount - 1) / colCount
+            
+            VStack(spacing: 12) {
+                ForEach(0..<rowCount, id: \.self) { rowIndex in
+                    HStack(spacing: 12) {
+                        ForEach(0..<colCount, id: \.self) { colIndex in
+                            let index = rowIndex * colCount + colIndex
+                            if index < allSeats.count {
+                                SeatView(member: allSeats[index])
+                            } else {
+                                Color.clear
+                                    .frame(maxWidth: .infinity)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding(15)
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: 120)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.blue.opacity(0.1), lineWidth: 1)
+        )
     }
 }
