@@ -36,7 +36,8 @@ class SeatingChartPresenter: ObservableObject {
             let newTable = SeatingTable(
                 name: "テーブル\(letter)",
                 capacity: baseCapacity,
-                orientation: .none,
+                layoutDirection: .none,
+                layoutText: "",
                 assignedMembers: []
             )
             initialTables.append(newTable)
@@ -60,7 +61,7 @@ class SeatingChartPresenter: ObservableObject {
     }
     
     // 指定したテーブルの情報を更新するメソッド
-    func updateTable(id: UUID, newName: String, newCapacity: Int, newColumnCount: Int, newOrientation: TableOrientation) {
+    func updateTable(id: UUID, newName: String, newCapacity: Int, newColumnCount: Int, newLayoutDirection: LayoutDirection, newLayoutText: String) {
         if let index = tables.firstIndex(where: { $0.id == id }) {
             // アニメーション付きで変更を確実にViewへ通知する
             withAnimation(.easeInOut(duration: 0.25)) {
@@ -68,7 +69,8 @@ class SeatingChartPresenter: ObservableObject {
                 updatedTable.name = newName
                 updatedTable.capacity = newCapacity
                 updatedTable.columnCount = newColumnCount // ★ 列数の更新を追加
-                updatedTable.orientation = newOrientation
+                updatedTable.layoutDirection = newLayoutDirection
+                updatedTable.layoutText = newLayoutText
                 
                 // 配列の要素自体を新しい構造体で置き換えることで、@Published の変更通知を確実に飛ばします
                 tables[index] = updatedTable
@@ -76,14 +78,15 @@ class SeatingChartPresenter: ObservableObject {
         }
     }
     
-    func updateTable(id: UUID, newName: String, newCapacity: Int, newOrientation: TableOrientation) {
+    func updateTable(id: UUID, newName: String, newCapacity: Int, newLayoutDirection: LayoutDirection, newLayoutText: String) {
         if let index = tables.firstIndex(where: { $0.id == id }) {
             // アニメーション付きで変更を確実にViewへ通知する
             withAnimation(.easeInOut(duration: 0.25)) {
                 var updatedTable = tables[index]
                 updatedTable.name = newName
                 updatedTable.capacity = newCapacity
-                updatedTable.orientation = newOrientation
+                updatedTable.layoutDirection = newLayoutDirection
+                updatedTable.layoutText = newLayoutText
                 
                 // 配列の要素自体を新しい構造体で置き換えることで、@Published の変更通知を確実に飛ばします
                 tables[index] = updatedTable
@@ -119,7 +122,8 @@ extension SeatingChartPresenter {
                 name: table.name,
                 capacity: table.capacity,
                 columnCount: table.columnCount,
-                orientation: table.orientation
+                layoutDirection: table.layoutDirection,
+                layoutText: table.layoutText
             )
         }
         
@@ -141,7 +145,8 @@ extension SeatingChartPresenter {
                 name: t.name,
                 capacity: t.capacity,
                 columnCount: t.columnCount,
-                orientation: t.orientation,
+                layoutDirection: t.layoutDirection,
+                layoutText: t.layoutText,
                 assignedMembers: []
             )
         }

@@ -11,7 +11,7 @@ import SwiftData
 struct SeatingChartView: View {
     @StateObject var presenter: SeatingChartPresenter
     @Environment(\.modelContext) private var modelContext
-    @State private var editingTable: SeatingTable?
+    @State private var editingTableIndex: Int? = nil
     @State private var isShowingSaveAlert = false
     @State private var templateName = ""
     @State private var isShowingTemplateList = false
@@ -73,9 +73,10 @@ struct SeatingChartView: View {
             // メインの座席表コンテンツ
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(presenter.tables) { table in
+                    ForEach(presenter.tables.indices, id: \.self) { idx in
+                        let table = presenter.tables[idx]
                         SeatingTableView(table: table, presenter: presenter, onEditTarget: {
-                            editingTable = table
+                            editingTableIndex = idx
                         })
                     }
                     
@@ -148,8 +149,10 @@ struct SeatingChartView: View {
         } message: {
             Text("現在のテーブル構成をテンプレートとして保存します。")
         }
-        .sheet(item: $editingTable) { table in
-            TableEditView(table: table, presenter: presenter)
+        .sheet(isPresented: Binding(get: { editingTableIndex != nil }, set: { newVal in if !newVal { editingTableIndex = nil } })) {
+            if let idx = editingTableIndex, presenter.tables.indices.contains(idx) {
+                TableEditView(table: presenter.tables[idx], presenter: presenter)
+            }
         }
         .onAppear {
             if presenter.tables.allSatisfy({ $0.assignedMembers.isEmpty }) {
@@ -314,19 +317,94 @@ struct SeatingTableView: View {
     private var tableColumns: [GridItem] {
         Array(repeating: GridItem(.flexible(), spacing: 8), count: max(1, table.columnCount))
     }
+
+    // バッジ描画のヘルパー（個別に切り出すことで型推論負荷を下げつつ、確実に表示させる）
+    @ViewBuilder
+    private func badgeTop() -> some View {
+        if table.layoutDirection == .top {
+            Circle()
+                .fill(Color.blue)
+                .frame(width: 14, height: 14)
+                .overlay(Image(systemName: "arrow.up")
+                    .font(.system(size: 8))
+                    .foregroundColor(.white))
+                .offset(y: -6)
+                .zIndex(1)
+        } else {
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func badgeBottom() -> some View {
+        if table.layoutDirection == .bottom {
+            Circle()
+                .fill(Color.blue)
+                .frame(width: 14, height: 14)
+                .overlay(Image(systemName: "arrow.down")
+                    .font(.system(size: 8))
+                    .foregroundColor(.white))
+                .offset(y: 6)
+                .zIndex(1)
+        } else {
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func badgeLeft() -> some View {
+        if table.layoutDirection == .left {
+            Circle()
+                .fill(Color.blue)
+                .frame(width: 14, height: 14)
+                .overlay(Image(systemName: "arrow.left")
+                    .font(.system(size: 8))
+                    .foregroundColor(.white))
+                .offset(x: -6)
+                .zIndex(1)
+        } else {
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func badgeRight() -> some View {
+        if table.layoutDirection == .right {
+            Circle()
+                .fill(Color.blue)
+                .frame(width: 14, height: 14)
+                .overlay(Image(systemName: "arrow.right")
+                    .font(.system(size: 8))
+                    .foregroundColor(.white))
+                .offset(x: 6)
+                .zIndex(1)
+        } else {
+            EmptyView()
+        }
+    }
     
     var body: some View {
+        let tableIdString = table.id.uuidString
+
         VStack(alignment: .center, spacing: 8) {
             VStack(spacing: 4) {
                 Text(table.name)
                     .font(.caption)
                     .bold()
                     .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 
-                if table.orientation != .none {
-                    Text(table.orientation.rawValue)
+                if table.layoutDirection != .none && !table.layoutText.trimmingCharacters(in: .whitespaces).isEmpty {
+                    Text(table.layoutText)
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(.blue)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(Color.blue.opacity(0.1))
@@ -336,17 +414,20 @@ struct SeatingTableView: View {
             
             LazyVGrid(columns: tableColumns, spacing: 12) {
                 ForEach(table.assignedMembers) { member in
-                    SeatView(member: member)
-                        .id(member.id.uuidString)
-                        .onTapGesture {
-                            presenter.toggleLock(tableId: table.id, memberId: member.id)
-                        }
+                    Button {
+                        presenter.toggleLock(tableId: table.id, memberId: member.id)
+                    } label: {
+                        SeatView(member: member)
+                    }
+                    .buttonStyle(.plain)
+                    .id(member.id.uuidString)
                 }
                 
-                if table.assignedMembers.count < table.capacity {
-                    ForEach(0..<(table.capacity - table.assignedMembers.count), id: \.self) { emptyIndex in
-                        SeatView(member: nil)
-                            .id("\(table.id.uuidString)-empty-\(emptyIndex)")
+                let emptyCount = max(0, table.capacity - table.assignedMembers.count)
+                if emptyCount > 0 {
+                    ForEach(0..<emptyCount, id: \.self) { emptyIndex in
+                        let idString = "\(tableIdString)-empty-\(emptyIndex)"
+                        EmptySeatCell(idString: idString)
                     }
                 }
             }
@@ -368,6 +449,11 @@ struct SeatingTableView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.blue.opacity(0.1), lineWidth: 1)
         )
+        // レイアウト方向バッジ（枠の辺の中央に表示）
+        .overlay(badgeTop(), alignment: .top)
+        .overlay(badgeBottom(), alignment: .bottom)
+        .overlay(badgeLeft(), alignment: .leading)
+        .overlay(badgeRight(), alignment: .trailing)
     }
 }
 
@@ -406,6 +492,16 @@ struct SeatView: View {
     }
 }
 
+// 小さなヘルパー視点: 空席セルをラップして複雑な式を外に出す
+private struct EmptySeatCell: View {
+    let idString: String
+
+    var body: some View {
+        SeatView(member: nil)
+            .id(idString)
+    }
+}
+
 // MARK: - 編集用画面
 struct TableEditView: View {
     @Environment(\.dismiss) var dismiss
@@ -414,35 +510,138 @@ struct TableEditView: View {
     @State private var name: String
     @State private var capacity: Int
     @State private var columnCount: Int
-    @State private var orientation: TableOrientation
+    @State private var layoutDirection: LayoutDirection
+    @State private var layoutText: String
+    private let maxInputLength: Int = 20
     let tableId: UUID
-    
+
     init(table: SeatingTable, presenter: SeatingChartPresenter) {
         self.presenter = presenter
         self.tableId = table.id
         _name = State(initialValue: table.name)
         _capacity = State(initialValue: table.capacity)
         _columnCount = State(initialValue: table.columnCount)
-        _orientation = State(initialValue: table.orientation)
+        _layoutDirection = State(initialValue: table.layoutDirection)
+        _layoutText = State(initialValue: table.layoutText)
     }
     
     var body: some View {
         NavigationStack {
             Form {
                 Section("基本設定") {
-                    TextField("テーブル名", text: $name)
+                    TextField("テーブル名（例: テーブルA・最大20文字）", text: $name)
+                        .onChange(of: name) { _, newValue in
+                            if newValue.count > maxInputLength {
+                                name = String(newValue.prefix(maxInputLength))
+                            }
+                        }
                     Stepper("定員: \(capacity)人", value: $capacity, in: 2...10)
                     Stepper("横の列数: \(columnCount)列", value: $columnCount, in: 1...4)
                 }
                 
                 Section("会場レイアウト（向き）") {
-                    Picker("", selection: $orientation) {
-                        ForEach(TableOrientation.allCases) { option in
-                            Text(option.rawValue).tag(option)
+                    // 十字の方向ボタン
+                    VStack(spacing: 8) {
+                            HStack {
+                                    Spacer()
+                                    Button(action: { withAnimation { layoutDirection = .top } }) {
+                                        Image(systemName: "arrow.up")
+                                            .font(.title2)
+                                            .padding(10)
+                                            .background(
+                                                Circle()
+                                                    .fill(layoutDirection == .top ? Color.blue.opacity(0.85) : Color(.secondarySystemGroupedBackground))
+                                            )
+                                            .foregroundColor(layoutDirection == .top ? .white : .primary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    Spacer()
+                                }
+                        HStack(spacing: 16) {
+                            Button(action: { withAnimation { layoutDirection = .left } }) {
+                                Image(systemName: "arrow.left")
+                                    .font(.title2)
+                                    .padding(10)
+                                    .background(
+                                        Circle()
+                                            .fill(layoutDirection == .left ? Color.blue.opacity(0.85) : Color(.secondarySystemGroupedBackground))
+                                    )
+                                    .foregroundColor(layoutDirection == .left ? .white : .primary)
+                            }
+                            .buttonStyle(.plain)
+                            Spacer()
+                            Button(action: { withAnimation { layoutDirection = .right } }) {
+                                Image(systemName: "arrow.right")
+                                    .font(.title2)
+                                    .padding(10)
+                                    .background(
+                                        Circle()
+                                            .fill(layoutDirection == .right ? Color.blue.opacity(0.85) : Color(.secondarySystemGroupedBackground))
+                                    )
+                                    .foregroundColor(layoutDirection == .right ? .white : .primary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        HStack {
+                            Spacer()
+                            Button(action: { withAnimation { layoutDirection = .bottom } }) {
+                                Image(systemName: "arrow.down")
+                                    .font(.title2)
+                                    .padding(10)
+                                    .background(
+                                        Circle()
+                                            .fill(layoutDirection == .bottom ? Color.blue.opacity(0.85) : Color(.secondarySystemGroupedBackground))
+                                    )
+                                    .foregroundColor(layoutDirection == .bottom ? .white : .primary)
+                            }
+                            .buttonStyle(.plain)
+                            Spacer()
+                        }
+                        HStack {
+                            Spacer()
+                            Button(action: { withAnimation { layoutDirection = .none; layoutText = "" } }) {
+                                Text("指定なし")
+                                    .font(.caption)
+                                    .padding(.vertical, 6)
+                                    .padding(.horizontal, 12)
+                                    .background(
+                                        Capsule()
+                                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            Spacer()
                         }
                     }
-                    .pickerStyle(.inline)
-                    .labelsHidden()
+
+                    // テキストのプリセットと自由入力
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("ラベル（例：窓際／ステージ側）")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        HStack {
+                            Menu {
+                                Button("窓際") { layoutText = "窓際" }
+                                Button("ステージ側") { layoutText = "ステージ側" }
+                                Button("入り口側") { layoutText = "入り口側" }
+                                Button("通路側") { layoutText = "通路側" }
+                            } label: {
+                                Label("よく使う語", systemImage: "tag")
+                                    .padding(8)
+                                    .background(Color(.secondarySystemGroupedBackground))
+                                    .cornerRadius(6)
+                            }
+
+                            TextField("例: 窓際（20文字まで）", text: $layoutText)
+                                .textFieldStyle(.roundedBorder)
+                                .onChange(of: layoutText) { _, newValue in
+                                    if newValue.count > maxInputLength {
+                                        layoutText = String(newValue.prefix(maxInputLength))
+                                    }
+                                }
+                        }
+                    }
                 }
                 
                 Section {
@@ -468,7 +667,8 @@ struct TableEditView: View {
                             newName: name,
                             newCapacity: capacity,
                             newColumnCount: columnCount,
-                            newOrientation: orientation
+                            newLayoutDirection: layoutDirection,
+                            newLayoutText: layoutText
                         )
                         dismiss()
                     }
@@ -495,10 +695,12 @@ struct SnapshotSeatingTableView: View {
                     .bold()
                     .foregroundColor(.secondary)
                 
-                if table.orientation != .none {
-                    Text(table.orientation.rawValue)
+                if table.layoutDirection != .none && !table.layoutText.trimmingCharacters(in: .whitespaces).isEmpty {
+                    Text(table.layoutText)
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(.blue)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(Color.blue.opacity(0.1))
@@ -507,7 +709,10 @@ struct SnapshotSeatingTableView: View {
             }
             
             // 全ての席（空席含む）の配列を作成
-            let allSeats = table.assignedMembers.map { $0 as SeatingMember? } + Array(repeating: nil, count: max(0, table.capacity - table.assignedMembers.count))
+            let assignedOptional: [SeatingMember?] = table.assignedMembers.map { Optional($0) }
+            let paddingCount = max(0, table.capacity - table.assignedMembers.count)
+            let padding: [SeatingMember?] = Array(repeating: nil, count: paddingCount)
+            let allSeats = assignedOptional + padding
             let colCount = max(1, table.columnCount)
             let rowCount = (allSeats.count + colCount - 1) / colCount
             
@@ -538,5 +743,73 @@ struct SnapshotSeatingTableView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.blue.opacity(0.1), lineWidth: 1)
         )
+        .overlay(badgeTopSmall(), alignment: .top)
+        .overlay(badgeBottomSmall(), alignment: .bottom)
+        .overlay(badgeLeftSmall(), alignment: .leading)
+        .overlay(badgeRightSmall(), alignment: .trailing)
+    }
+    
+    @ViewBuilder
+    private func badgeTopSmall() -> some View {
+        if table.layoutDirection == .top {
+            Circle()
+                .fill(Color.blue)
+                .frame(width: 12, height: 12)
+                .overlay(Image(systemName: "arrow.up")
+                    .font(.system(size: 7))
+                    .foregroundColor(.white))
+                .offset(y: -4)
+                .zIndex(1)
+        } else {
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func badgeBottomSmall() -> some View {
+        if table.layoutDirection == .bottom {
+            Circle()
+                .fill(Color.blue)
+                .frame(width: 12, height: 12)
+                .overlay(Image(systemName: "arrow.down")
+                    .font(.system(size: 7))
+                    .foregroundColor(.white))
+                .offset(y: 4)
+                .zIndex(1)
+        } else {
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func badgeLeftSmall() -> some View {
+        if table.layoutDirection == .left {
+            Circle()
+                .fill(Color.blue)
+                .frame(width: 12, height: 12)
+                .overlay(Image(systemName: "arrow.left")
+                    .font(.system(size: 7))
+                    .foregroundColor(.white))
+                .offset(x: -4)
+                .zIndex(1)
+        } else {
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func badgeRightSmall() -> some View {
+        if table.layoutDirection == .right {
+            Circle()
+                .fill(Color.blue)
+                .frame(width: 12, height: 12)
+                .overlay(Image(systemName: "arrow.right")
+                    .font(.system(size: 7))
+                    .foregroundColor(.white))
+                .offset(x: 4)
+                .zIndex(1)
+        } else {
+            EmptyView()
+        }
     }
 }
