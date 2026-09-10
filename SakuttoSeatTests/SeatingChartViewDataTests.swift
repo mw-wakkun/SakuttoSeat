@@ -2,7 +2,7 @@
 //  SeatingChartViewDataTests.swift
 //  SakuttoSeatTests
 //
-//  refactor_seating.md Phase 2（ViewData / Route の回帰）
+//  refactor_seating.md Phase 2 / 3（ViewData / Route の回帰）
 //
 
 import XCTest
@@ -13,17 +13,33 @@ final class SeatingChartViewDataTests: XCTestCase {
 
     private func makePresenter(names: [String]) -> SeatingChartPresenter {
         SeatingChartPresenter(
-            interactor: SeatingChartInteractor(),
-            router: SeatingChartRouter(),
-            attendees: names.map { Attendee(name: $0) }
+            interactor: SeatingChartInteractor(attendees: names.map { Attendee(name: $0) }),
+            router: SeatingChartRouter()
         )
+    }
+
+    private func tableIDs(in viewData: SeatingChartViewData) -> [TableID] {
+        viewData.rows.flatMap(\.items).compactMap { item in
+            if case .table(let table) = item { return table.id }
+            return nil
+        }
+    }
+
+    private func firstTable(in viewData: SeatingChartViewData) -> TableViewData? {
+        for row in viewData.rows {
+            for item in row.items {
+                if case .table(let table) = item {
+                    return table
+                }
+            }
+        }
+        return nil
     }
 
     func test_ViewData_行分割は会場列数に従い末尾に追加ボタンを含む() {
         let presenter = makePresenter(names: ["A", "B", "C", "D", "E"])
         presenter.globalColumnCount = 2
 
-        // テーブル 2 + 追加ボタン 1 = 3 アイテム → 2 行（2 + 1）
         XCTAssertEqual(presenter.viewData.rows.count, 2)
         XCTAssertEqual(presenter.viewData.rows[0].items.count, 2)
         XCTAssertEqual(presenter.viewData.rows[1].items.count, 1)
@@ -40,16 +56,13 @@ final class SeatingChartViewDataTests: XCTestCase {
         let presenter = makePresenter(names: ["A", "B", "C", "D", "E"])
         presenter.globalColumnCount = 2
 
-        let firstTableID = presenter.tables[0].id.uuidString
+        let firstTableID = tableIDs(in: presenter.viewData)[0].uuidString
         XCTAssertEqual(presenter.viewData.rows[0].id, firstTableID)
     }
 
     func test_ViewData_座席は空席パディング込みで定員数になる() {
         let presenter = makePresenter(names: ["A"])
-        let tableData = presenter.viewData.rows[0].items.compactMap { item -> TableViewData? in
-            if case .table(let t) = item { return t }
-            return nil
-        }.first
+        let tableData = firstTable(in: presenter.viewData)
 
         XCTAssertEqual(tableData?.seats.count, 4)
         XCTAssertEqual(tableData?.seats.filter(\.isEmpty).count, 3)
@@ -58,27 +71,28 @@ final class SeatingChartViewDataTests: XCTestCase {
 
     func test_ViewData_列数が5以上なら横スクロールが必要() {
         let presenter = makePresenter(names: ["A"])
-        presenter.updateTable(
-            id: presenter.tables[0].id,
-            newName: "卓",
-            newCapacity: 6,
-            newColumnCount: 5,
-            newLayoutDirection: .none,
-            newLayoutText: ""
+        let tableID = tableIDs(in: presenter.viewData)[0]
+
+        presenter.didCommitTableEdit(
+            TableUpdateRequest(
+                tableID: tableID,
+                name: "卓",
+                capacity: 6,
+                columnCount: 5,
+                layoutDirection: .none,
+                layoutText: "",
+                applyToAll: false
+            )
         )
 
-        let tableData = presenter.viewData.rows[0].items.compactMap { item -> TableViewData? in
-            if case .table(let t) = item { return t }
-            return nil
-        }.first
-
+        let tableData = firstTable(in: presenter.viewData)
         XCTAssertEqual(tableData?.columnCount, 5)
         XCTAssertEqual(tableData?.needsHorizontalScroll, true)
     }
 
     func test_route_テーブルタップでtableEditになりindexではなくIDを使う() {
         let presenter = makePresenter(names: ["A", "B", "C", "D", "E"])
-        let tableID = presenter.tables[1].id
+        let tableID = tableIDs(in: presenter.viewData)[1]
 
         presenter.didTapTable(id: tableID)
 
@@ -87,7 +101,7 @@ final class SeatingChartViewDataTests: XCTestCase {
 
     func test_テンプレート適用_同一インデックスのテーブルIDを引き継ぐ() {
         let presenter = makePresenter(names: ["A", "B", "C", "D", "E", "F"])
-        let originalIDs = presenter.tables.map(\.id)
+        let originalIDs = tableIDs(in: presenter.viewData)
         let template = SeatingLayoutTemplate(
             name: "宴会場",
             tables: [
@@ -97,9 +111,9 @@ final class SeatingChartViewDataTests: XCTestCase {
             globalColumnCount: 4
         )
 
-        _ = presenter.applyTemplate(template)
+        presenter.applyTemplate(template)
 
-        XCTAssertEqual(presenter.tables.map(\.id), originalIDs)
+        XCTAssertEqual(tableIDs(in: presenter.viewData), originalIDs)
     }
 
     func test_didSelectTemplate_会場列数もViewDataに反映される() {

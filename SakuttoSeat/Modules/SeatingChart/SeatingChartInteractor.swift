@@ -7,16 +7,367 @@
 
 import Foundation
 
-final class SeatingChartInteractor: SeatingChartInteractorProtocol {
+nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
+    private enum Limits {
+        static let freeColumnCount = 2
+        static let freeTemplateCount = 3
+    }
+
+    private let attendees: [Attendee]
+    private let featureUnlock: FeatureUnlockState
+    private var tables: [SeatingTable] = []
+    private var venueSettings: VenueSettings
+
+    init(
+        attendees: [Attendee] = [],
+        venueSettings: VenueSettings = .default,
+        featureUnlock: FeatureUnlockState? = nil
+    ) {
+        self.attendees = attendees
+        self.venueSettings = venueSettings
+        self.featureUnlock = featureUnlock ?? FeatureUnlockState()
+        _ = buildInitialTables()
+    }
+
+    func currentTables() -> [SeatingTable] {
+        tables
+    }
+
+    func currentVenueSettings() -> VenueSettings {
+        venueSettings
+    }
+
+    var isSessionUnlocked: Bool {
+        featureUnlock.isSessionUnlocked
+    }
+
+    // MARK: - 座席割り当て
+
+    @discardableResult
+    func buildInitialTables() -> [SeatingTable] {
+        let attendeeCount = attendees.count
+        let baseCapacity = venueSettings.defaultCapacity
+        let numberOfTables = max(1, Int(ceil(Double(attendeeCount) / Double(baseCapacity))))
+
+        var initialTables: [SeatingTable] = []
+        for index in 0..<numberOfTables {
+            initialTables.append(
+                SeatingTable(
+                    name: Self.tableName(at: index),
+                    capacity: baseCapacity,
+                    columnCount: min(venueSettings.defaultColumnCount, baseCapacity),
+                    layoutDirection: .none,
+                    layoutText: "",
+                    assignedMembers: []
+                )
+            )
+        }
+        tables = assign(attendees: attendees, to: initialTables, shuffle: false)
+        return tables
+    }
+
+    @discardableResult
+    func shuffleSeats() -> [SeatingTable] {
+        tables = assign(attendees: attendees, to: tables, shuffle: true)
+        return tables
+    }
+
+    @discardableResult
+    func reassignInRegistrationOrder() -> [SeatingTable] {
+        tables = assign(attendees: attendees, to: tables, shuffle: false)
+        return tables
+    }
+
+    @discardableResult
+    func toggleLock(tableID: TableID, memberID: MemberID) -> [SeatingTable] {
+        guard let tableIndex = tables.firstIndex(where: { $0.id == tableID }),
+              let memberIndex = tables[tableIndex].assignedMembers.firstIndex(where: { $0.id == memberID }) else {
+            return tables
+        }
+        tables[tableIndex].assignedMembers[memberIndex].isLocked.toggle()
+        return tables
+    }
+
+    /// 割り当てアルゴリズムの純関数インターフェース（状態は更新しない）。
+    /// 既存の回帰テストと `SeatSlot` の id 安定性検証がこの入口を使う。
+    func shuffleAndAssign(attendees: [Attendee], to tables: [SeatingTable]) -> [SeatingTable] {
+        assign(attendees: attendees, to: tables, shuffle: true)
+    }
+
+    func assignInRegistrationOrder(attendees: [Attendee], to tables: [SeatingTable]) -> [SeatingTable] {
+        assign(attendees: attendees, to: tables, shuffle: false)
+    }
+
+    // MARK: - テーブル構成
+
+    @discardableResult
+    func addTable() -> [SeatingTable] {
+        addTable(capacity: nil, columnCount: nil)
+    }
+
+    @discardableResult
+    func addTable(capacity: Int?, columnCount: Int?) -> [SeatingTable] {
+        let resolvedCapacity = max(1, capacity ?? venueSettings.defaultCapacity)
+        let resolvedColumnCount = min(max(1, columnCount ?? venueSettings.defaultColumnCount), resolvedCapacity)
+        tables.append(
+            SeatingTable(
+                name: nextTableName(),
+                capacity: resolvedCapacity,
+                columnCount: resolvedColumnCount
+            )
+        )
+        return tables
+    }
+
+    @discardableResult
+    func deleteTable(id: TableID) -> [SeatingTable] {
+        tables.removeAll(where: { $0.id == id })
+        return reassignInRegistrationOrder()
+    }
+
+    @discardableResult
+    func applyTableUpdate(_ request: TableUpdateRequest) -> [SeatingTable] {
+        request.applyToAll ? updateAllTables(request) : updateTable(request)
+    }
+
+    @discardableResult
+    func updateTable(_ request: TableUpdateRequest) -> [SeatingTable] {
+        guard let index = tables.firstIndex(where: { $0.id == request.tableID }) else {
+            return tables
+        }
+
+        let capacityChanged = tables[index].capacity != request.capacity
+        tables[index].name = request.name
+        tables[index].capacity = request.capacity
+        tables[index].columnCount = min(request.columnCount, request.capacity)
+        tables[index].layoutDirection = request.layoutDirection
+        tables[index].layoutText = request.layoutText
+        if tables[index].assignedMembers.count > request.capacity {
+            tables[index].assignedMembers = Array(tables[index].assignedMembers.prefix(request.capacity))
+        }
+
+        if capacityChanged {
+            ensureSufficientTables(targetCapacity: request.capacity, targetColumnCount: request.columnCount)
+            _ = reassignInRegistrationOrder()
+            removeEmptyTables()
+        }
+        return tables
+    }
+
+    @discardableResult
+    func updateAllTables(_ request: TableUpdateRequest) -> [SeatingTable] {
+        let capacity = max(1, request.capacity)
+        let columnCount = min(max(1, request.columnCount), capacity)
+
+        venueSettings.defaultCapacity = capacity
+        venueSettings.defaultColumnCount = columnCount
+
+        if let index = tables.firstIndex(where: { $0.id == request.tableID }) {
+            tables[index].name = request.name
+            tables[index].layoutDirection = request.layoutDirection
+            tables[index].layoutText = request.layoutText
+        }
+        unifyTableLayout(capacity: capacity, columnCount: columnCount)
+
+        ensureSufficientTables(targetCapacity: capacity, targetColumnCount: columnCount)
+        unifyTableLayout(capacity: capacity, columnCount: columnCount)
+        _ = reassignInRegistrationOrder()
+        removeEmptyTables()
+        return tables
+    }
+
+    // MARK: - 会場設定と解放
+
+    func columnCountChangeRequirement(for count: Int) -> UnlockRequirement {
+        if count <= Limits.freeColumnCount {
+            return .none
+        }
+        return featureUnlock.isSessionUnlocked ? .none : .rewardedAd
+    }
+
+    @discardableResult
+    func applyColumnCount(_ count: Int) throws -> VenueSettings {
+        switch columnCountChangeRequirement(for: count) {
+        case .none:
+            venueSettings.globalColumnCount = count
+            return venueSettings
+        case .rewardedAd:
+            throw VenueSettingsError.unlockRequired(requested: count)
+        }
+    }
+
+    func grantSessionUnlock() {
+        featureUnlock.grantSessionUnlock()
+    }
+
+    // MARK: - テンプレート
+
+    func templateSaveAvailability(currentCount: Int) -> TemplateSaveAvailability {
+        if currentCount < Limits.freeTemplateCount {
+            return .available
+        }
+        return .limitReached(currentCount: currentCount, limit: Limits.freeTemplateCount)
+    }
+
+    func makeLayoutTemplate(named name: String) -> LayoutTemplateSnapshot? {
+        guard !tables.isEmpty else { return nil }
+        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+
+        let templateTables = tables.map { table in
+            TableTemplate(
+                name: table.name,
+                capacity: table.capacity,
+                columnCount: table.columnCount,
+                layoutDirection: table.layoutDirection,
+                layoutText: table.layoutText
+            )
+        }
+        return LayoutTemplateSnapshot(
+            name: name,
+            tables: templateTables,
+            globalColumnCount: venueSettings.globalColumnCount
+        )
+    }
+
+    @discardableResult
+    func applyTemplate(_ snapshot: LayoutTemplateSnapshot) -> [SeatingTable] {
+        let restoredTables = snapshot.tables.enumerated().map { index, tableTemplate in
+            SeatingTable(
+                id: index < tables.count ? tables[index].id : UUID(),
+                name: tableTemplate.name,
+                capacity: tableTemplate.capacity,
+                columnCount: tableTemplate.columnCount,
+                layoutDirection: tableTemplate.layoutDirection,
+                layoutText: tableTemplate.layoutText,
+                assignedMembers: []
+            )
+        }
+
+        if let firstTable = restoredTables.first,
+           restoredTables.allSatisfy({ $0.capacity == firstTable.capacity && $0.columnCount == firstTable.columnCount }) {
+            venueSettings.defaultCapacity = firstTable.capacity
+            venueSettings.defaultColumnCount = firstTable.columnCount
+        }
+
+        venueSettings.globalColumnCount = snapshot.globalColumnCount
+        tables = assign(attendees: attendees, to: restoredTables, shuffle: false)
+        return tables
+    }
+
+    // MARK: - 共有
+
+    func makeShareText() -> String {
+        var text = "【サクッと席決め】座席表のシャッフル結果です！\n\n"
+
+        for table in tables {
+            text += "━━━━━━━━━━━━━━━━━\n"
+            text += "▼ \(table.name)\n"
+            text += "━━━━━━━━━━━━━━━━━\n"
+
+            let members = table.assignedMembers
+            let colCount = max(1, table.columnCount)
+
+            if members.isEmpty {
+                text += "（まだメンバーが配置されていません）\n"
+            } else {
+                for (index, member) in members.enumerated() {
+                    let row = (index / colCount) + 1
+                    let col = (index % colCount) + 1
+
+                    if colCount == 2 {
+                        let side = (index % 2 == 0) ? "左" : "右"
+                        text += "🪑 [\(row)列目 · \(side)] : \(member.name)\n"
+                    } else {
+                        text += "🪑 [\(row)行\(col)列目] : \(member.name)\n"
+                    }
+                }
+            }
+            text += "\n"
+        }
+
+        text += "#サクッと席決め"
+        return text
+    }
+
+    func shareImageRequirement() -> UnlockRequirement {
+        .rewardedAd
+    }
+
+    // MARK: - テーブル名
+
+    static func tableName(at index: Int) -> String {
+        var remainder = index
+        var letters = ""
+        repeat {
+            let scalarValue = UInt8(65 + remainder % 26)
+            letters = String(UnicodeScalar(scalarValue)) + letters
+            remainder = remainder / 26 - 1
+        } while remainder >= 0
+        return "テーブル\(letters)"
+    }
+
+    // MARK: - Private
+
+    private func nextTableName() -> String {
+        let usedNames = Set(tables.map(\.name))
+        var index = 0
+        while true {
+            let candidate = Self.tableName(at: index)
+            if !usedNames.contains(candidate) {
+                return candidate
+            }
+            index += 1
+        }
+    }
+
+    private func unifyTableLayout(capacity: Int, columnCount: Int) {
+        for index in tables.indices {
+            tables[index].capacity = capacity
+            tables[index].columnCount = columnCount
+            if tables[index].assignedMembers.count > capacity {
+                tables[index].assignedMembers = Array(tables[index].assignedMembers.prefix(capacity))
+            }
+        }
+    }
+
+    private func ensureSufficientTables(targetCapacity: Int? = nil, targetColumnCount: Int? = nil) {
+        let attendeeCount = attendees.count
+        let totalCapacity = tables.reduce(0) { $0 + $1.capacity }
+
+        if totalCapacity < attendeeCount {
+            let neededCapacity = attendeeCount - totalCapacity
+            let resolvedCapacity = max(1, targetCapacity ?? tables.last?.capacity ?? venueSettings.defaultCapacity)
+            let resolvedColumnCount = min(
+                targetColumnCount ?? tables.last?.columnCount ?? venueSettings.defaultColumnCount,
+                resolvedCapacity
+            )
+            let tablesToAdd = max(1, Int(ceil(Double(neededCapacity) / Double(resolvedCapacity))))
+
+            for _ in 0..<tablesToAdd {
+                _ = addTable(capacity: resolvedCapacity, columnCount: resolvedColumnCount)
+            }
+        }
+    }
+
+    private func removeEmptyTables() {
+        while tables.count > 1 {
+            if let lastTable = tables.last, lastTable.assignedMembers.isEmpty {
+                tables.removeLast()
+            } else {
+                break
+            }
+        }
+    }
+
     private func assign(attendees: [Attendee], to tables: [SeatingTable], shuffle: Bool) -> [SeatingTable] {
         var updatedTables = tables
         var lockedMembers: [UUID: (member: SeatingMember, tableIndex: Int, seatIndex: Int)] = [:]
         var currentlyAssignedIDs: Set<UUID> = []
 
-        for (tIndex, table) in tables.enumerated() {
-            for (sIndex, member) in table.assignedMembers.enumerated() {
+        for (tableIndex, table) in tables.enumerated() {
+            for (seatIndex, member) in table.assignedMembers.enumerated() {
                 if member.isLocked {
-                    lockedMembers[member.id] = (member, tIndex, sIndex)
+                    lockedMembers[member.id] = (member, tableIndex, seatIndex)
                     currentlyAssignedIDs.insert(member.id)
                 }
             }
@@ -26,12 +377,12 @@ final class SeatingChartInteractor: SeatingChartInteractorProtocol {
         let orderedAttendees = shuffle ? movableAttendees.shuffled() : movableAttendees
         var nameIndex = 0
 
-        for tIndex in 0..<updatedTables.count {
+        for tableIndex in 0..<updatedTables.count {
             var newMembersForTable: [SeatingMember] = []
-            let capacity = updatedTables[tIndex].capacity
+            let capacity = updatedTables[tableIndex].capacity
 
-            for sIndex in 0..<capacity {
-                if let locked = lockedMembers.values.first(where: { $0.tableIndex == tIndex && $0.seatIndex == sIndex }) {
+            for seatIndex in 0..<capacity {
+                if let locked = lockedMembers.values.first(where: { $0.tableIndex == tableIndex && $0.seatIndex == seatIndex }) {
                     newMembersForTable.append(locked.member)
                 } else if nameIndex < orderedAttendees.count {
                     let attendee = orderedAttendees[nameIndex]
@@ -39,16 +390,8 @@ final class SeatingChartInteractor: SeatingChartInteractorProtocol {
                     nameIndex += 1
                 }
             }
-            updatedTables[tIndex].assignedMembers = newMembersForTable
+            updatedTables[tableIndex].assignedMembers = newMembersForTable
         }
         return updatedTables
-    }
-
-    func shuffleAndAssign(attendees: [Attendee], to tables: [SeatingTable]) -> [SeatingTable] {
-        assign(attendees: attendees, to: tables, shuffle: true)
-    }
-
-    func assignInRegistrationOrder(attendees: [Attendee], to tables: [SeatingTable]) -> [SeatingTable] {
-        assign(attendees: attendees, to: tables, shuffle: false)
     }
 }

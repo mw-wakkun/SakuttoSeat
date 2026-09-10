@@ -167,7 +167,9 @@ struct TableEditView: View {
                 
                 Section {
                     Button(role: .destructive) {
-                        presenter.deleteTable(id: tableId)
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            presenter.didRequestDeleteTable(id: tableId)
+                        }
                         dismiss()
                     } label: {
                         HStack {
@@ -183,24 +185,17 @@ struct TableEditView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
-                        if applyToAllTables {
-                            presenter.updateAllTables(
-                                editingTableId: tableId,
-                                newName: name,
-                                newCapacity: capacity,
-                                newColumnCount: columnCount,
-                                newLayoutDirection: layoutDirection,
-                                newLayoutText: layoutText
-                            )
-                        } else {
-                            presenter.updateTable(
-                                id: tableId,
-                                newName: name,
-                                newCapacity: capacity,
-                                newColumnCount: columnCount,
-                                newLayoutDirection: layoutDirection,
-                                newLayoutText: layoutText
-                            )
+                        let request = TableUpdateRequest(
+                            tableID: tableId,
+                            name: name,
+                            capacity: capacity,
+                            columnCount: columnCount,
+                            layoutDirection: layoutDirection,
+                            layoutText: layoutText,
+                            applyToAll: applyToAllTables
+                        )
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            presenter.didCommitTableEdit(request)
                         }
                         dismiss()
                     }

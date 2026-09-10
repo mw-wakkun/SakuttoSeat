@@ -83,7 +83,8 @@ struct SeatingChartView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, scrollBottomBreathingRoom)
             }
-            .onChange(of: presenter.scrollToTopTrigger) { _, _ in
+            .onChange(of: presenter.canvasEvent) { _, event in
+                guard case .scrollToTop = event else { return }
                 withAnimation(.easeInOut(duration: 0.25)) {
                     scrollProxy.scrollTo(scrollAnchorTopID, anchor: .top)
                 }
@@ -211,7 +212,9 @@ private extension SeatingChartView {
             .presentationDetents([.medium])
         case .templateList:
             SeatingTemplateListView { selectedTemplate in
-                presenter.didSelectTemplate(selectedTemplate)
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                    presenter.didSelectTemplate(selectedTemplate)
+                }
             }
             .presentationDetents([.medium, .large])
         case .shareSelection:
@@ -312,7 +315,9 @@ extension SeatingChartView {
                     presenter.didTapShare()
                 }, isDisabled: !presenter.viewData.isShareEnabled),
                 button4: .init(title: "シャッフル", icon: "shuffle", color: .purple, action: {
-                    presenter.didTapShuffle()
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                        presenter.didTapShuffle()
+                    }
                 }, isDisabled: !presenter.viewData.isShuffleEnabled)
             )
             .padding(.horizontal, 16)
@@ -391,15 +396,16 @@ extension SeatingChartView {
     NavigationStack {
         SeatingChartView(
             presenter: SeatingChartPresenter(
-                interactor: SeatingChartInteractor(),
-                router: SeatingChartRouter(),
-                attendees: [
-                    Attendee(name: "太郎"),
-                    Attendee(name: "花子"),
-                    Attendee(name: "次郎"),
-                    Attendee(name: "三郎"),
-                    Attendee(name: "四郎")
-                ]
+                interactor: SeatingChartInteractor(
+                    attendees: [
+                        Attendee(name: "太郎"),
+                        Attendee(name: "花子"),
+                        Attendee(name: "次郎"),
+                        Attendee(name: "三郎"),
+                        Attendee(name: "四郎")
+                    ]
+                ),
+                router: SeatingChartRouter()
             )
         )
     }

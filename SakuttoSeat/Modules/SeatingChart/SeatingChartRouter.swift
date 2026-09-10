@@ -12,9 +12,12 @@ final class SeatingChartRouter: SeatingChartRouterProtocol {
     /// モジュールの組み立て（Builder 相当）
     @MainActor
     static func assembleModule(attendees: [Attendee]) -> AnyView {
-        let interactor = SeatingChartInteractor()
+        let interactor = SeatingChartInteractor(
+            attendees: attendees,
+            featureUnlock: SessionFeatureUnlock.shared
+        )
         let router = SeatingChartRouter()
-        let presenter = SeatingChartPresenter(interactor: interactor, router: router, attendees: attendees)
+        let presenter = SeatingChartPresenter(interactor: interactor, router: router)
         let view = SeatingChartView(presenter: presenter)
         return AnyView(view)
     }

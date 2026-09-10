@@ -58,6 +58,22 @@ enum SeatingChartRoute: Identifiable, Equatable {
     }
 }
 
+/// View が反応するキャンバス操作。`SeatingChartRoute` と同様に意味を持つイベントとして発行する。
+enum SeatingChartCanvasEvent: Equatable, Identifiable {
+    case scrollToTop(id: UUID)
+
+    var id: UUID {
+        switch self {
+        case .scrollToTop(let id):
+            return id
+        }
+    }
+
+    static func scrollToTop() -> SeatingChartCanvasEvent {
+        .scrollToTop(id: UUID())
+    }
+}
+
 enum SeatingChartAlert: Equatable, Identifiable {
     case templateLimitReached(currentCount: Int, limit: Int)
     case confirmImageShareWithAd

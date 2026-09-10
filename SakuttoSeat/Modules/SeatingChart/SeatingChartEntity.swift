@@ -53,10 +53,22 @@ enum UnlockRequirement: Equatable {
     case rewardedAd
 }
 
+/// 会場列数の適用に失敗した理由
+enum VenueSettingsError: Error, Equatable {
+    case unlockRequired(requested: Int)
+}
+
 /// テンプレート保存の可否
 enum TemplateSaveAvailability: Equatable {
     case available
     case limitReached(currentCount: Int, limit: Int)
+}
+
+/// 永続化モデル（SwiftData）を Interactor から隔離するためのスナップショット
+struct LayoutTemplateSnapshot {
+    let name: String
+    let tables: [TableTemplate]
+    let globalColumnCount: Int
 }
 
 // 参加者モデル

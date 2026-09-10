@@ -2,7 +2,7 @@
 //  SeatingChartContracts.swift
 //  SakuttoSeat
 //
-//  refactor_seating.md Phase 2（モジュール契約）
+//  refactor_seating.md Phase 3（Presenter → Interactor へのロジック移送）
 //
 
 import SwiftData
@@ -19,11 +19,11 @@ import UIKit
 protocol SeatingChartPresenterProtocol: AnyObject {
     var viewData: SeatingChartViewData { get }
     var route: SeatingChartRoute? { get set }
-    var scrollToTopTrigger: Int { get }
+    var canvasEvent: SeatingChartCanvasEvent? { get }
 
-    /// 会場列数（Phase 3 で Interactor / VenueSettings へ移送）
+    /// VenueSettings へのファサード（Phase 5 で VenueSettings モジュールへ移管）
     var globalColumnCount: Int { get set }
-    /// セッション限定の列数解放（Phase 3 で FeatureUnlockGateway へ移送）
+    /// FeatureUnlockGateway へのファサード（画面を pop してもセッション内は維持）
     var sessionUnlockedColumns: Bool { get set }
 
     // MARK: View -> Presenter（ユーザー意図）
@@ -47,7 +47,6 @@ protocol SeatingChartPresenterProtocol: AnyObject {
     func didTapSettings()
     func dismissRoute()
 
-    /// 共有テキスト（Phase 5 で Share / Interactor へ移送）
     func makeShareText() -> String
 
     /// シート dismiss 後に実行する共有種別（View が消費して nil にする）
@@ -58,23 +57,37 @@ protocol SeatingChartPresenterProtocol: AnyObject {
 
 // MARK: - Presenter -> Interactor
 
-/// 現行 API。Phase 3 で状態保持型の §4.1 API に置換する。
-///
-/// Phase 3 での目標シグネチャ（参考）:
-/// - `currentTables() / currentVenueSettings()`
-/// - `buildInitialTables / shuffleSeats / reassignInRegistrationOrder / toggleLock`
-/// - `addTable / deleteTable / updateTable / updateAllTables`
-/// - `columnCountChangeRequirement / applyColumnCount / grantSessionUnlock`
-/// - `templateSaveAvailability / saveCurrentLayoutAsTemplate / applyTemplate`
-/// - `makeShareText / shareImageRequirement`
-protocol SeatingChartInteractorProtocol: AnyObject {
-    func shuffleAndAssign(attendees: [Attendee], to tables: [SeatingTable]) -> [SeatingTable]
-    func assignInRegistrationOrder(attendees: [Attendee], to tables: [SeatingTable]) -> [SeatingTable]
+nonisolated protocol SeatingChartInteractorProtocol: AnyObject {
+    func currentTables() -> [SeatingTable]
+    func currentVenueSettings() -> VenueSettings
+
+    func buildInitialTables() -> [SeatingTable]
+    func shuffleSeats() -> [SeatingTable]
+    func reassignInRegistrationOrder() -> [SeatingTable]
+    func toggleLock(tableID: TableID, memberID: MemberID) -> [SeatingTable]
+
+    func addTable() -> [SeatingTable]
+    func deleteTable(id: TableID) -> [SeatingTable]
+    func updateTable(_ request: TableUpdateRequest) -> [SeatingTable]
+    func updateAllTables(_ request: TableUpdateRequest) -> [SeatingTable]
+
+    func columnCountChangeRequirement(for count: Int) -> UnlockRequirement
+    func applyColumnCount(_ count: Int) throws -> VenueSettings
+    func grantSessionUnlock()
+    var isSessionUnlocked: Bool { get }
+
+    /// Phase 4 で Gateway の `fetchCount` に置き換えるまでの暫定 API
+    func templateSaveAvailability(currentCount: Int) -> TemplateSaveAvailability
+    func makeLayoutTemplate(named name: String) -> LayoutTemplateSnapshot?
+    func applyTemplate(_ snapshot: LayoutTemplateSnapshot) -> [SeatingTable]
+
+    func makeShareText() -> String
+    func shareImageRequirement() -> UnlockRequirement
 }
 
 // MARK: - Presenter -> Router
 
-/// Phase 4 で実装を実体化する。Phase 2 ではスタブで契約だけ先に固定する。
+/// Phase 4 で実装を実体化する。
 @MainActor
 protocol SeatingChartRouterProtocol: AnyObject {
     func presentShareSheet(text: String)
@@ -94,7 +107,7 @@ protocol SeatingTemplateGateway {
     func delete(id: UUID) throws
 }
 
-protocol FeatureUnlockGateway: AnyObject {
+nonisolated protocol FeatureUnlockGateway: AnyObject {
     var isSessionUnlocked: Bool { get }
     func grantSessionUnlock()
 }
