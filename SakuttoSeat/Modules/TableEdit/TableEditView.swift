@@ -2,209 +2,214 @@
 //  TableEditView.swift
 //  SakuttoSeat
 //
-//  refactor_seating.md Phase 1（ファイル分割）
-//  Phase 5 でこのフォルダに Presenter / Interactor / Router を追加し、
-//  独立した子 VIPER モジュールとして完成させる。
+//  refactor_seating.md Phase 5（子 VIPER モジュール化）
+//  Entity の @State 焼き込みを廃止し、Presenter の ViewData だけを読む。
+//  シートの開閉は親（SeatingChartPresenter.route）が Output 経由で制御する。
 //
 
 import SwiftUI
 
 /// テーブル編集画面
 struct TableEditView: View {
-    @Environment(\.dismiss) var dismiss
-    @ObservedObject var presenter: SeatingChartPresenter
-    
-    @State private var name: String
-    @State private var capacity: Int
-    @State private var columnCount: Int
-    @State private var layoutDirection: LayoutDirection
-    @State private var layoutText: String
-    @State private var applyToAllTables: Bool = false
-    private let maxInputLength: Int = 20
-    let tableId: TableID
+    @StateObject var presenter: TableEditPresenter
 
-    /// Phase 2: 親 View は Entity を持たず `TableID` だけ渡す。
-    /// 初期値は Presenter から引き、見つからない場合は安全な既定値で開く。
-    init(tableID: TableID, presenter: SeatingChartPresenter) {
-        self.presenter = presenter
-        self.tableId = tableID
-        let table = presenter.table(for: tableID)
-        _name = State(initialValue: table?.name ?? "")
-        _capacity = State(initialValue: table?.capacity ?? 4)
-        _columnCount = State(initialValue: table?.columnCount ?? 2)
-        _layoutDirection = State(initialValue: table?.layoutDirection ?? .none)
-        _layoutText = State(initialValue: table?.layoutText ?? "")
-    }
-    
     var body: some View {
         NavigationStack {
             Form {
-                Section("基本設定") {
-                    TextField("テーブル名（例: テーブルA・最大20文字）", text: $name)
-                        .onChange(of: name) { _, newValue in
-                            if newValue.count > maxInputLength {
-                                name = String(newValue.prefix(maxInputLength))
-                            }
-                        }
-                    Stepper("定員: \(capacity)人", value: $capacity, in: 1...10)
-                        .onChange(of: capacity) { _, newValue in
-                            // 定員が減った場合、列数も自動的に調整
-                            if columnCount > newValue {
-                                columnCount = newValue
-                            }
-                        }
-                    Stepper("横の列数: \(columnCount)列", value: $columnCount, in: 1...capacity)
-                    
-                    Toggle("すべてのテーブルに適用", isOn: $applyToAllTables)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Section("会場レイアウト（向き）") {
-                    // 十字の方向ボタン
-                    VStack(spacing: 8) {
-                        HStack {
-                            Spacer()
-                            Button(action: { withAnimation { layoutDirection = .top } }) {
-                                Image(systemName: "arrow.up")
-                                    .font(.title2)
-                                    .padding(10)
-                                    .background(
-                                        Circle()
-                                            .fill(layoutDirection == .top ? Color.blue.opacity(0.85) : Color(.secondarySystemGroupedBackground))
-                                    )
-                                    .foregroundColor(layoutDirection == .top ? .white : .primary)
-                            }
-                            .buttonStyle(.plain)
-                            Spacer()
-                        }
-                        HStack(spacing: 16) {
-                            Button(action: { withAnimation { layoutDirection = .left } }) {
-                                Image(systemName: "arrow.left")
-                                    .font(.title2)
-                                    .padding(10)
-                                    .background(
-                                        Circle()
-                                            .fill(layoutDirection == .left ? Color.blue.opacity(0.85) : Color(.secondarySystemGroupedBackground))
-                                    )
-                                    .foregroundColor(layoutDirection == .left ? .white : .primary)
-                            }
-                            .buttonStyle(.plain)
-                            Spacer()
-                            Button(action: { withAnimation { layoutDirection = .right } }) {
-                                Image(systemName: "arrow.right")
-                                    .font(.title2)
-                                    .padding(10)
-                                    .background(
-                                        Circle()
-                                            .fill(layoutDirection == .right ? Color.blue.opacity(0.85) : Color(.secondarySystemGroupedBackground))
-                                    )
-                                    .foregroundColor(layoutDirection == .right ? .white : .primary)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        HStack {
-                            Spacer()
-                            Button(action: { withAnimation { layoutDirection = .bottom } }) {
-                                Image(systemName: "arrow.down")
-                                    .font(.title2)
-                                    .padding(10)
-                                    .background(
-                                        Circle()
-                                            .fill(layoutDirection == .bottom ? Color.blue.opacity(0.85) : Color(.secondarySystemGroupedBackground))
-                                    )
-                                    .foregroundColor(layoutDirection == .bottom ? .white : .primary)
-                            }
-                            .buttonStyle(.plain)
-                            Spacer()
-                        }
-                        HStack {
-                            Spacer()
-                            Button(action: { withAnimation { layoutDirection = .none; layoutText = "" } }) {
-                                Text("指定なし")
-                                    .font(.caption)
-                                    .padding(.vertical, 6)
-                                    .padding(.horizontal, 12)
-                                    .background(
-                                        Capsule()
-                                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                            Spacer()
-                        }
-                    }
-                    
-                    // テキストのプリセットと自由入力
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("ラベル（例：窓際／ステージ側）")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        HStack {
-                            Menu {
-                                Button("窓際") { layoutText = "窓際" }
-                                Button("ステージ側") { layoutText = "ステージ側" }
-                                Button("入り口側") { layoutText = "入り口側" }
-                                Button("通路側") { layoutText = "通路側" }
-                            } label: {
-                                Label("よく使う語", systemImage: "tag")
-                                    .padding(8)
-                                    .background(Color(.secondarySystemGroupedBackground))
-                                    .cornerRadius(6)
-                            }
-                            
-                            TextField("例: 窓際（20文字まで）", text: $layoutText)
-                                .textFieldStyle(.roundedBorder)
-                                .onChange(of: layoutText) { _, newValue in
-                                    if newValue.count > maxInputLength {
-                                        layoutText = String(newValue.prefix(maxInputLength))
-                                    }
-                                }
-                        }
-                    }
-                }
-                
-                Section {
-                    Button(role: .destructive) {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            presenter.didRequestDeleteTable(id: tableId)
-                        }
-                        dismiss()
-                    } label: {
-                        HStack {
-                            Spacer()
-                            Text("このテーブルを削除")
-                            Spacer()
-                        }
-                    }
-                }
+                basicSection
+                layoutSection
+                deleteSection
             }
             .navigationTitle("テーブル編集")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
-                        let request = TableUpdateRequest(
-                            tableID: tableId,
-                            name: name,
-                            capacity: capacity,
-                            columnCount: columnCount,
-                            layoutDirection: layoutDirection,
-                            layoutText: layoutText,
-                            applyToAll: applyToAllTables
-                        )
                         withAnimation(.easeInOut(duration: 0.25)) {
-                            presenter.didCommitTableEdit(request)
+                            presenter.didTapSave()
                         }
-                        dismiss()
                     }
                 }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("キャンセル") { dismiss() }
+                    Button("キャンセル") { presenter.didTapCancel() }
                 }
             }
         }
         .presentationDetents([.medium, .large])
     }
 }
+
+// MARK: - セクション
+
+private extension TableEditView {
+    var viewData: TableEditViewData { presenter.viewData }
+
+    var basicSection: some View {
+        Section("基本設定") {
+            TextField("テーブル名（例: テーブルA・最大\(viewData.maxInputLength)文字）", text: nameBinding)
+
+            Stepper("定員: \(viewData.capacity)人", value: capacityBinding, in: viewData.capacityRange)
+            Stepper("横の列数: \(viewData.columnCount)列", value: columnCountBinding, in: viewData.columnCountRange)
+
+            Toggle("すべてのテーブルに適用", isOn: applyToAllBinding)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    var layoutSection: some View {
+        Section("会場レイアウト（向き）") {
+            directionPad
+            layoutTextField
+        }
+    }
+
+    var deleteSection: some View {
+        Section {
+            Button(role: .destructive) {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    presenter.didTapDelete()
+                }
+            } label: {
+                HStack {
+                    Spacer()
+                    Text("このテーブルを削除")
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    // 十字の方向ボタン
+    var directionPad: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Spacer()
+                directionButton(.top, icon: "arrow.up")
+                Spacer()
+            }
+            HStack(spacing: 16) {
+                directionButton(.left, icon: "arrow.left")
+                Spacer()
+                directionButton(.right, icon: "arrow.right")
+            }
+            HStack {
+                Spacer()
+                directionButton(.bottom, icon: "arrow.down")
+                Spacer()
+            }
+            HStack {
+                Spacer()
+                Button(action: { withAnimation { presenter.didSelectLayoutDirection(.none) } }) {
+                    Text("指定なし")
+                        .font(.caption)
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 12)
+                        .background(
+                            Capsule()
+                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                Spacer()
+            }
+        }
+    }
+
+    func directionButton(_ direction: LayoutDirection, icon: String) -> some View {
+        let isSelected = viewData.layoutDirection == direction
+        return Button(action: { withAnimation { presenter.didSelectLayoutDirection(direction) } }) {
+            Image(systemName: icon)
+                .font(.title2)
+                .padding(10)
+                .background(
+                    Circle()
+                        .fill(isSelected ? Color.blue.opacity(0.85) : Color(.secondarySystemGroupedBackground))
+                )
+                .foregroundColor(isSelected ? .white : .primary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // テキストのプリセットと自由入力
+    var layoutTextField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("ラベル（例：窓際／ステージ側）")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            HStack {
+                Menu {
+                    ForEach(viewData.layoutTextPresets, id: \.self) { preset in
+                        Button(preset) { presenter.didChangeLayoutText(preset) }
+                    }
+                } label: {
+                    Label("よく使う語", systemImage: "tag")
+                        .padding(8)
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .cornerRadius(6)
+                }
+
+                TextField("例: 窓際（\(viewData.maxInputLength)文字まで）", text: layoutTextBinding)
+                    .textFieldStyle(.roundedBorder)
+            }
+        }
+    }
+}
+
+// MARK: - Bindings（入力は必ず Presenter を通す）
+
+private extension TableEditView {
+    var nameBinding: Binding<String> {
+        Binding(
+            get: { presenter.viewData.name },
+            set: { presenter.didChangeName($0) }
+        )
+    }
+
+    var layoutTextBinding: Binding<String> {
+        Binding(
+            get: { presenter.viewData.layoutText },
+            set: { presenter.didChangeLayoutText($0) }
+        )
+    }
+
+    var capacityBinding: Binding<Int> {
+        Binding(
+            get: { presenter.viewData.capacity },
+            set: { presenter.didChangeCapacity($0) }
+        )
+    }
+
+    var columnCountBinding: Binding<Int> {
+        Binding(
+            get: { presenter.viewData.columnCount },
+            set: { presenter.didChangeColumnCount($0) }
+        )
+    }
+
+    var applyToAllBinding: Binding<Bool> {
+        Binding(
+            get: { presenter.viewData.applyToAllTables },
+            set: { presenter.didToggleApplyToAllTables($0) }
+        )
+    }
+}
+
+#if DEBUG
+#Preview("テーブル編集") {
+    TableEditView(
+        presenter: TableEditPresenter(
+            interactor: TableEditInteractor(
+                draft: TableEditDraft(
+                    tableID: UUID(),
+                    name: "テーブルA",
+                    capacity: 4,
+                    columnCount: 2
+                )
+            ),
+            output: nil
+        )
+    )
+}
+#endif

@@ -12,22 +12,6 @@ struct SimpleShuffleView: View {
     // （@ObservedObject では親の再評価ごとに Presenter が作り直され、シャッフル結果が失われる）
     @StateObject var presenter: SimpleShufflePresenter
 
-    // MARK: - アンロック・広告管理
-    @StateObject private var adManager = RewardedAdManager.shared
-
-    @State private var showingShareOptions = false
-    @State private var pendingShareSelection: ShareSelectionKind?
-    @State private var showingImageShareAdAlert = false
-    @State private var showingAdNotReadyAlert = false
-
-    private var shareText: String {
-        var text = "【サクッと席決め】シャッフル結果\n"
-        for (index, name) in presenter.attendees.enumerated() {
-            text += "\(index + 1)番席: \(name)\n"
-        }
-        return text.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             List {
@@ -76,7 +60,7 @@ struct SimpleShuffleView: View {
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Button {
-                    showingShareOptions = true
+                    presenter.didTapShare()
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                         .font(.body)
@@ -90,54 +74,7 @@ struct SimpleShuffleView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingShareOptions, onDismiss: {
-            guard let pendingShareSelection else { return }
-            self.pendingShareSelection = nil
-
-            Task { @MainActor in
-                await ShareSheetPresenter.waitUntilPresentable()
-                switch pendingShareSelection {
-                case .text:
-                    ShareSheetPresenter.present(items: [shareText])
-                case .image:
-                    showingImageShareAdAlert = true
-                }
-            }
-        }) {
-            ShareSelectionView { kind in
-                pendingShareSelection = kind
-            }
-        }
-        .alert("画像で共有", isPresented: $showingImageShareAdAlert) {
-            Button("キャンセル", role: .cancel) { }
-            Button("OK") {
-                Task { @MainActor in
-                    await playRewardedAdThenShareImage()
-                }
-            }
-        } message: {
-            Text("動画広告を視聴して画像を出力しますか？")
-        }
-        .alert("広告を読み込み中", isPresented: $showingAdNotReadyAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("広告の準備ができていません。しばらく待ってからもう一度お試しください。")
-        }
-    }
-
-    @MainActor
-    private func playRewardedAdThenShareImage() async {
-        do {
-            try await RewardedAdPresenter.present()
-            guard let image = ImageExportRenderer.renderSimpleShuffle(attendees: presenter.attendees) else {
-                return
-            }
-            await ShareSheetPresenter.presentWhenReady(items: [image])
-        } catch RewardedAdError.notReady {
-            showingAdNotReadyAlert = true
-        } catch {
-            // notEarned / failed
-        }
+        .shareFlow(presenter.share)
     }
 }
 

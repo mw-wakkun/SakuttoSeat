@@ -13,7 +13,6 @@ enum SeatingChartRoute: Identifiable, Equatable {
     case tableEdit(TableID)
     case venueSettings
     case templateList
-    case shareSelection
     case saveTemplatePrompt
     case alert(SeatingChartAlert)
 
@@ -25,8 +24,6 @@ enum SeatingChartRoute: Identifiable, Equatable {
             return "venueSettings"
         case .templateList:
             return "templateList"
-        case .shareSelection:
-            return "shareSelection"
         case .saveTemplatePrompt:
             return "saveTemplatePrompt"
         case .alert(let alert):
@@ -37,7 +34,7 @@ enum SeatingChartRoute: Identifiable, Equatable {
     /// `.sheet(item:)` で提示するケースか
     var presentsAsSheet: Bool {
         switch self {
-        case .tableEdit, .venueSettings, .templateList, .shareSelection:
+        case .tableEdit, .venueSettings, .templateList:
             return true
         case .saveTemplatePrompt, .alert:
             return false
@@ -71,28 +68,18 @@ enum SeatingChartCanvasEvent: Equatable, Identifiable {
     }
 }
 
+/// 画像共有・広告関連のアラートは Phase 5 で Share モジュール（`ShareAlert`）へ移した。
+/// 列数解放のアラートは VenueSettings モジュール（`VenueSettingsRoute`）が持つ。
 enum SeatingChartAlert: Equatable, Identifiable {
     case templateLimitReached(currentCount: Int, limit: Int)
-    case confirmImageShareWithAd
-    case adNotReady
-    case requireUnlockForColumns(requested: Int)
     case saveFailed(message: String)
-    case imageExportFailed
 
     var id: String {
         switch self {
         case .templateLimitReached:
             return "templateLimitReached"
-        case .confirmImageShareWithAd:
-            return "confirmImageShareWithAd"
-        case .adNotReady:
-            return "adNotReady"
-        case .requireUnlockForColumns:
-            return "requireUnlockForColumns"
         case .saveFailed:
             return "saveFailed"
-        case .imageExportFailed:
-            return "imageExportFailed"
         }
     }
 }

@@ -137,10 +137,66 @@ final class SeatingChartPresenterTests: XCTestCase {
         XCTAssertTrue(gateway.isSessionUnlocked)
     }
 
-    func test_共有テキストはInteractorに委譲される() {
+    func test_共有はShareモジュールへ委譲され選択シートが開く() {
         let presenter = makePresenter(names: ["太郎"])
-        let text = presenter.makeShareText()
-        XCTAssertTrue(text.contains("太郎"))
-        XCTAssertTrue(text.contains("#サクッと席決め"))
+
+        presenter.didTapShare()
+
+        XCTAssertEqual(presenter.share.route, .selection)
+        XCTAssertNil(presenter.route, "共有は親の route を使わない")
+    }
+
+    func test_会場設定の適用結果がOutput経由で会場列数に反映される() {
+        let presenter = makePresenter(names: ["A"])
+        presenter.route = .venueSettings
+        presenter.sessionUnlockedColumns = true
+
+        presenter.venueSettingsDidApply(columnCount: 4)
+
+        XCTAssertEqual(presenter.globalColumnCount, 4)
+        XCTAssertEqual(presenter.viewData.globalColumnCount, 4)
+        XCTAssertNil(presenter.route)
+    }
+
+    func test_テーブル編集のOutputで確定するとシートが閉じる() {
+        let presenter = makePresenter(names: ["A", "B"])
+        let tableID = firstTableID(in: presenter)
+        presenter.route = .tableEdit(tableID)
+
+        presenter.tableEditDidCommit(
+            TableUpdateRequest(
+                tableID: tableID,
+                name: "幹事席",
+                capacity: 4,
+                columnCount: 2,
+                layoutDirection: .none,
+                layoutText: "",
+                applyToAll: false
+            )
+        )
+
+        XCTAssertNil(presenter.route)
+        if case .table(let table) = presenter.viewData.rows[0].items[0] {
+            XCTAssertEqual(table.name, "幹事席")
+        } else {
+            XCTFail("先頭はテーブルであるべき")
+        }
+    }
+
+    func test_テーブル編集のOutputで削除するとテーブルが減る() {
+        let presenter = makePresenter(names: ["A", "B", "C", "D", "E"])
+        let tableID = firstTableID(in: presenter)
+        presenter.route = .tableEdit(tableID)
+
+        presenter.tableEditDidRequestDelete(tableID: tableID)
+
+        XCTAssertNil(presenter.route)
+        let remainingIDs = presenter.viewData.rows
+            .flatMap(\.items)
+            .compactMap { item -> TableID? in
+                if case .table(let table) = item { return table.id }
+                return nil
+            }
+        XCTAssertFalse(remainingIDs.contains(tableID))
     }
 }

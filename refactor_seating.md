@@ -15,7 +15,7 @@
 | 2 | Contracts と ViewData の導入 | ✅ 完了（2026-09-10） |
 | 3 | Presenter → Interactor へのロジック移送 | ✅ 完了（2026-09-11） |
 | 4 | Router の実体化・Gateway 化 | ✅ 完了（2026-09-11） |
-| 5 | 子モジュール切り出し・Share モジュール化 | 未着手 |
+| 5 | 子モジュール切り出し・Share モジュール化 | ✅ 完了（2026-09-11） |
 | 6 | 再利用部品・パフォーマンス・A11y・i18n | 未着手 |
 
 補修（フェーズ外）: シャッフル時のアニメーション消失を修正（課題 3.2-#3-a）。
@@ -23,7 +23,8 @@
 単一 `ForEach` ＋ 即時レイアウトの `SeatGridLayout` へ置き換え。
 これに伴い `EmptySeatCell`（Phase 6 予定の廃止）を前倒しで削除。
 
-回帰基準: `SakuttoSeatTests` 68 ケース（`xcodebuild test -scheme SakuttoSeat`）。
+回帰基準: `SakuttoSeatTests` 102 ケース（`xcodebuild test -scheme SakuttoSeat`）。
+（Phase 4 まで 68 ケース。Phase 5 で Share / TableEdit / VenueSettings の各モジュール分を追加）
 検証端末は iPhone 17 / iOS 26.5 を使用します（iOS 18.4 シミュレータランタイムでは
 Phase 3 コミット時点のコードでも `malloc: pointer being freed was not allocated` で
 異常終了するため。ランタイム固有の事象でアプリコード側の問題ではありません）。
@@ -604,7 +605,27 @@ struct SeatingTableCard: View {
 - `DispatchQueue.main.asyncAfter` を廃し、`ShareSheetPresenter.waitUntilPresentable` のポーリングに置換。
 - 完了条件: View から共有用 UIKit 直叩きを除去。上限 Interactor / Presenter テスト green。
 
-### Phase 5: 子モジュールの切り出しと共有モジュール化（2 日）
+### Phase 5: 子モジュールの切り出しと共有モジュール化（2 日）— ✅ 完了（2026-09-11）
+
+実装時の決定（計画からの差分）:
+
+- **列数解放の広告フローは VenueSettings モジュール内に残した**（旧 `SettingsSheetView` の UX を維持）。
+  親へ解放を依頼する `VenueSettingsModuleOutput.venueSettingsDidRequestUnlock(for:)` は
+  呼び出し元が無くなるため削除し、Output は `venueSettingsDidApply(columnCount:)` の 1 本にした。
+  併せて到達不能になる `SeatingChartAlert.requireUnlockForColumns` も削除。
+- **画像共有・広告のアラートは `ShareAlert` へ移した**ため、
+  `SeatingChartAlert` は `templateLimitReached` / `saveFailed` の 2 ケースに縮小。
+  `SeatingChartRoute.shareSelection` も廃止し、共有は `SharePresenter.route` が単独で持つ。
+- **共有テキストの整形は `ShareInteractor` に一本化**した。
+  `SeatingChartInteractor.makeShareText()` / `shareImageRequirement()` は削除し、
+  座席表のテキストは `SeatingChartViewData` から生成する（対応するテストは `ShareTests` へ移設）。
+- 子モジュールの組み立てに必要な情報を Router へ渡すため、
+  `makeTableEditModule(draft:output:)` / `makeVenueSettingsModule(currentColumnCount:featureUnlock:output:)`
+  へシグネチャを変更した（親 Interactor が `TableEditDraft` と `FeatureUnlockState` を供給）。
+- `SeatingChartView` は 1,072 行 → **268 行 / 1 型**。150 行以下の達成には
+  グリッド本体（`SeatingTableCard` 統合）とバナーのアダプティブ化が必要なため Phase 6 に持ち越す。
+- Phase 5 で呼び出し元が無くなった `RewardedAdManager.showAd(onRewardEarned:)`
+  （旧 `SettingsSheetView` 専用の互換 API）と `UnlockSheetView` を削除。
 
 - `TableEditView`（741–940）を **TableEdit モジュール**として独立させる。
   - `init` での `@State` 焼き込み（`:754-762`）を廃止し、Presenter が編集中の ViewData を保持。

@@ -8,6 +8,9 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
     @Published var route: SeatingChartRoute?
     @Published var canvasEvent: SeatingChartCanvasEvent?
 
+    /// 共有フロー（Share モジュール）。View は `.shareFlow(presenter.share)` で取り付ける。
+    let share: SharePresenter
+
     var globalColumnCount: Int {
         get { interactor.currentVenueSettings().globalColumnCount }
         set {
@@ -28,10 +31,14 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
     private let interactor: SeatingChartInteractor
     private let router: SeatingChartRouter
 
-    init(interactor: SeatingChartInteractor, router: SeatingChartRouter) {
+    init(
+        interactor: SeatingChartInteractor,
+        router: SeatingChartRouter,
+        share: SharePresenter? = nil
+    ) {
         self.interactor = interactor
         self.router = router
-        router.presenter = self
+        self.share = share ?? ShareRouter.assemblePresenter()
         publishState()
     }
 
@@ -95,72 +102,33 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
         route = nil
     }
 
-    func didTapShare() { route = .shareSelection }
-
-    func didSelectShareKind(_ kind: ShareSelectionKind) {
-        route = nil
-        Task { @MainActor in
-            await ShareSheetPresenter.waitUntilPresentable()
-            switch kind {
-            case .text:
-                router.presentShareSheet(text: interactor.makeShareText())
-            case .image:
-                route = .alert(.confirmImageShareWithAd)
-            }
-        }
-    }
-
-    func didRequestImageShare() { route = .alert(.confirmImageShareWithAd) }
-
-    func didConfirmImageShareWithAd(isAdReady: Bool) {
-        guard isAdReady else {
-            route = .alert(.adNotReady)
-            return
-        }
-        route = nil
-        let snapshot = viewData
-        Task { @MainActor in
-            do {
-                try await router.presentRewardedAd()
-                let exported = await router.exportAndShareSeatingChart(viewData: snapshot)
-                if !exported {
-                    route = .alert(.imageExportFailed)
-                }
-            } catch RewardedAdError.notReady {
-                route = .alert(.adNotReady)
-            } catch {
-                // notEarned / failed: 共有は行わない
-            }
-        }
+    /// 共有はタップ時点の表示内容を Share モジュールへ渡すだけ
+    func didTapShare() {
+        share.didTapShare(subject: .seatingChart(viewData))
     }
 
     func didTapSettings() { route = .venueSettings }
     func dismissRoute() { route = nil }
-    func makeShareText() -> String { interactor.makeShareText() }
 
-    /// シート内容を Router 経由で組み立てる（View から UIKit / 子組立を排除）
+    /// シート内容を Router 経由で組み立てる（View から子モジュールの組立を排除）
     func makeRouteSheet(_ route: SeatingChartRoute) -> AnyView {
         switch route {
         case .tableEdit(let tableID):
-            return router.makeTableEditModule(tableID: tableID, output: self)
+            guard let draft = interactor.tableEditDraft(for: tableID) else {
+                return AnyView(EmptyView())
+            }
+            return router.makeTableEditModule(draft: draft, output: self)
         case .venueSettings:
-            return router.makeVenueSettingsModule(output: self)
+            return router.makeVenueSettingsModule(
+                currentColumnCount: interactor.currentVenueSettings().globalColumnCount,
+                featureUnlock: interactor.featureUnlock,
+                output: self
+            )
         case .templateList:
             return router.makeTemplateListModule(output: self)
-        case .shareSelection:
-            return AnyView(
-                ShareSelectionView { [weak self] kind in
-                    self?.didSelectShareKind(kind)
-                }
-            )
         case .saveTemplatePrompt, .alert:
             return AnyView(EmptyView())
         }
-    }
-
-    /// TableEdit など子画面が Entity を必要とする間のブリッジ（Phase 5 で廃止）
-    func table(for id: TableID) -> SeatingTable? {
-        interactor.currentTables().first { $0.id == id }
     }
 
     func didCommitTableEdit(_ request: TableUpdateRequest) {
@@ -213,10 +181,6 @@ extension SeatingChartPresenter: VenueSettingsModuleOutput {
     func venueSettingsDidApply(columnCount: Int) {
         globalColumnCount = columnCount
         route = nil
-    }
-
-    func venueSettingsDidRequestUnlock(for columnCount: Int) {
-        route = .alert(.requireUnlockForColumns(requested: columnCount))
     }
 }
 

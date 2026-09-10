@@ -11,29 +11,40 @@ import SwiftUI
 
 /// 画像出力専用の座席表全体ビュー
 ///
-/// Phase 5 で出力サイズの実測化、Phase 6 で `SeatingTableCard` への統合を行う予定。
+/// Phase 6 で `SeatingTableCard` への統合を行う予定。
 struct SeatingChartSnapshotView: View {
+    /// 出力幅の算出に使うレイアウト定数（`ImageExportRenderer` と共有する唯一の定義）
+    static let tableWidth: CGFloat = 140
+    static let tableSpacing: CGFloat = 16
+    static let contentPadding: CGFloat = 32
+
+    /// 会場列数ぶんのテーブルが収まる幅。高さは `ImageRenderer` に実測させる。
+    static func intrinsicWidth(columnCount: Int) -> CGFloat {
+        let columns = CGFloat(max(1, columnCount))
+        return tableWidth * columns + tableSpacing * (columns - 1) + contentPadding * 2
+    }
+
     let viewData: SeatingChartViewData
 
     var body: some View {
         let rows = SeatingChartViewDataBuilder.tableOnlyRows(from: viewData)
-        VStack(spacing: 16) {
+        VStack(spacing: Self.tableSpacing) {
             ForEach(rows) { row in
-                HStack(alignment: .top, spacing: 16) {
+                HStack(alignment: .top, spacing: Self.tableSpacing) {
                     ForEach(row.items) { item in
                         if case .table(let table) = item {
                             SnapshotSeatingTableView(table: table)
-                                .frame(width: 140)
+                                .frame(width: Self.tableWidth)
                         }
                     }
                     ForEach(0..<row.trailingFillerCount, id: \.self) { _ in
                         Color.clear
-                            .frame(width: 140)
+                            .frame(width: Self.tableWidth)
                     }
                 }
             }
         }
-        .padding(32)
+        .padding(Self.contentPadding)
     }
 }
 

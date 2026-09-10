@@ -3,19 +3,18 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/08/23.
+//  refactor_seating.md Phase 5 で Modules/Common から Share モジュールへ移動。
 //
 
 import SwiftUI
 
-enum ShareSelectionKind {
-    case text
-    case image
-}
-
+/// 共有方法の選択シート
+///
+/// 選択後のシート閉じは Presenter（`route = nil`）が行うため、ここでは通知だけを行う。
 struct ShareSelectionView: View {
     @Environment(\.dismiss) private var dismiss
     let onSelect: (ShareSelectionKind) -> Void
-    
+
     var body: some View {
         VStack(spacing: 24) { // タイトルがない分、少し余白を広げてバランスをとる
             VStack(spacing: 12) {
@@ -25,19 +24,19 @@ struct ShareSelectionView: View {
                     subtitle: nil,
                     tint: .sakuttoBlueStart
                 ) {
-                    select(.text)
+                    onSelect(.text)
                 }
-                
+
                 shareOptionButton(
                     icon: "photo",
                     title: "画像で共有",
                     subtitle: "短い動画広告の視聴が必要です",
                     tint: .purple
                 ) {
-                    select(.image)
+                    onSelect(.image)
                 }
             }
-            
+
             Button("キャンセル") {
                 dismiss()
             }
@@ -51,12 +50,7 @@ struct ShareSelectionView: View {
         .presentationDetents([.fraction(0.3), .medium])
         .presentationDragIndicator(.visible)
     }
-    
-    private func select(_ kind: ShareSelectionKind) {
-        onSelect(kind)
-        dismiss()
-    }
-    
+
     private func shareOptionButton(
         icon: String,
         title: String,
@@ -72,21 +66,21 @@ struct ShareSelectionView: View {
                     .frame(width: 40, height: 40)
                     .background(tint.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
-                
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.system(.body, design: .rounded).weight(.semibold))
                         .foregroundColor(.primary)
-                    
+
                     if let subtitle {
                         Text(subtitle)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
-                
+
                 Spacer()
-                
+
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundColor(.secondary)

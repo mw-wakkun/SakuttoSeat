@@ -598,20 +598,35 @@ final class SeatingChartInteractorTests: XCTestCase {
         XCTAssertEqual(second.currentVenueSettings().globalColumnCount, 8)
     }
 
-    // MARK: - 共有テキスト
+    // MARK: - 子モジュールへの受け渡し
 
-    func test_共有テキストはテーブル名と配置を含む() {
+    func test_テーブル編集の初期値は現在のテーブル内容から作られる() {
         let interactor = makeInteractor(names: ["A", "B"])
-        let text = interactor.makeShareText()
+        let table = interactor.updateTable(
+            tableUpdate(
+                id: interactor.currentTables()[0].id,
+                name: "幹事席",
+                capacity: 4,
+                columnCount: 2,
+                layoutDirection: .top,
+                layoutText: "ステージ側"
+            )
+        )[0]
 
-        XCTAssertTrue(text.contains("【サクッと席決め】"))
-        XCTAssertTrue(text.contains("テーブルA"))
-        XCTAssertTrue(text.contains("A"))
-        XCTAssertTrue(text.contains("#サクッと席決め"))
+        let draft = interactor.tableEditDraft(for: table.id)
+
+        XCTAssertEqual(draft?.tableID, table.id)
+        XCTAssertEqual(draft?.name, "幹事席")
+        XCTAssertEqual(draft?.capacity, 4)
+        XCTAssertEqual(draft?.columnCount, 2)
+        XCTAssertEqual(draft?.layoutDirection, .top)
+        XCTAssertEqual(draft?.layoutText, "ステージ側")
+        XCTAssertEqual(draft?.applyToAllTables, false)
     }
 
-    func test_画像共有は常にリワード広告が必要() {
+    func test_存在しないテーブルの編集初期値はnilになる() {
         let interactor = makeInteractor(names: ["A"])
-        XCTAssertEqual(interactor.shareImageRequirement(), .rewardedAd)
+
+        XCTAssertNil(interactor.tableEditDraft(for: UUID()))
     }
 }

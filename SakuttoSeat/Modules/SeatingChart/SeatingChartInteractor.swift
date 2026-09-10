@@ -9,7 +9,8 @@ import Foundation
 
 nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
     private let attendees: [Attendee]
-    private let featureUnlock: FeatureUnlockState
+    /// 子モジュール（VenueSettings）にも引き継ぐセッション解放状態
+    let featureUnlock: FeatureUnlockState
     /// Protocol existential は保持しない（deinit の malloc abort 回避）
     private var templateGateway: SeatingTemplateGatewayBase
     private var tables: [SeatingTable] = []
@@ -179,6 +180,20 @@ nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
         return tables
     }
 
+    /// 子モジュール（TableEdit）へ渡す編集初期値。Entity はここから外に出さない。
+    func tableEditDraft(for id: TableID) -> TableEditDraft? {
+        guard let table = tables.first(where: { $0.id == id }) else { return nil }
+        return TableEditDraft(
+            tableID: table.id,
+            name: table.name,
+            capacity: table.capacity,
+            columnCount: table.columnCount,
+            layoutDirection: table.layoutDirection,
+            layoutText: table.layoutText,
+            applyToAllTables: false
+        )
+    }
+
     // MARK: - 会場設定と解放
 
     func columnCountChangeRequirement(for count: Int) -> UnlockRequirement {
@@ -283,45 +298,6 @@ nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
         venueSettings.globalColumnCount = snapshot.globalColumnCount
         tables = assign(attendees: attendees, to: restoredTables, shuffle: false)
         return tables
-    }
-
-    // MARK: - 共有
-
-    func makeShareText() -> String {
-        var text = "【サクッと席決め】座席表のシャッフル結果です！\n\n"
-
-        for table in tables {
-            text += "━━━━━━━━━━━━━━━━━\n"
-            text += "▼ \(table.name)\n"
-            text += "━━━━━━━━━━━━━━━━━\n"
-
-            let members = table.assignedMembers
-            let colCount = max(1, table.columnCount)
-
-            if members.isEmpty {
-                text += "（まだメンバーが配置されていません）\n"
-            } else {
-                for (index, member) in members.enumerated() {
-                    let row = (index / colCount) + 1
-                    let col = (index % colCount) + 1
-
-                    if colCount == 2 {
-                        let side = (index % 2 == 0) ? "左" : "右"
-                        text += "🪑 [\(row)列目 · \(side)] : \(member.name)\n"
-                    } else {
-                        text += "🪑 [\(row)行\(col)列目] : \(member.name)\n"
-                    }
-                }
-            }
-            text += "\n"
-        }
-
-        text += "#サクッと席決め"
-        return text
-    }
-
-    func shareImageRequirement() -> UnlockRequirement {
-        .rewardedAd
     }
 
     // MARK: - テーブル名

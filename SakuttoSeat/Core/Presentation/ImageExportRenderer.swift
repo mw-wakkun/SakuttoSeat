@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_seating.md Phase 4（ImageRenderer ラッパ）
+//  Phase 5（出力サイズの実測化・`UIScreen.main` 依存の排除）
 //
 
 import SwiftUI
@@ -10,37 +11,17 @@ import UIKit
 
 @MainActor
 enum ImageExportRenderer {
+    /// 幅はスナップショット View のレイアウト定数から確定させ、
+    /// 高さは提案しない（`ImageRenderer` に実測させる）。
+    /// これで定員が多いテーブルでも下端が見切れない。
     static func renderSeatingChart(viewData: SeatingChartViewData) -> UIImage? {
-        let screenWidth = UIScreen.main.bounds.width
-        let tableWidth: CGFloat = 140
-        let tableSpacing: CGFloat = 16
-        let horizontalPadding: CGFloat = 32
-
-        let tableCount = CGFloat(viewData.globalColumnCount)
-        let calculatedWidth = tableCount * tableWidth + (tableCount - 1) * tableSpacing + horizontalPadding
-        let exportWidth = max(screenWidth, calculatedWidth)
-
-        let tableHeight: CGFloat = 150
-        let verticalSpacing: CGFloat = 16
-        let verticalPadding: CGFloat = 32
-        let tableOnlyCount = viewData.rows.reduce(0) { partial, row in
-            partial + row.items.filter {
-                if case .table = $0 { return true }
-                return false
-            }.count
-        }
-        let tableRowCount = ceil(CGFloat(tableOnlyCount) / CGFloat(max(1, viewData.globalColumnCount)))
-        let calculatedHeight = tableRowCount * (tableHeight + verticalSpacing) + verticalPadding
-        let exportHeight = max(400, calculatedHeight)
+        let exportWidth = SeatingChartSnapshotView.intrinsicWidth(columnCount: viewData.globalColumnCount)
 
         let exportView = SeatingChartSnapshotView(viewData: viewData)
-            .frame(width: exportWidth, height: exportHeight, alignment: .topLeading)
+            .frame(width: exportWidth, alignment: .topLeading)
             .background(Color(.systemBackground))
 
-        let renderer = ImageRenderer(content: exportView)
-        renderer.scale = UIScreen.main.scale
-        renderer.proposedSize = ProposedViewSize(width: exportWidth, height: exportHeight)
-        return renderer.uiImage
+        return render(exportView, width: exportWidth)
     }
 
     static func renderSimpleShuffle(attendees: [String]) -> UIImage? {
@@ -49,9 +30,22 @@ enum ImageExportRenderer {
             .frame(width: exportWidth)
             .background(Color(.systemGroupedBackground))
 
-        let renderer = ImageRenderer(content: exportView)
-        renderer.scale = UIScreen.main.scale
-        renderer.proposedSize = ProposedViewSize(width: exportWidth, height: nil)
+        return render(exportView, width: exportWidth)
+    }
+
+    private static func render<Content: View>(_ content: Content, width: CGFloat) -> UIImage? {
+        let renderer = ImageRenderer(content: content)
+        renderer.scale = displayScale
+        renderer.proposedSize = ProposedViewSize(width: width, height: nil)
         return renderer.uiImage
+    }
+
+    /// キーウィンドウの表示スケール（`UIScreen.main` は iOS 16 以降非推奨のため使わない）
+    private static var displayScale: CGFloat {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = scene.windows.first(where: \.isKeyWindow) else {
+            return 3
+        }
+        return window.traitCollection.displayScale
     }
 }

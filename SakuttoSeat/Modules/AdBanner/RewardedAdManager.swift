@@ -76,18 +76,6 @@ final class RewardedAdManager: NSObject, ObservableObject, FullScreenContentDele
         }
     }
 
-    /// 既存コールサイト互換。報酬獲得時のみコールバックする（内部は presentAsync）
-    func showAd(onRewardEarned: @escaping () -> Void) {
-        Task { @MainActor in
-            do {
-                try await presentAsync()
-                onRewardEarned()
-            } catch {
-                print("リワード広告提示終了: \(error.localizedDescription)")
-            }
-        }
-    }
-
     // MARK: - FullScreenContentDelegate
 
     func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {

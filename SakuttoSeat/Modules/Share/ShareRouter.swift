@@ -1,0 +1,49 @@
+//
+//  ShareRouter.swift
+//  SakuttoSeat
+//
+//  refactor_seating.md Phase 5（シェアシート提示・広告提示・画像出力）
+//
+
+import SwiftUI
+import UIKit
+
+final class ShareRouter: ShareRouterProtocol {
+
+    /// モジュールの組み立て（Builder 相当）。呼び出し側の画面が Presenter を保持する。
+    @MainActor
+    static func assemblePresenter() -> SharePresenter {
+        SharePresenter(interactor: ShareInteractor(), router: ShareRouter())
+    }
+
+    @MainActor
+    func waitUntilPresentable() async {
+        await ShareSheetPresenter.waitUntilPresentable()
+    }
+
+    @MainActor
+    func presentShareSheet(text: String) async {
+        await ShareSheetPresenter.presentWhenReady(items: [text])
+    }
+
+    @MainActor
+    func presentShareSheet(image: UIImage) async {
+        await ShareSheetPresenter.presentWhenReady(items: [image])
+    }
+
+    @MainActor
+    func presentRewardedAd() async throws {
+        try await RewardedAdPresenter.present()
+    }
+
+    /// 出力に失敗したら nil を返し、Presenter がアラートを出す。
+    @MainActor
+    func makeShareImage(for subject: ShareSubject) -> UIImage? {
+        switch subject {
+        case .seatingChart(let viewData):
+            return ImageExportRenderer.renderSeatingChart(viewData: viewData)
+        case .numberedList(let attendees):
+            return ImageExportRenderer.renderSimpleShuffle(attendees: attendees)
+        }
+    }
+}

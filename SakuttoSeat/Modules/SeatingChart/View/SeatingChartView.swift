@@ -11,7 +11,6 @@ import SwiftData
 struct SeatingChartView: View {
     @StateObject var presenter: SeatingChartPresenter
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var adManager = RewardedAdManager.shared
     /// 保存アラートの TextField 用（route が `.saveTemplatePrompt` のときだけ使う）
     @State private var templateName = ""
 
@@ -110,6 +109,7 @@ struct SeatingChartView: View {
         .sheet(item: sheetRouteBinding) { route in
             presenter.makeRouteSheet(route)
         }
+        .shareFlow(presenter.share)
         .alert("レイアウトを保存", isPresented: savePromptBinding) {
             TextField("テンプレート名 (例: デフォルト設定)", text: $templateName)
             Button("キャンセル", role: .cancel) { }
@@ -173,16 +173,8 @@ private extension SeatingChartView {
         switch presentedAlert {
         case .templateLimitReached:
             return "テンプレート上限"
-        case .confirmImageShareWithAd:
-            return "画像で共有"
-        case .adNotReady:
-            return "広告を読み込み中"
-        case .requireUnlockForColumns:
-            return "アンロックが必要です"
         case .saveFailed:
             return "保存に失敗しました"
-        case .imageExportFailed:
-            return "画像出力に失敗しました"
         case .none:
             return ""
         }
@@ -202,24 +194,7 @@ private extension SeatingChartView {
     @ViewBuilder
     func alertButtons(for alert: SeatingChartAlert) -> some View {
         switch alert {
-        case .templateLimitReached:
-            Button("OK", role: .cancel) { }
-        case .confirmImageShareWithAd:
-            Button("キャンセル", role: .cancel) { }
-            Button("OK") {
-                let isReady = adManager.isAdReady
-                if !isReady {
-                    adManager.loadAd()
-                }
-                presenter.didConfirmImageShareWithAd(isAdReady: isReady)
-            }
-        case .adNotReady:
-            Button("OK", role: .cancel) { }
-        case .requireUnlockForColumns:
-            Button("OK", role: .cancel) { }
-        case .saveFailed:
-            Button("OK", role: .cancel) { }
-        case .imageExportFailed:
+        case .templateLimitReached, .saveFailed:
             Button("OK", role: .cancel) { }
         }
     }
@@ -228,16 +203,8 @@ private extension SeatingChartView {
         switch alert {
         case .templateLimitReached(let currentCount, let limit):
             Text("保存できるテンプレートは最大\(limit)個までとなっています（現在\(currentCount)個）。新しいテンプレートを保存するには、テンプレート読込一覧から既存のテンプレートを削除してください。")
-        case .confirmImageShareWithAd:
-            Text("動画広告を視聴して画像を出力しますか？")
-        case .adNotReady:
-            Text("広告の準備ができていません。しばらく待ってからもう一度お試しください。")
-        case .requireUnlockForColumns(let requested):
-            Text("\(requested)列以上のレイアウトを利用するには動画広告の視聴が必要です。")
         case .saveFailed(let message):
             Text(message)
-        case .imageExportFailed:
-            Text("画像の出力に失敗しました。もう一度お試しください。")
         }
     }
 }
