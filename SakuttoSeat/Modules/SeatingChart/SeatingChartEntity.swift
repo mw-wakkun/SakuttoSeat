@@ -7,14 +7,6 @@
 
 import Foundation
 
-// 座席の相対位置（将来的な拡張用）
-enum SeatPosition: Int, CaseIterable {
-    case topLeft = 0
-    case topRight = 1
-    case bottomLeft = 2
-    case bottomRight = 3
-}
-
 // テーブルの向き（方向）を表す列挙型。
 // 表示用のテキストは別プロパティ（layoutText）で扱うため、
 // この列挙型は「方向」だけを表現します。

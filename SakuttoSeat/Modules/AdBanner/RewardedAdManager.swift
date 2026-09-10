@@ -22,7 +22,7 @@ final class RewardedAdManager: NSObject, ObservableObject, FullScreenContentDele
     var adUnitID: String {
         // 環境に応じてIDを自動切り替え
         #if DEBUG
-        // ★ リワード広告用の Google 公式テストIDに修正
+        // デバッグ時はリワード広告用の Google 公式テストIDを使用
         return "ca-app-pub-3940256099942544/5224354917"
         #else
         // AdMob管理画面で発行した本番用の広告ユニットID
@@ -54,7 +54,7 @@ final class RewardedAdManager: NSObject, ObservableObject, FullScreenContentDele
     }
     
     func showAd(onRewardEarned: @escaping () -> Void) {
-        // ★ 最前面の ViewController から表示するように変更
+        // 最前面の ViewController から提示する
         guard let rewardedAd = rewardedAd,
               let topViewController = UIApplication.shared.topViewController else {
             print("広告が準備できていないか、画面が見つかりません")
@@ -87,20 +87,5 @@ final class RewardedAdManager: NSObject, ObservableObject, FullScreenContentDele
         hasEarnedReward = false
         onRewardEarned = nil
         loadAd()
-    }
-}
-
-extension UIApplication {
-    /// 最前面に表示されている ViewController を安全に取得するヘルパー
-    var topViewController: UIViewController? {
-        guard let scene = connectedScenes.first as? UIWindowScene,
-              let window = scene.windows.first(where: { $0.isKeyWindow }),
-              var topVC = window.rootViewController else {
-            return nil
-        }
-        while let presented = topVC.presentedViewController {
-            topVC = presented
-        }
-        return topVC
     }
 }

@@ -8,7 +8,9 @@
 import SwiftUI
 
 struct SimpleShuffleView: View {
-    @ObservedObject var presenter: SimpleShufflePresenter
+    // Presenter の所有権は 3 モジュールで @StateObject に統一している
+    // （@ObservedObject では親の再評価ごとに Presenter が作り直され、シャッフル結果が失われる）
+    @StateObject var presenter: SimpleShufflePresenter
     
     // MARK: - アンロック・広告管理
     @StateObject private var adManager = RewardedAdManager.shared
@@ -123,7 +125,7 @@ struct SimpleShuffleView: View {
     }
     
     private func handleImageShareTapped() {
-        // Removed PRO gating: always require rewarded ad for image export
+        // 画像出力は常にリワード広告の視聴を必要とする
         showingImageShareAdAlert = true
     }
     

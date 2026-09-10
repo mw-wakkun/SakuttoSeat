@@ -156,34 +156,6 @@ struct AttendeeListView: View {
 
 // MARK: - サブビュー（お気に入り関連・一括追加）
 private extension AttendeeListView {
-    var favoriteMenuButton: some View {
-        Button(action: {
-            isTextFieldFocused = false
-            isShowingFavoriteSheet = true
-        }) {
-            HStack(spacing: 4) {
-                Image(systemName: "star.fill")
-                Text("お気に入り")
-                    .font(.subheadline).bold()
-            }
-        }
-    }
-    
-    var saveGroupButton: some View {
-        Button(action: {
-            isTextFieldFocused = false
-            if favoriteGroups.count >= 3 {
-                isShowingLimitAlert = true
-            } else {
-                isShowingSaveAlert = true
-            }
-        }) {
-            Image(systemName: "square.and.arrow.down")
-        }
-        .disabled(presenter.attendees.isEmpty)
-        .opacity(presenter.attendees.isEmpty ? 0.3 : 1.0)
-    }
-    
     func saveCurrentAttendeesProcess() {
         let trimmedGroupName = newGroupName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedGroupName.isEmpty else { return }
@@ -407,16 +379,6 @@ private extension AttendeeListView {
             color: (isPrimary ? Color.sakuttoBlueStart : Color.blue).opacity(0.3),
             radius: 8, x: 0, y: 4
         )
-    }
-    
-    private var resetButton: some View {
-        Button(action: {
-            isShowingResetAlert = true
-        }) {
-            Image(systemName: "trash")
-        }
-        .disabled(presenter.attendees.isEmpty)
-        .opacity(presenter.attendees.isEmpty ? 0.3 : 1.0)
     }
     
     func addAttendeeProcess() {

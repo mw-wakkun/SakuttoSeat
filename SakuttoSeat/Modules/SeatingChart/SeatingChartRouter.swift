@@ -12,6 +12,11 @@ protocol SeatingChartRouterProtocol {
 }
 
 class SeatingChartRouter: SeatingChartRouterProtocol {
+    /// モジュールの組み立て（Builder 相当）
+    ///
+    /// Phase 4 で遷移・提示メソッドを `SeatingChartRouterProtocol` に追加し、
+    /// Router を実体化する。
+    @MainActor
     static func assembleModule(attendees: [Attendee]) -> AnyView {
         let interactor = SeatingChartInteractor()
         let router = SeatingChartRouter()

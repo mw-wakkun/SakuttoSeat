@@ -9,6 +9,7 @@ import SwiftUI
 import Combine
 import SwiftData
 
+@MainActor
 class SeatingChartPresenter: ObservableObject {
     @Published var tables: [SeatingTable] = []
     // View側のScrollViewReaderに最上部スクロールを通知するためのトリガー
