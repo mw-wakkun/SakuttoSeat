@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | 0 | 準備と回帰テスト | ✅ 完了（2026-09-10） |
 | 1 | ファイル分割・デッドコード削除・規約統一 | ✅ 完了（2026-09-10） |
-| 2 | Contracts と ViewData の導入 | 未着手 |
+| 2 | Contracts と ViewData の導入 | ✅ 完了（2026-09-10） |
 | 3 | Presenter → Interactor へのロジック移送 | 未着手 |
 | 4 | Router の実体化・Gateway 化 | 未着手 |
 | 5 | 子モジュール切り出し・Share モジュール化 | 未着手 |
@@ -23,10 +23,11 @@
 単一 `ForEach` ＋ 即時レイアウトの `SeatGridLayout` へ置き換え。
 これに伴い `EmptySeatCell`（Phase 6 予定の廃止）を前倒しで削除。
 
-回帰基準: `SakuttoSeatTests` 47 ケース（`xcodebuild test -scheme SakuttoSeat`）。
+回帰基準: `SakuttoSeatTests` 55 ケース（`xcodebuild test -scheme SakuttoSeat`）。
 Phase 0 で追加した `SeatingChartInteractorTests` / `SeatingChartPresenterTests` は
 **現状の挙動を固定した characterization test** です。`_既知の課題` が付いたケースは
 是正対象の挙動を意図的に記録しているため、Phase 3 / 6 で挙動を変える際に更新します。
+Phase 2 で `SeatingChartViewDataTests` を追加（ViewData 生成・Route・テンプレート ID 継承）。
 
 ---
 

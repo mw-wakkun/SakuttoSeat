@@ -21,16 +21,19 @@ struct TableEditView: View {
     @State private var layoutText: String
     @State private var applyToAllTables: Bool = false
     private let maxInputLength: Int = 20
-    let tableId: UUID
-    
-    init(table: SeatingTable, presenter: SeatingChartPresenter) {
+    let tableId: TableID
+
+    /// Phase 2: 親 View は Entity を持たず `TableID` だけ渡す。
+    /// 初期値は Presenter から引き、見つからない場合は安全な既定値で開く。
+    init(tableID: TableID, presenter: SeatingChartPresenter) {
         self.presenter = presenter
-        self.tableId = table.id
-        _name = State(initialValue: table.name)
-        _capacity = State(initialValue: table.capacity)
-        _columnCount = State(initialValue: table.columnCount)
-        _layoutDirection = State(initialValue: table.layoutDirection)
-        _layoutText = State(initialValue: table.layoutText)
+        self.tableId = tableID
+        let table = presenter.table(for: tableID)
+        _name = State(initialValue: table?.name ?? "")
+        _capacity = State(initialValue: table?.capacity ?? 4)
+        _columnCount = State(initialValue: table?.columnCount ?? 2)
+        _layoutDirection = State(initialValue: table?.layoutDirection ?? .none)
+        _layoutText = State(initialValue: table?.layoutText ?? "")
     }
     
     var body: some View {

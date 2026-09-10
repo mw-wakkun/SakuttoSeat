@@ -30,7 +30,12 @@ final class SeatGridLayoutTests: XCTestCase {
         let slots = makeSlots(count: slotCount)
         let content = SeatGridLayout(columnCount: columnCount, minCellWidth: minCellWidth) {
             ForEach(slots) { slot in
-                SeatView(member: slot.member)
+                SeatView(seat: SeatViewData(
+                    id: slot.id,
+                    memberID: slot.member?.id,
+                    displayName: slot.member?.name ?? "空席",
+                    isLocked: slot.member?.isLocked ?? false
+                ))
             }
         }
 
@@ -84,7 +89,12 @@ final class SeatGridLayoutTests: XCTestCase {
     func test_座席が空でも描画が破綻しない() {
         let content = SeatGridLayout(columnCount: 2) {
             ForEach([SeatSlot]()) { slot in
-                SeatView(member: slot.member)
+                SeatView(seat: SeatViewData(
+                    id: slot.id,
+                    memberID: slot.member?.id,
+                    displayName: slot.member?.name ?? "空席",
+                    isLocked: slot.member?.isLocked ?? false
+                ))
             }
         }
         let renderer = ImageRenderer(content: content)

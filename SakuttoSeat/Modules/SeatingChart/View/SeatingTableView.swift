@@ -2,24 +2,23 @@
 //  SeatingTableView.swift
 //  SakuttoSeat
 //
-//  refactor_seating.md Phase 1（ファイル分割）
+//  refactor_seating.md Phase 1（ファイル分割）/ Phase 2（ViewData 化）
 //
 
 import SwiftUI
 
 /// 個別のテーブル表示用コンポーネント（メイン画面用）
 ///
-/// Phase 2 で Entity（`SeatingTable`）ではなく表示専用モデルを受け取るようにし、
+/// Entity ではなく `TableViewData` を受け取る。
 /// Phase 6 で `SnapshotSeatingTableView` と統合して `SeatingTableCard` にする予定。
 struct SeatingTableView: View {
-    let table: SeatingTable
-    @ObservedObject var presenter: SeatingChartPresenter
+    let table: TableViewData
     let onEditTarget: () -> Void
-    
-    // バッジ描画のヘルパー（個別に切り出すことで型推論負荷を下げつつ、確実に表示させる）
+    let onTapSeat: (MemberID) -> Void
+
     @ViewBuilder
     private func badgeTop() -> some View {
-        if table.layoutDirection == .top {
+        if table.badge == .top {
             Circle()
                 .fill(Color.blue)
                 .frame(width: 14, height: 14)
@@ -32,10 +31,10 @@ struct SeatingTableView: View {
             EmptyView()
         }
     }
-    
+
     @ViewBuilder
     private func badgeBottom() -> some View {
-        if table.layoutDirection == .bottom {
+        if table.badge == .bottom {
             Circle()
                 .fill(Color.blue)
                 .frame(width: 14, height: 14)
@@ -48,10 +47,10 @@ struct SeatingTableView: View {
             EmptyView()
         }
     }
-    
+
     @ViewBuilder
     private func badgeLeft() -> some View {
-        if table.layoutDirection == .left {
+        if table.badge == .left {
             Circle()
                 .fill(Color.blue)
                 .frame(width: 14, height: 14)
@@ -64,10 +63,10 @@ struct SeatingTableView: View {
             EmptyView()
         }
     }
-    
+
     @ViewBuilder
     private func badgeRight() -> some View {
-        if table.layoutDirection == .right {
+        if table.badge == .right {
             Circle()
                 .fill(Color.blue)
                 .frame(width: 14, height: 14)
@@ -80,7 +79,7 @@ struct SeatingTableView: View {
             EmptyView()
         }
     }
-    
+
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
             VStack(spacing: 4) {
@@ -90,9 +89,9 @@ struct SeatingTableView: View {
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                
-                if table.layoutDirection != .none && !table.layoutText.trimmingCharacters(in: .whitespaces).isEmpty {
-                    Text(table.layoutText)
+
+                if let layoutLabel = table.layoutLabel {
+                    Text(layoutLabel)
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(.blue)
                         .lineLimit(1)
@@ -103,26 +102,22 @@ struct SeatingTableView: View {
                         .cornerRadius(4)
                 }
             }
-            
-            // 座席グリッドは LazyVGrid だと親の高さ計算が不安定になるため、
-            // 即時レイアウトの SeatGridLayout を使う
+
             let minSeatWidth: CGFloat = 72
-            let columnCount = max(1, table.columnCount)
+            let columnCount = table.columnCount
             let desiredWidth = CGFloat(columnCount) * minSeatWidth
-            let slots = SeatSlot.slots(for: table)
-            
+
             Group {
-                if columnCount <= 4 {
-                    // カード幅に合わせて均等割りするため最小幅は指定しない
-                    seatGrid(slots: slots, columnCount: columnCount, minCellWidth: 0)
-                } else {
+                if table.needsHorizontalScroll {
                     ScrollView(.horizontal, showsIndicators: true) {
-                        seatGrid(slots: slots, columnCount: columnCount, minCellWidth: minSeatWidth)
+                        seatGrid(seats: table.seats, columnCount: columnCount, minCellWidth: minSeatWidth)
                             .frame(minWidth: desiredWidth)
                     }
+                } else {
+                    seatGrid(seats: table.seats, columnCount: columnCount, minCellWidth: 0)
                 }
             }
-            .animation(.spring(response: 0.6, dampingFraction: 0.8), value: table.assignedMembers)
+            .animation(.spring(response: 0.6, dampingFraction: 0.8), value: table.seats)
         }
         .padding(15)
         .frame(maxWidth: .infinity)
@@ -131,6 +126,8 @@ struct SeatingTableView: View {
         .onTapGesture {
             onEditTarget()
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(table.accessibilitySummary)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(.secondarySystemGroupedBackground))
@@ -140,34 +137,30 @@ struct SeatingTableView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.blue.opacity(0.1), lineWidth: 1)
         )
-        // レイアウト方向バッジ（枠の辺の中央に表示）
         .overlay(badgeTop(), alignment: .top)
         .overlay(badgeBottom(), alignment: .bottom)
         .overlay(badgeLeft(), alignment: .leading)
         .overlay(badgeRight(), alignment: .trailing)
     }
-    
+
     @ViewBuilder
-    private func seatGrid(slots: [SeatSlot], columnCount: Int, minCellWidth: CGFloat) -> some View {
+    private func seatGrid(seats: [SeatViewData], columnCount: Int, minCellWidth: CGFloat) -> some View {
         SeatGridLayout(
             columnCount: columnCount,
             horizontalSpacing: 8,
             verticalSpacing: 12,
             minCellWidth: minCellWidth
         ) {
-            // シャッフル時に SwiftUI が座席の「移動」を検出できるよう、
-            // 行ごとに入れ子にせず単一の ForEach で全座席を並べる。
-            // ここを行・列のインデックスで入れ子にするとアニメーションが失われる。
-            ForEach(slots) { slot in
-                if let member = slot.member {
+            ForEach(seats) { seat in
+                if let memberID = seat.memberID {
                     Button {
-                        presenter.toggleLock(tableId: table.id, memberId: member.id)
+                        onTapSeat(memberID)
                     } label: {
-                        SeatView(member: member)
+                        SeatView(seat: seat)
                     }
                     .buttonStyle(.plain)
                 } else {
-                    SeatView(member: nil)
+                    SeatView(seat: seat)
                 }
             }
         }

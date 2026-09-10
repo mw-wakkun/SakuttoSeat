@@ -13,6 +13,7 @@ import XCTest
 /// ここに書かれた期待値は必ずしも理想の仕様ではなく、現状の実装がどう振る舞うかの記録です。
 /// `_既知の課題` が付いたテストは是正対象の挙動を意図的に固定しているため、
 /// Phase 3 / Phase 6 で挙動を変更する際はテスト側も同時に更新してください。
+@MainActor
 final class SeatingChartInteractorTests: XCTestCase {
 
     private var interactor: SeatingChartInteractor!

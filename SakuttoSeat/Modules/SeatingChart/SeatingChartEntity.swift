@@ -7,10 +7,13 @@
 
 import Foundation
 
+typealias TableID = UUID
+typealias MemberID = UUID
+
 // テーブルの向き（方向）を表す列挙型。
 // 表示用のテキストは別プロパティ（layoutText）で扱うため、
 // この列挙型は「方向」だけを表現します。
-enum LayoutDirection: String, CaseIterable, Identifiable, Codable {
+enum LayoutDirection: String, CaseIterable, Identifiable, Codable, Equatable, Hashable {
     case none = "指定なし"
     case top = "上"
     case bottom = "下"
@@ -20,21 +23,75 @@ enum LayoutDirection: String, CaseIterable, Identifiable, Codable {
     var id: String { self.rawValue }
 }
 
+/// 会場全体の設定（Phase 3 で Interactor が真実の所在になる）
+struct VenueSettings: Equatable, Hashable {
+    var globalColumnCount: Int
+    var defaultCapacity: Int
+    var defaultColumnCount: Int
+
+    static let `default` = VenueSettings(
+        globalColumnCount: 2,
+        defaultCapacity: 4,
+        defaultColumnCount: 2
+    )
+}
+
+/// テーブル編集のリクエスト（Phase 5 で子モジュール Output から渡す）
+struct TableUpdateRequest: Equatable {
+    let tableID: TableID
+    let name: String
+    let capacity: Int
+    let columnCount: Int
+    let layoutDirection: LayoutDirection
+    let layoutText: String
+    let applyToAll: Bool
+}
+
+/// 列数変更や画像共有などに必要な解放条件
+enum UnlockRequirement: Equatable {
+    case none
+    case rewardedAd
+}
+
+/// テンプレート保存の可否
+enum TemplateSaveAvailability: Equatable {
+    case available
+    case limitReached(currentCount: Int, limit: Int)
+}
+
 // 参加者モデル
-struct SeatingMember: Identifiable, Equatable {
-    let id: UUID
+struct SeatingMember: Identifiable, Equatable, Hashable {
+    let id: MemberID
     let name: String
     var isLocked: Bool = false
 }
 
 // テーブルモデル
-struct SeatingTable: Identifiable {
-    let id = UUID()
+struct SeatingTable: Identifiable, Equatable, Hashable {
+    let id: TableID
     var name: String
     var capacity: Int // 定員
-    var columnCount: Int = 2 // ★ 横の列数（デフォルト2列）
+    var columnCount: Int // 横の列数
     // 方向と表示テキストを分離
-    var layoutDirection: LayoutDirection = .none
-    var layoutText: String = ""
-    var assignedMembers: [SeatingMember] = []
+    var layoutDirection: LayoutDirection
+    var layoutText: String
+    var assignedMembers: [SeatingMember]
+
+    init(
+        id: TableID = UUID(),
+        name: String,
+        capacity: Int,
+        columnCount: Int = 2,
+        layoutDirection: LayoutDirection = .none,
+        layoutText: String = "",
+        assignedMembers: [SeatingMember] = []
+    ) {
+        self.id = id
+        self.name = name
+        self.capacity = capacity
+        self.columnCount = columnCount
+        self.layoutDirection = layoutDirection
+        self.layoutText = layoutText
+        self.assignedMembers = assignedMembers
+    }
 }

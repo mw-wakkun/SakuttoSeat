@@ -7,11 +7,27 @@
 
 import XCTest
 import SwiftData
+import SwiftUI
+import UIKit
 @testable import SakuttoSeat
 
-/// 空の `SeatingChartRouterProtocol` に対するテストダブル。
+/// `SeatingChartRouterProtocol` のテストダブル。
 /// Phase 4 で Router が実体を持つ際は、呼び出し記録を持つスパイに拡張する。
-private final class SeatingChartRouterSpy: SeatingChartRouterProtocol {}
+@MainActor
+private final class SeatingChartRouterSpy: SeatingChartRouterProtocol {
+    func presentShareSheet(text: String) {}
+    func presentShareSheet(image: UIImage) {}
+    func presentRewardedAd() async throws {}
+    func makeTableEditModule(tableID: TableID, output: TableEditModuleOutput) -> AnyView {
+        AnyView(EmptyView())
+    }
+    func makeVenueSettingsModule(output: VenueSettingsModuleOutput) -> AnyView {
+        AnyView(EmptyView())
+    }
+    func makeTemplateListModule(output: TemplateListModuleOutput) -> AnyView {
+        AnyView(EmptyView())
+    }
+}
 
 /// `SeatingChartPresenter` に現在置かれているドメインロジックの挙動を固定する回帰テスト。
 ///

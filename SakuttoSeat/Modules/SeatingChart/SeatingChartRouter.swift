@@ -6,16 +6,10 @@
 //
 
 import SwiftUI
+import UIKit
 
-protocol SeatingChartRouterProtocol {
-    // 将来、この画面からさらに別の画面へ遷移する場合はここに定義します
-}
-
-class SeatingChartRouter: SeatingChartRouterProtocol {
+final class SeatingChartRouter: SeatingChartRouterProtocol {
     /// モジュールの組み立て（Builder 相当）
-    ///
-    /// Phase 4 で遷移・提示メソッドを `SeatingChartRouterProtocol` に追加し、
-    /// Router を実体化する。
     @MainActor
     static func assembleModule(attendees: [Attendee]) -> AnyView {
         let interactor = SeatingChartInteractor()
@@ -23,5 +17,32 @@ class SeatingChartRouter: SeatingChartRouterProtocol {
         let presenter = SeatingChartPresenter(interactor: interactor, router: router, attendees: attendees)
         let view = SeatingChartView(presenter: presenter)
         return AnyView(view)
+    }
+
+    // MARK: - SeatingChartRouterProtocol（Phase 4 で実体化。Phase 2 は契約固定用スタブ）
+
+    func presentShareSheet(text: String) {
+        // Phase 4: UIActivityViewController をここに集約する
+    }
+
+    func presentShareSheet(image: UIImage) {
+        // Phase 4: UIActivityViewController をここに集約する
+    }
+
+    func presentRewardedAd() async throws {
+        // Phase 4: RewardedAdManager の async/await 化
+    }
+
+    func makeTableEditModule(tableID: TableID, output: TableEditModuleOutput) -> AnyView {
+        // Phase 4/5: 子モジュール組み立て
+        AnyView(EmptyView())
+    }
+
+    func makeVenueSettingsModule(output: VenueSettingsModuleOutput) -> AnyView {
+        AnyView(EmptyView())
+    }
+
+    func makeTemplateListModule(output: TemplateListModuleOutput) -> AnyView {
+        AnyView(EmptyView())
     }
 }

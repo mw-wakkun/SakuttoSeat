@@ -2,41 +2,41 @@
 //  SeatView.swift
 //  SakuttoSeat
 //
-//  refactor_seating.md Phase 1（ファイル分割）
+//  refactor_seating.md Phase 1（ファイル分割）/ Phase 2（ViewData 化）
 //
 
 import SwiftUI
 
 /// 1つ1つの「座席」
 ///
-/// Phase 6 で `SeatCell` へ改名し、Entity ではなく表示専用モデルを受け取るようにする予定。
+/// Phase 6 で `SeatCell` へ改名予定。Entity ではなく `SeatViewData` を受け取る。
 struct SeatView: View {
-    let member: SeatingMember?
+    let seat: SeatViewData
 
     var body: some View {
         VStack(spacing: 4) {
             ZStack(alignment: .topTrailing) {
-                Image(systemName: member?.isLocked == true ? "person.circle.fill" : "person.circle")
+                Image(systemName: seat.isLocked ? "person.circle.fill" : "person.circle")
                     .font(.system(size: 24))
-                    .foregroundColor(member == nil ? .gray.opacity(0.3) : (member!.isLocked ? .red : .blue))
-                
-                if member?.isLocked == true {
+                    .foregroundColor(seat.isEmpty ? .gray.opacity(0.3) : (seat.isLocked ? .red : .blue))
+
+                if seat.isLocked {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 10))
                         .foregroundColor(.red)
                         .background(Circle().fill(.white))
                 }
             }
-            
-            Text(member?.name ?? "空席")
-                .font(.system(size: 11, weight: member?.isLocked == true ? .bold : .medium))
-                .foregroundColor(member == nil ? .gray.opacity(0.5) : (member!.isLocked ? .red : .primary))
+
+            Text(seat.displayName)
+                .font(.system(size: 11, weight: seat.isLocked ? .bold : .medium))
+                .foregroundColor(seat.isEmpty ? .gray.opacity(0.5) : (seat.isLocked ? .red : .primary))
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
         .background(
-            member?.isLocked == true
+            seat.isLocked
             ? Color.red.opacity(0.1)
             : Color(.tertiarySystemGroupedBackground)
         )

@@ -11,107 +11,42 @@ import SwiftData
 struct SeatingChartView: View {
     @StateObject var presenter: SeatingChartPresenter
     @Environment(\.modelContext) private var modelContext
-    @State private var editingTableIndex: Int? = nil
-    @State private var isShowingSaveAlert = false
-    @State private var templateName = ""
-    @State private var isShowingTemplateList = false
-    @State private var showTemplateLimitAlert = false
-    // MARK: - アンロック・広告管理
     @StateObject private var adManager = RewardedAdManager.shared
-    
-    @State private var showingUnlockSheet = false
-    @State private var showingSettingsSheet = false
-    @State private var shouldShowAdOnDismiss = false
-    @State private var showingShareOptions = false
-    @State private var pendingShareSelection: ShareSelectionKind?
-    @State private var showingImageShareAdAlert = false
-    @State private var showingAdNotReadyAlert = false
-    // 会場全体のテーブル列数設定（最大10列まで）
-    @State private var globalTableColumnCount: Int = 2
-    // セッション限定：3列以上のレイアウト解放フラグ（アプリ終了時にリセット）
-    @State private var sessionUnlockedColumns: Bool = false
+    /// 保存アラートの TextField 用（route が `.saveTemplatePrompt` のときだけ使う）
+    @State private var templateName = ""
+
     private let scrollAnchorTopID = "SeatingChartScrollTop"
-    /// 最下部テーブルとアクションバーのあいだに確保する余白
     private let scrollBottomBreathingRoom: CGFloat = 32
-    
-    // グリッド幅の計算（最小幅を確保）
-    private var gridMinWidth: CGFloat {
-        let tableMinWidth: CGFloat = 140 + 16 // テーブル最小幅 + スペーシング
-        return tableMinWidth * CGFloat(globalTableColumnCount) + 32 // パディング分
-    }
-    
-    /// テーブルを会場列数ごとの行に分割（末尾に「テーブル追加」ボタン用の枠を1つ足す）
-    private var tableGridRows: [[SeatingChartGridItem]] {
-        var items: [SeatingChartGridItem] = presenter.tables.indices.map { .table($0) }
-        items.append(.addButton)
-        let columnCount = max(1, globalTableColumnCount)
-        return stride(from: 0, to: items.count, by: columnCount).map { start in
-            Array(items[start..<min(start + columnCount, items.count)])
-        }
-    }
-    
-    // 座席表 Result を共有するためのテキスト組み立て（列数に対応）
-    private var shareText: String {
-        var text = "【サクッと席決め】座席表のシャッフル結果です！\n\n"
-        
-        for table in presenter.tables {
-            text += "━━━━━━━━━━━━━━━━━\n"
-            text += "▼ \(table.name)\n"
-            text += "━━━━━━━━━━━━━━━━━\n"
-            
-            let members = table.assignedMembers
-            let colCount = max(1, table.columnCount)
-            
-            if members.isEmpty {
-                text += "（まだメンバーが配置されていません）\n"
-            } else {
-                for (index, member) in members.enumerated() {
-                    let row = (index / colCount) + 1
-                    let col = (index % colCount) + 1
-                    
-                    if colCount == 2 {
-                        let side = (index % 2 == 0) ? "左" : "右"
-                        text += "🪑 [\(row)列目 · \(side)] : \(member.name)\n"
-                    } else {
-                        text += "🪑 [\(row)行\(col)列目] : \(member.name)\n"
-                    }
-                }
-            }
-            text += "\n"
-        }
-        
-        text += "#サクッと席決め"
-        return text
-    }
-    
+
     var body: some View {
         ScrollViewReader { scrollProxy in
-            // 双方向 ScrollView は safeAreaInset を無視しやすく末尾が見切れるため、
-            // 縦スクロールを外側・横スクロールを内側に分離する
             ScrollView(.vertical) {
                 ScrollView(.horizontal, showsIndicators: true) {
                     VStack(spacing: 0) {
                         Color.clear
                             .frame(height: 0)
                             .id(scrollAnchorTopID)
-                        
-                        // LazyVGrid は高さを過小評価し、末尾テーブルが見切れるため
-                        // 明示的な VStack / HStack で全高さを即時計算する
+
                         VStack(alignment: .center, spacing: 16) {
-                            ForEach(Array(tableGridRows.enumerated()), id: \.offset) { _, row in
+                            ForEach(presenter.viewData.rows) { row in
                                 HStack(alignment: .top, spacing: 16) {
-                                    ForEach(row) { item in
+                                    ForEach(row.items) { item in
                                         switch item {
-                                        case .table(let idx):
-                                            let table = presenter.tables[idx]
-                                            SeatingTableView(table: table, presenter: presenter, onEditTarget: {
-                                                editingTableIndex = idx
-                                            })
+                                        case .table(let table):
+                                            SeatingTableView(
+                                                table: table,
+                                                onEditTarget: {
+                                                    presenter.didTapTable(id: table.id)
+                                                },
+                                                onTapSeat: { memberID in
+                                                    presenter.didTapSeat(tableID: table.id, memberID: memberID)
+                                                }
+                                            )
                                             .frame(minWidth: 140)
                                             .frame(maxWidth: .infinity, alignment: .top)
                                         case .addButton:
                                             Button(action: {
-                                                presenter.addTable()
+                                                presenter.didTapAddTable()
                                             }) {
                                                 VStack {
                                                     Image(systemName: "plus.circle.fill")
@@ -127,10 +62,8 @@ struct SeatingChartView: View {
                                             .frame(maxWidth: .infinity, alignment: .top)
                                         }
                                     }
-                                    
-                                    // 行の末尾が列数に満たない場合、幅を揃えるためのスペーサー
-                                    let fillCount = max(0, globalTableColumnCount - row.count)
-                                    ForEach(0..<fillCount, id: \.self) { _ in
+
+                                    ForEach(0..<row.trailingFillerCount, id: \.self) { _ in
                                         Color.clear
                                             .frame(minWidth: 140)
                                             .frame(maxWidth: .infinity)
@@ -141,17 +74,13 @@ struct SeatingChartView: View {
                         }
                         .padding(.top, 8)
                         .padding(.horizontal)
-                        // 画面より狭いときは親幅いっぱいに広げて中央配置、
-                        // 列が多いときは minWidth で横スクロール可能にする
-                        .frame(minWidth: gridMinWidth)
+                        .frame(minWidth: presenter.viewData.minGridWidth)
                         .containerRelativeFrame(.horizontal, alignment: .center) { length, _ in
-                            max(length, gridMinWidth)
+                            max(length, presenter.viewData.minGridWidth)
                         }
                     }
                 }
-                // 横 ScrollView が縦方向を縮めないよう、内容の高さに合わせる
                 .fixedSize(horizontal: false, vertical: true)
-                // safeAreaInset でバー分は確保済み。最下部の見切れ防止に少し余白を足す
                 .padding(.bottom, scrollBottomBreathingRoom)
             }
             .onChange(of: presenter.scrollToTopTrigger) { _, _ in
@@ -168,116 +97,226 @@ struct SeatingChartView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showingSettingsSheet = true }) {
+                Button(action: { presenter.didTapSettings() }) {
                     Image(systemName: "gearshape")
                 }
             }
         }
-        .sheet(isPresented: $showingSettingsSheet) {
-            SettingsSheetView(globalTableColumnCount: $globalTableColumnCount, sessionUnlockedColumns: $sessionUnlockedColumns, adManager: adManager)
-                .presentationDetents([.medium])
+        .onAppear {
+            presenter.onAppear()
         }
-        // テンプレート保存用アラート
-        .alert("レイアウトを保存", isPresented: $isShowingSaveAlert) {
+        .sheet(item: sheetRouteBinding) { route in
+            sheetContent(for: route)
+        }
+        .alert("レイアウトを保存", isPresented: savePromptBinding) {
             TextField("テンプレート名 (例: デフォルト設定)", text: $templateName)
             Button("キャンセル", role: .cancel) { }
             Button("保存") {
-                presenter.saveLayoutAsTemplate(templateName: templateName, globalColumnCount: globalTableColumnCount, context: modelContext)
+                presenter.didConfirmSaveTemplate(name: templateName, context: modelContext)
             }
         } message: {
             Text("現在のテーブル構成をテンプレートとして保存します。")
         }
-        .sheet(isPresented: Binding(get: { editingTableIndex != nil }, set: { newVal in if !newVal { editingTableIndex = nil } })) {
-            if let idx = editingTableIndex, presenter.tables.indices.contains(idx) {
-                TableEditView(table: presenter.tables[idx], presenter: presenter)
+        .alert(
+            alertTitle,
+            isPresented: alertIsPresentedBinding,
+            presenting: presentedAlert,
+            actions: { alert in
+                alertButtons(for: alert)
+            },
+            message: { alert in
+                alertMessage(for: alert)
             }
-        }
-        .sheet(isPresented: $isShowingTemplateList) {
-            SeatingTemplateListView { selectedTemplate in
-                let restoredColumnCount = presenter.applyTemplate(selectedTemplate)
-                globalTableColumnCount = restoredColumnCount
-            }
-            .presentationDetents([.medium, .large])
-        }
-        .alert("テンプレート上限", isPresented: $showTemplateLimitAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("保存できるテンプレートは最大3個までとなっています。新しいテンプレートを保存するには、テンプレート読込一覧から既存のテンプレートを削除してください。")
-        }
-        .sheet(isPresented: $showingShareOptions, onDismiss: {
-            guard let pendingShareSelection else { return }
-            self.pendingShareSelection = nil
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                switch pendingShareSelection {
-                case .text:
-                    presentShareSheet(with: shareText)
-                case .image:
-                    handleImageShareTapped()
+        )
+    }
+}
+
+// MARK: - Route Bindings
+
+private extension SeatingChartView {
+    var sheetRouteBinding: Binding<SeatingChartRoute?> {
+        Binding(
+            get: {
+                guard let route = presenter.route, route.presentsAsSheet else { return nil }
+                return route
+            },
+            set: { newValue in
+                if newValue == nil, let route = presenter.route, route.presentsAsSheet {
+                    presenter.dismissRoute()
                 }
             }
-        }) {
+        )
+    }
+
+    var savePromptBinding: Binding<Bool> {
+        Binding(
+            get: {
+                if case .saveTemplatePrompt = presenter.route { return true }
+                return false
+            },
+            set: { isPresented in
+                if !isPresented, case .saveTemplatePrompt = presenter.route {
+                    presenter.dismissRoute()
+                }
+            }
+        )
+    }
+
+    var presentedAlert: SeatingChartAlert? {
+        if case .alert(let alert) = presenter.route { return alert }
+        return nil
+    }
+
+    var alertTitle: String {
+        switch presentedAlert {
+        case .templateLimitReached:
+            return "テンプレート上限"
+        case .confirmImageShareWithAd:
+            return "画像で共有"
+        case .adNotReady:
+            return "広告を読み込み中"
+        case .requireUnlockForColumns:
+            return "アンロックが必要です"
+        case .saveFailed:
+            return "保存に失敗しました"
+        case .imageExportFailed:
+            return "画像出力に失敗しました"
+        case .none:
+            return ""
+        }
+    }
+
+    var alertIsPresentedBinding: Binding<Bool> {
+        Binding(
+            get: { presentedAlert != nil },
+            set: { isPresented in
+                if !isPresented, case .alert = presenter.route {
+                    presenter.dismissRoute()
+                }
+            }
+        )
+    }
+
+    @ViewBuilder
+    func sheetContent(for route: SeatingChartRoute) -> some View {
+        switch route {
+        case .tableEdit(let tableID):
+            TableEditView(tableID: tableID, presenter: presenter)
+        case .venueSettings:
+            SettingsSheetView(
+                globalTableColumnCount: $presenter.globalColumnCount,
+                sessionUnlockedColumns: $presenter.sessionUnlockedColumns,
+                adManager: adManager
+            )
+            .presentationDetents([.medium])
+        case .templateList:
+            SeatingTemplateListView { selectedTemplate in
+                presenter.didSelectTemplate(selectedTemplate)
+            }
+            .presentationDetents([.medium, .large])
+        case .shareSelection:
             ShareSelectionView { kind in
-                pendingShareSelection = kind
+                presenter.didSelectShareKind(kind)
             }
-        }
-        .alert("画像で共有", isPresented: $showingImageShareAdAlert) {
-            Button("キャンセル", role: .cancel) { }
-            Button("OK") {
-                playRewardedAdThenShareImage()
-            }
-        } message: {
-            Text("動画広告を視聴して画像を出力しますか？")
-        }
-        .alert("広告を読み込み中", isPresented: $showingAdNotReadyAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("広告の準備ができていません。しばらく待ってからもう一度お試しください。")
-        }
-        .sheet(isPresented: $showingUnlockSheet, onDismiss: {
-            if shouldShowAdOnDismiss {
-                shouldShowAdOnDismiss = false
-                
+            .onDisappear {
+                guard let pending = presenter.pendingShareSelection else { return }
+                presenter.pendingShareSelection = nil
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    adManager.showAd {
-                        sessionUnlockedColumns = true
-                        isShowingSaveAlert = true
+                    switch pending {
+                    case .text:
+                        presentShareSheet(with: presenter.makeShareText())
+                    case .image:
+                        presenter.didRequestImageShare()
                     }
                 }
             }
-        }) {
+        case .unlockForSave:
             UnlockSheetView {
-                shouldShowAdOnDismiss = true
+                presenter.shouldShowAdOnDismiss = true
             }
+            .onDisappear {
+                guard presenter.shouldShowAdOnDismiss else { return }
+                presenter.shouldShowAdOnDismiss = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    adManager.showAd {
+                        presenter.sessionUnlockedColumns = true
+                        presenter.route = .saveTemplatePrompt
+                    }
+                }
+            }
+        case .saveTemplatePrompt, .alert:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    func alertButtons(for alert: SeatingChartAlert) -> some View {
+        switch alert {
+        case .templateLimitReached:
+            Button("OK", role: .cancel) { }
+        case .confirmImageShareWithAd:
+            Button("キャンセル", role: .cancel) { }
+            Button("OK") {
+                let isReady = adManager.isAdReady
+                if !isReady {
+                    adManager.loadAd()
+                }
+                presenter.didConfirmImageShareWithAd(isAdReady: isReady) {
+                    adManager.showAd {
+                        exportAndShareSeatingChartImage()
+                    }
+                }
+            }
+        case .adNotReady:
+            Button("OK", role: .cancel) { }
+        case .requireUnlockForColumns:
+            Button("OK", role: .cancel) { }
+        case .saveFailed:
+            Button("OK", role: .cancel) { }
+        case .imageExportFailed:
+            Button("OK", role: .cancel) { }
+        }
+    }
+
+    func alertMessage(for alert: SeatingChartAlert) -> Text {
+        switch alert {
+        case .templateLimitReached(let currentCount, let limit):
+            Text("保存できるテンプレートは最大\(limit)個までとなっています（現在\(currentCount)個）。新しいテンプレートを保存するには、テンプレート読込一覧から既存のテンプレートを削除してください。")
+        case .confirmImageShareWithAd:
+            Text("動画広告を視聴して画像を出力しますか？")
+        case .adNotReady:
+            Text("広告の準備ができていません。しばらく待ってからもう一度お試しください。")
+        case .requireUnlockForColumns(let requested):
+            Text("\(requested)列以上のレイアウトを利用するには動画広告の視聴が必要です。")
+        case .saveFailed(let message):
+            Text(message)
+        case .imageExportFailed:
+            Text("画像の出力に失敗しました。もう一度お試しください。")
         }
     }
 }
 
 extension SeatingChartView {
-    
+
     private var bottomChromeBar: some View {
         VStack(spacing: 8) {
             ActionButtonsView(
                 button1: .init(title: "お気に入り", icon: "star.fill", color: .orange, action: {
-                    isShowingTemplateList = true
+                    presenter.didTapLoadTemplate()
                 }),
                 button2: .init(title: "保存", icon: "square.and.arrow.down", color: .green, action: {
                     templateName = ""
-                    if presenter.canSaveTemplate(context: modelContext) {
-                        isShowingSaveAlert = true
-                    } else {
-                        showingUnlockSheet = true
-                    }
-                }, isDisabled: presenter.tables.isEmpty),
+                    presenter.didTapSaveTemplate(canSave: presenter.canSaveTemplate(context: modelContext))
+                }, isDisabled: !presenter.viewData.isSaveEnabled),
                 button3: .init(title: "共有", icon: "square.and.arrow.up", color: .blue, action: {
-                    showingShareOptions = true
-                }, isDisabled: presenter.tables.isEmpty),
+                    presenter.didTapShare()
+                }, isDisabled: !presenter.viewData.isShareEnabled),
                 button4: .init(title: "シャッフル", icon: "shuffle", color: .purple, action: {
-                    presenter.shuffle()
-                })
+                    presenter.didTapShuffle()
+                }, isDisabled: !presenter.viewData.isShuffleEnabled)
             )
             .padding(.horizontal, 16)
-            
+
             AdBannerView()
                 .frame(width: 320, height: 50)
                 .padding(.bottom, 4)
@@ -290,75 +329,79 @@ extension SeatingChartView {
                 .ignoresSafeArea(edges: .bottom)
         )
     }
-    
-    private func handleImageShareTapped() {
-        // 画像出力は常にリワード広告の視聴を必要とする
-        showingImageShareAdAlert = true
-    }
-    
-    private func playRewardedAdThenShareImage() {
-        guard adManager.isAdReady else {
-            adManager.loadAd()
-            showingAdNotReadyAlert = true
-            return
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            adManager.showAd {
-                exportAndShareSeatingChartImage()
-            }
-        }
-    }
-    
+
     @MainActor
     private func exportAndShareSeatingChartImage() {
-        // 会場列数とテーブル数から出力サイズを算出する
         let screenWidth = UIScreen.main.bounds.width
-        let tableWidth: CGFloat = 140 // スナップショットで使う固定幅
+        let tableWidth: CGFloat = 140
         let tableSpacing: CGFloat = 16
         let horizontalPadding: CGFloat = 32
-        
-        // 会場列数から横幅を求める
-        let tableCount = CGFloat(globalTableColumnCount)
+
+        let tableCount = CGFloat(presenter.viewData.globalColumnCount)
         let calculatedWidth = tableCount * tableWidth + (tableCount - 1) * tableSpacing + horizontalPadding
         let exportWidth = max(screenWidth, calculatedWidth)
-        
-        // テーブルの行数から高さを求める
-        let tableHeight: CGFloat = 150 // テーブル1つあたりの推定高さ
+
+        let tableHeight: CGFloat = 150
         let verticalSpacing: CGFloat = 16
         let verticalPadding: CGFloat = 32
-        let tableRowCount = ceil(CGFloat(presenter.tables.count) / CGFloat(globalTableColumnCount))
+        let tableOnlyCount = presenter.viewData.rows.reduce(0) { partial, row in
+            partial + row.items.filter {
+                if case .table = $0 { return true }
+                return false
+            }.count
+        }
+        let tableRowCount = ceil(CGFloat(tableOnlyCount) / CGFloat(presenter.viewData.globalColumnCount))
         let calculatedHeight = tableRowCount * (tableHeight + verticalSpacing) + verticalPadding
-        let exportHeight = max(400, calculatedHeight) // 最低の高さは400
-        
-        // 固定サイズを与えて出力用ビューを組み立てる
-        let exportView = SeatingChartSnapshotView(tables: presenter.tables, globalColumnCount: globalTableColumnCount)
+        let exportHeight = max(400, calculatedHeight)
+
+        let exportView = SeatingChartSnapshotView(viewData: presenter.viewData)
             .frame(width: exportWidth, height: exportHeight, alignment: .topLeading)
             .background(Color(.systemBackground))
-        
+
         let renderer = ImageRenderer(content: exportView)
         renderer.scale = UIScreen.main.scale
         renderer.proposedSize = ProposedViewSize(width: exportWidth, height: exportHeight)
-        
-        guard let image = renderer.uiImage else { return }
+
+        guard let image = renderer.uiImage else {
+            presenter.route = .alert(.imageExportFailed)
+            return
+        }
         presentShareSheet(with: image)
     }
-    
-    // シェアシートを呼び出す
+
     private func presentShareSheet(with item: Any) {
         guard let topViewController = UIApplication.shared.topViewController else {
             return
         }
-        
+
         let activityVC = UIActivityViewController(activityItems: [item], applicationActivities: nil)
-        
+
         if let popoverController = activityVC.popoverPresentationController {
             popoverController.sourceView = topViewController.view
             popoverController.sourceRect = CGRect(x: topViewController.view.bounds.midX, y: topViewController.view.bounds.midY, width: 0, height: 0)
             popoverController.permittedArrowDirections = []
         }
-        
+
         topViewController.present(activityVC, animated: true, completion: nil)
     }
-    
 }
+
+#if DEBUG
+#Preview("座席表") {
+    NavigationStack {
+        SeatingChartView(
+            presenter: SeatingChartPresenter(
+                interactor: SeatingChartInteractor(),
+                router: SeatingChartRouter(),
+                attendees: [
+                    Attendee(name: "太郎"),
+                    Attendee(name: "花子"),
+                    Attendee(name: "次郎"),
+                    Attendee(name: "三郎"),
+                    Attendee(name: "四郎")
+                ]
+            )
+        )
+    }
+}
+#endif
