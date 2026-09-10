@@ -12,7 +12,6 @@ struct SimpleShuffleView: View {
     
     // MARK: - アンロック・広告管理
     @StateObject private var adManager = RewardedAdManager.shared
-    @StateObject private var premiumManager = PremiumManager.shared
     
     @State private var showingShareOptions = false
     @State private var pendingShareSelection: ShareSelectionKind?
@@ -124,11 +123,8 @@ struct SimpleShuffleView: View {
     }
     
     private func handleImageShareTapped() {
-        if premiumManager.isPro {
-            exportAndShareShuffleImage()
-        } else {
-            showingImageShareAdAlert = true
-        }
+        // Removed PRO gating: always require rewarded ad for image export
+        showingImageShareAdAlert = true
     }
     
     private func playRewardedAdThenShareImage() {

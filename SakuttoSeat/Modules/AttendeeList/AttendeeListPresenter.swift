@@ -49,10 +49,15 @@ class AttendeeListPresenter: ObservableObject {
     func didTapSaveFavoriteGroup(name: String, context: ModelContext) {
         let memberNames = attendees.map { $0.name }
         let newFavorite = GroupFavorite(name: name, members: memberNames)
-        
+
         // SwiftDataのデータベースに保存
         context.insert(newFavorite)
-        try? context.save()
+        do {
+            try context.save()
+            print("お気に入りグループを保存しました: \(name), メンバー数: \(memberNames.count)")
+        } catch {
+            print("お気に入りグループの保存に失敗しました: \(error)")
+        }
     }
     
     /// 選択されたお気に入りグループから参加者リストを上書き読み込みする
@@ -76,7 +81,12 @@ class AttendeeListPresenter: ObservableObject {
     /// 変更を永続化します。
     func didDeleteFavoriteGroup(_ group: GroupFavorite, context: ModelContext) {
         context.delete(group)
-        try? context.save()
+        do {
+            try context.save()
+            print("お気に入りグループを削除しました: \(group.name)")
+        } catch {
+            print("お気に入りグループの削除に失敗しました: \(error)")
+        }
     }
 
     /// Presenter 自身で最新の一覧を ModelContext から取得してオブジェクトを解決します。

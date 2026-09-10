@@ -13,8 +13,8 @@ class SimpleShufflePresenter: ObservableObject {
     @Published var attendees: [String]
     
     init(attendees: [String]) {
-        // 初期表示時もシャッフルした状態で保持
-        self.attendees = attendees.shuffled()
+        // 初期表示時は登録順のまま保持（シャッフルはボタンタップ時のみ）
+        self.attendees = attendees
     }
     
     func didTapShuffleButton() {

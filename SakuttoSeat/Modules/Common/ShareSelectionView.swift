@@ -14,7 +14,6 @@ enum ShareSelectionKind {
 
 struct ShareSelectionView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var premiumManager = PremiumManager.shared
     let onSelect: (ShareSelectionKind) -> Void
     
     var body: some View {
@@ -32,7 +31,7 @@ struct ShareSelectionView: View {
                 shareOptionButton(
                     icon: "photo",
                     title: "画像で共有",
-                    subtitle: premiumManager.isPro ? nil : "短い動画広告の視聴が必要です",
+                    subtitle: "短い動画広告の視聴が必要です",
                     tint: .purple
                 ) {
                     select(.image)

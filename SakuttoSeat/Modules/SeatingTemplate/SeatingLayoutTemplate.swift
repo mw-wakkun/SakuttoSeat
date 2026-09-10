@@ -95,12 +95,14 @@ final class SeatingLayoutTemplate {
     @Attribute(.unique) var id: UUID
     var name: String
     var tables: [TableTemplate]
+    var globalColumnCount: Int = 2  // デフォルト値を設定して既存データとの互換性を確保
     var createdAt: Date
-    
-    init(id: UUID = UUID(), name: String, tables: [TableTemplate], createdAt: Date = Date()) {
+
+    init(id: UUID = UUID(), name: String, tables: [TableTemplate], globalColumnCount: Int = 2, createdAt: Date = Date()) {
         self.id = id
         self.name = name
         self.tables = tables
+        self.globalColumnCount = globalColumnCount
         self.createdAt = createdAt
     }
 }

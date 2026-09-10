@@ -14,7 +14,7 @@ final class GroupFavorite {
     var name: String
     var members: [String]
     var createdAt: Date
-    
+
     init(name: String, members: [String]) {
         self.id = UUID()
         self.name = name

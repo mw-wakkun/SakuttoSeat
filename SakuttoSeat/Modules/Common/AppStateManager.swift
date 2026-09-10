@@ -11,9 +11,6 @@ import Combine
 final class AppStateManager: ObservableObject {
     static let shared = AppStateManager()
     
-    /// 4つ目以降の登録アンロックフラグ（動画視聴済み）
-    @AppStorage("hasUnlockedUnlimitedGroups") var hasUnlockedUnlimitedGroups: Bool = false
-    
     /// 将来のPro版ユーザーフラグ
     @AppStorage("isProUser") var isProUser: Bool = false
     
@@ -24,7 +21,7 @@ final class AppStateManager: ObservableObject {
     
     /// グループが保存可能かどうかを判定
     func canSaveMoreGroups(currentCount: Int) -> Bool {
-        if isProUser || hasUnlockedUnlimitedGroups {
+        if isProUser {
             return true
         }
         return currentCount < defaultMaxFreeCount

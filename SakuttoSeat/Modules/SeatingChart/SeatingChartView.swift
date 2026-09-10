@@ -8,6 +8,21 @@
 import SwiftUI
 import SwiftData
 
+/// 座席表グリッドの1セル（テーブル or 追加ボタン）
+private enum SeatingChartGridItem: Identifiable {
+    case table(Int)
+    case addButton
+    
+    var id: String {
+        switch self {
+        case .table(let index):
+            return "table-\(index)"
+        case .addButton:
+            return "add-button"
+        }
+    }
+}
+
 struct SeatingChartView: View {
     @StateObject var presenter: SeatingChartPresenter
     @Environment(\.modelContext) private var modelContext
@@ -17,22 +32,38 @@ struct SeatingChartView: View {
     @State private var isShowingTemplateList = false
     @State private var showTemplateLimitAlert = false
     // MARK: - アンロック・広告管理
-    @StateObject private var stateManager = AppStateManager.shared
     @StateObject private var adManager = RewardedAdManager.shared
-    @StateObject private var premiumManager = PremiumManager.shared
     
     @State private var showingUnlockSheet = false
+    @State private var showingSettingsSheet = false
     @State private var shouldShowAdOnDismiss = false
     @State private var showingShareOptions = false
     @State private var pendingShareSelection: ShareSelectionKind?
     @State private var showingImageShareAdAlert = false
     @State private var showingAdNotReadyAlert = false
+    // 会場全体のテーブル列数設定（最大10列まで）
+    @State private var globalTableColumnCount: Int = 2
+    // セッション限定：3列以上のレイアウト解放フラグ（アプリ終了時にリセット）
+    @State private var sessionUnlockedColumns: Bool = false
+    private let scrollAnchorTopID = "SeatingChartScrollTop"
+    /// 最下部テーブルとアクションバーのあいだに確保する余白
+    private let scrollBottomBreathingRoom: CGFloat = 32
     
-    // 画面全体（テーブル同士）を左右に2分割するグリッド定義
-    let columns = [
-        GridItem(.flexible(), spacing: 16),
-        GridItem(.flexible(), spacing: 16)
-    ]
+    // グリッド幅の計算（最小幅を確保）
+    private var gridMinWidth: CGFloat {
+        let tableMinWidth: CGFloat = 140 + 16 // テーブル最小幅 + スペーシング
+        return tableMinWidth * CGFloat(globalTableColumnCount) + 32 // パディング分
+    }
+    
+    /// テーブルを会場列数ごとの行に分割（末尾に「テーブル追加」ボタン用の枠を1つ足す）
+    private var tableGridRows: [[SeatingChartGridItem]] {
+        var items: [SeatingChartGridItem] = presenter.tables.indices.map { .table($0) }
+        items.append(.addButton)
+        let columnCount = max(1, globalTableColumnCount)
+        return stride(from: 0, to: items.count, by: columnCount).map { start in
+            Array(items[start..<min(start + columnCount, items.count)])
+        }
+    }
     
     // 座席表 Result を共有するためのテキスト組み立て（列数に対応）
     private var shareText: String {
@@ -69,82 +100,104 @@ struct SeatingChartView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // メインの座席表コンテンツ
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(presenter.tables.indices, id: \.self) { idx in
-                        let table = presenter.tables[idx]
-                        SeatingTableView(table: table, presenter: presenter, onEditTarget: {
-                            editingTableIndex = idx
-                        })
-                    }
-                    
-                    // テーブル追加ボタン
-                    Button(action: {
-                        presenter.addTable()
-                    }) {
-                        VStack {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.largeTitle)
-                            Text("テーブル追加")
+        ScrollViewReader { scrollProxy in
+            // 双方向 ScrollView は safeAreaInset を無視しやすく末尾が見切れるため、
+            // 縦スクロールを外側・横スクロールを内側に分離する
+            ScrollView(.vertical) {
+                ScrollView(.horizontal, showsIndicators: true) {
+                    VStack(spacing: 0) {
+                        Color.clear
+                            .frame(height: 0)
+                            .id(scrollAnchorTopID)
+                        
+                        // LazyVGrid は高さを過小評価し、末尾テーブルが見切れるため
+                        // 明示的な VStack / HStack で全高さを即時計算する
+                        VStack(alignment: .center, spacing: 16) {
+                            ForEach(Array(tableGridRows.enumerated()), id: \.offset) { _, row in
+                                HStack(alignment: .top, spacing: 16) {
+                                    ForEach(row) { item in
+                                        switch item {
+                                        case .table(let idx):
+                                            let table = presenter.tables[idx]
+                                            SeatingTableView(table: table, presenter: presenter, onEditTarget: {
+                                                editingTableIndex = idx
+                                            })
+                                            .frame(minWidth: 140)
+                                            .frame(maxWidth: .infinity, alignment: .top)
+                                        case .addButton:
+                                            Button(action: {
+                                                presenter.addTable()
+                                            }) {
+                                                VStack {
+                                                    Image(systemName: "plus.circle.fill")
+                                                        .font(.largeTitle)
+                                                    Text("テーブル追加")
+                                                }
+                                                .frame(maxWidth: .infinity)
+                                                .frame(minHeight: 120)
+                                                .background(Color.secondary.opacity(0.1))
+                                                .cornerRadius(12)
+                                            }
+                                            .frame(minWidth: 140)
+                                            .frame(maxWidth: .infinity, alignment: .top)
+                                        }
+                                    }
+                                    
+                                    // 行の末尾が列数に満たない場合、幅を揃えるためのスペーサー
+                                    let fillCount = max(0, globalTableColumnCount - row.count)
+                                    ForEach(0..<fillCount, id: \.self) { _ in
+                                        Color.clear
+                                            .frame(minWidth: 140)
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .center)
+                            }
                         }
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: 120)
-                        .background(Color.secondary.opacity(0.1))
-                        .cornerRadius(12)
+                        .padding(.top, 8)
+                        .padding(.horizontal)
+                        // 画面より狭いときは親幅いっぱいに広げて中央配置、
+                        // 列が多いときは minWidth で横スクロール可能にする
+                        .frame(minWidth: gridMinWidth)
+                        .containerRelativeFrame(.horizontal, alignment: .center) { length, _ in
+                            max(length, gridMinWidth)
+                        }
                     }
                 }
-                .padding()
+                // 横 ScrollView が縦方向を縮めないよう、内容の高さに合わせる
+                .fixedSize(horizontal: false, vertical: true)
+                // safeAreaInset でバー分は確保済み。最下部の見切れ防止に少し余白を足す
+                .padding(.bottom, scrollBottomBreathingRoom)
             }
-            
-            // 下部エリア：アクションボタン ＆ 広告バナー
-            VStack(spacing: 8) {
-                // 共通化したアクションボタン
-                ActionButtonsView(
-                    // 1番目：お気に入り（テンプレート読込）
-                    button1: .init(title: "お気に入り", icon: "star.fill", color: .orange, action: {
-                        isShowingTemplateList = true
-                    }),
-                    // 2番目：保存
-                    button2: .init(title: "保存", icon: "square.and.arrow.down", color: .green, action: {
-                        templateName = ""
-                        // 動画で解放済み、または無料枠（3個未満）なら保存ダイアログを表示
-                        if stateManager.hasUnlockedUnlimitedGroups || presenter.canSaveTemplate(context: modelContext) {
-                            isShowingSaveAlert = true
-                        } else {
-                            // 3個以上かつ未解放の場合はアンロックシートを表示
-                            showingUnlockSheet = true
-                        }
-                    }, isDisabled: presenter.tables.isEmpty),
-                    // 3番目：共有
-                    button3: .init(title: "共有", icon: "square.and.arrow.up", color: .blue, action: {
-                        showingShareOptions = true
-                    }, isDisabled: presenter.tables.isEmpty),
-                    // 4番目：シャッフル
-                    button4: .init(title: "シャッフル", icon: "shuffle", color: .purple, action: {
-                        presenter.shuffle()
-                    })
-                )
-                .padding(.horizontal, 16)
-                
-                // 下部：広告バナーエリア
-                AdBannerView()
-                    .frame(width: 320, height: 50)
-                    .padding(.bottom, 4)
+            .onChange(of: presenter.scrollToTopTrigger) { _, _ in
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    scrollProxy.scrollTo(scrollAnchorTopID, anchor: .top)
+                }
             }
-            .padding(.top, 8)
-            .background(Color(.systemBackground))
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            bottomChromeBar
         }
         .background(Color(.systemBackground))
         .navigationTitle("座席表")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { showingSettingsSheet = true }) {
+                    Image(systemName: "gearshape")
+                }
+            }
+        }
+        .sheet(isPresented: $showingSettingsSheet) {
+            SettingsSheetView(globalTableColumnCount: $globalTableColumnCount, sessionUnlockedColumns: $sessionUnlockedColumns, adManager: adManager)
+                .presentationDetents([.medium])
+        }
         // テンプレート保存用アラート
         .alert("レイアウトを保存", isPresented: $isShowingSaveAlert) {
             TextField("テンプレート名 (例: デフォルト設定)", text: $templateName)
             Button("キャンセル", role: .cancel) { }
             Button("保存") {
-                presenter.saveLayoutAsTemplate(templateName: templateName, context: modelContext)
+                presenter.saveLayoutAsTemplate(templateName: templateName, globalColumnCount: globalTableColumnCount, context: modelContext)
             }
         } message: {
             Text("現在のテーブル構成をテンプレートとして保存します。")
@@ -154,15 +207,10 @@ struct SeatingChartView: View {
                 TableEditView(table: presenter.tables[idx], presenter: presenter)
             }
         }
-        .onAppear {
-            if presenter.tables.allSatisfy({ $0.assignedMembers.isEmpty }) {
-                presenter.shuffle()
-            }
-        }
-        // テンプレート一覧シートの呼び出し
         .sheet(isPresented: $isShowingTemplateList) {
             SeatingTemplateListView { selectedTemplate in
-                presenter.applyTemplate(selectedTemplate)
+                let restoredColumnCount = presenter.applyTemplate(selectedTemplate)
+                globalTableColumnCount = restoredColumnCount
             }
             .presentationDetents([.medium, .large])
         }
@@ -207,9 +255,8 @@ struct SeatingChartView: View {
                 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     adManager.showAd {
-                        // 動画視聴完了でフラグを更新し、保存アラートを表示
-                        stateManager.hasUnlockedUnlimitedGroups = true
-                        isShowingSaveAlert = true // 既存の保存ダイアログフラグ
+                        sessionUnlockedColumns = true
+                        isShowingSaveAlert = true
                     }
                 }
             }
@@ -220,12 +267,50 @@ struct SeatingChartView: View {
         }
     }
     
-    private func handleImageShareTapped() {
-        if premiumManager.isPro {
-            exportAndShareSeatingChartImage()
-        } else {
-            showingImageShareAdAlert = true
+    
+}
+
+extension SeatingChartView {
+    
+    private var bottomChromeBar: some View {
+        VStack(spacing: 8) {
+            ActionButtonsView(
+                button1: .init(title: "お気に入り", icon: "star.fill", color: .orange, action: {
+                    isShowingTemplateList = true
+                }),
+                button2: .init(title: "保存", icon: "square.and.arrow.down", color: .green, action: {
+                    templateName = ""
+                    if presenter.canSaveTemplate(context: modelContext) {
+                        isShowingSaveAlert = true
+                    } else {
+                        showingUnlockSheet = true
+                    }
+                }, isDisabled: presenter.tables.isEmpty),
+                button3: .init(title: "共有", icon: "square.and.arrow.up", color: .blue, action: {
+                    showingShareOptions = true
+                }, isDisabled: presenter.tables.isEmpty),
+                button4: .init(title: "シャッフル", icon: "shuffle", color: .purple, action: {
+                    presenter.shuffle()
+                })
+            )
+            .padding(.horizontal, 16)
+            
+            AdBannerView()
+                .frame(width: 320, height: 50)
+                .padding(.bottom, 4)
         }
+        .padding(.top, 12)
+        .frame(maxWidth: .infinity)
+        .background(
+            Color(.systemBackground)
+                .shadow(color: .black.opacity(0.05), radius: 3, y: -3)
+                .ignoresSafeArea(edges: .bottom)
+        )
+    }
+    
+    private func handleImageShareTapped() {
+        // Removed PRO gating: always use rewarded ad flow for image export
+        showingImageShareAdAlert = true
     }
     
     private func playRewardedAdThenShareImage() {
@@ -244,16 +329,33 @@ struct SeatingChartView: View {
     
     @MainActor
     private func exportAndShareSeatingChartImage() {
-        let exportWidth = UIScreen.main.bounds.width
+        // Calculate export dimensions based on global column count and table count
+        let screenWidth = UIScreen.main.bounds.width
+        let tableWidth: CGFloat = 140 // Fixed width as used in snapshot
+        let tableSpacing: CGFloat = 16
+        let horizontalPadding: CGFloat = 32
         
-        // ★修正点: 専用のSnapshotViewを呼び出し、presenterは不要に
-        let exportView = SeatingChartSnapshotView(tables: presenter.tables)
-            .frame(width: exportWidth)
+        // Calculate width based on global column count
+        let tableCount = CGFloat(globalTableColumnCount)
+        let calculatedWidth = tableCount * tableWidth + (tableCount - 1) * tableSpacing + horizontalPadding
+        let exportWidth = max(screenWidth, calculatedWidth)
+        
+        // Calculate height based on number of table rows
+        let tableHeight: CGFloat = 150 // Estimated height per table
+        let verticalSpacing: CGFloat = 16
+        let verticalPadding: CGFloat = 32
+        let tableRowCount = ceil(CGFloat(presenter.tables.count) / CGFloat(globalTableColumnCount))
+        let calculatedHeight = tableRowCount * (tableHeight + verticalSpacing) + verticalPadding
+        let exportHeight = max(400, calculatedHeight) // Minimum height of 400
+        
+        // Build export view with fixed dimensions and proper sizing
+        let exportView = SeatingChartSnapshotView(tables: presenter.tables, globalColumnCount: globalTableColumnCount)
+            .frame(width: exportWidth, height: exportHeight, alignment: .topLeading)
             .background(Color(.systemBackground))
         
         let renderer = ImageRenderer(content: exportView)
         renderer.scale = UIScreen.main.scale
-        renderer.proposedSize = ProposedViewSize(width: exportWidth, height: nil)
+        renderer.proposedSize = ProposedViewSize(width: exportWidth, height: exportHeight)
         
         guard let image = renderer.uiImage else { return }
         presentShareSheet(with: image)
@@ -275,37 +377,150 @@ struct SeatingChartView: View {
         
         topViewController.present(activityVC, animated: true, completion: nil)
     }
+    
 }
 
 // MARK: - 画像出力用スナップショット
 private struct SeatingChartSnapshotView: View {
     let tables: [SeatingTable]
-    // ★修正点: Snapshot専用なのでpresenterの監視を削除
+    let globalColumnCount: Int
     
     var body: some View {
         VStack(spacing: 16) {
             ForEach(Array(tableRows.enumerated()), id: \.offset) { _, row in
                 HStack(alignment: .top, spacing: 16) {
                     ForEach(row) { table in
-                        // ★修正点: 画像出力専用のLazyを使わないコンポーネントに変更
                         SnapshotSeatingTableView(table: table)
+                            .frame(width: 140) // Fixed width for consistent table sizing
                     }
-                    if row.count == 1 {
-                        Color.clear
-                            .frame(maxWidth: .infinity)
+                    // Fill remaining columns with empty views to maintain grid structure
+                    let emptyCount = globalColumnCount - row.count
+                    if emptyCount > 0 {
+                        ForEach(0..<emptyCount, id: \.self) { _ in
+                            Color.clear
+                                .frame(width: 140)
+                        }
                     }
                 }
             }
         }
-        .padding()
+        .padding(32)
     }
     
     private var tableRows: [[SeatingTable]] {
-        stride(from: 0, to: tables.count, by: 2).map { start in
-            Array(tables[start..<min(start + 2, tables.count)])
+        stride(from: 0, to: tables.count, by: globalColumnCount).map { start in
+            Array(tables[start..<min(start + globalColumnCount, tables.count)])
         }
     }
 }
+
+// MARK: - 設定シート（会場設定ハブ）
+private struct SettingsSheetView: View {
+    @Environment(\.dismiss) var dismiss
+    @Binding var globalTableColumnCount: Int
+    @Binding var sessionUnlockedColumns: Bool
+    @ObservedObject var adManager: RewardedAdManager
+    // premiumManager removed: PRO gating removed
+    
+    @State private var tempSelection: Int = 2
+    @State private var pendingColumnCount: Int? = nil
+    @State private var showingAdNotReadyAlertLocal: Bool = false
+    @State private var showingRequireUnlockAlert: Bool = false
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                VStack(spacing: 12) {
+                    Text("テーブルの並び列数")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    Picker(selection: $tempSelection, label: Text("")) {
+                        ForEach(1...10, id: \.self) { i in
+                            Text("\(i)列").tag(i)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .labelsHidden()
+                    
+                    Text("※1〜2列は無料で即時利用できます。3列以上は動画広告視聴による解放が必要です。")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 4)
+                }
+                .padding()
+                .background(Color(.secondarySystemGroupedBackground))
+                .cornerRadius(12)
+                
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("設定")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("適用") {
+                        applySelection()
+                    }
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") { dismiss() }
+                }
+            }
+            .onAppear {
+                tempSelection = globalTableColumnCount
+            }
+            .alert("広告の準備ができていません。", isPresented: $showingAdNotReadyAlertLocal) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("広告の準備ができていません。しばらく待ってからもう一度お試しください。")
+            }
+            .alert("3列以上はアンロックが必要です", isPresented: $showingRequireUnlockAlert) {
+                Button("キャンセル", role: .cancel) { }
+                Button("動画を視聴して解放") {
+                    // Try to show ad
+                    if adManager.isAdReady {
+                        // ユーザーが選択した列数を一時保持
+                        pendingColumnCount = tempSelection
+                        adManager.showAd {
+                            // 動画視聴完了後に保持した列数を反映
+                            if let pendingCount = pendingColumnCount {
+                                sessionUnlockedColumns = true
+                                globalTableColumnCount = pendingCount
+                                pendingColumnCount = nil
+                                dismiss()
+                            }
+                        }
+                    } else {
+                        adManager.loadAd()
+                        showingAdNotReadyAlertLocal = true
+                    }
+                }
+            } message: {
+                Text("3列以上のレイアウトを利用するには動画広告の視聴が必要です。")
+            }
+        }
+    }
+    
+    private func applySelection() {
+        // 1〜2列は即時適用
+        if tempSelection <= 2 {
+            globalTableColumnCount = tempSelection
+            dismiss()
+            return
+        }
+        
+        // 3列以上は解放済みであれば適用
+        if sessionUnlockedColumns {
+            globalTableColumnCount = tempSelection
+            dismiss()
+            return
+        }
+        
+        // それ以外は解放アラートを表示して広告再生を促す
+        showingRequireUnlockAlert = true
+    }
+}
+
 
 // MARK: - 個別のテーブル表示用コンポーネント (メイン画面用・変更なし)
 struct SeatingTableView: View {
@@ -313,11 +528,6 @@ struct SeatingTableView: View {
     @ObservedObject var presenter: SeatingChartPresenter
     let onEditTarget: () -> Void
     
-    // テーブルの設定列数に応じた動的グリッド
-    private var tableColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 8), count: max(1, table.columnCount))
-    }
-
     // バッジ描画のヘルパー（個別に切り出すことで型推論負荷を下げつつ、確実に表示させる）
     @ViewBuilder
     private func badgeTop() -> some View {
@@ -334,7 +544,7 @@ struct SeatingTableView: View {
             EmptyView()
         }
     }
-
+    
     @ViewBuilder
     private func badgeBottom() -> some View {
         if table.layoutDirection == .bottom {
@@ -350,7 +560,7 @@ struct SeatingTableView: View {
             EmptyView()
         }
     }
-
+    
     @ViewBuilder
     private func badgeLeft() -> some View {
         if table.layoutDirection == .left {
@@ -366,7 +576,7 @@ struct SeatingTableView: View {
             EmptyView()
         }
     }
-
+    
     @ViewBuilder
     private func badgeRight() -> some View {
         if table.layoutDirection == .right {
@@ -384,18 +594,12 @@ struct SeatingTableView: View {
     }
     
     var body: some View {
-        let tableIdString = table.id.uuidString
-
         VStack(alignment: .center, spacing: 8) {
             VStack(spacing: 4) {
                 Text(table.name)
                     .font(.caption)
                     .bold()
                     .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 
@@ -412,22 +616,25 @@ struct SeatingTableView: View {
                 }
             }
             
-            LazyVGrid(columns: tableColumns, spacing: 12) {
-                ForEach(table.assignedMembers) { member in
-                    Button {
-                        presenter.toggleLock(tableId: table.id, memberId: member.id)
-                    } label: {
-                        SeatView(member: member)
-                    }
-                    .buttonStyle(.plain)
-                    .id(member.id.uuidString)
-                }
-                
+            // 座席グリッドは LazyVGrid だと親の高さ計算が不安定になるため、即時レイアウトの Grid を使う
+            let minSeatWidth: CGFloat = 72
+            let desiredWidth = CGFloat(table.columnCount) * minSeatWidth
+            let columnCount = max(1, table.columnCount)
+            let allSeats: [SeatingMember?] = {
+                var seats: [SeatingMember?] = table.assignedMembers.map { Optional($0) }
                 let emptyCount = max(0, table.capacity - table.assignedMembers.count)
-                if emptyCount > 0 {
-                    ForEach(0..<emptyCount, id: \.self) { emptyIndex in
-                        let idString = "\(tableIdString)-empty-\(emptyIndex)"
-                        EmptySeatCell(idString: idString)
+                seats.append(contentsOf: Array(repeating: nil, count: emptyCount))
+                return seats
+            }()
+            let rowCount = max(1, Int(ceil(Double(allSeats.count) / Double(columnCount))))
+            
+            Group {
+                if columnCount <= 4 {
+                    seatGrid(allSeats: allSeats, columnCount: columnCount, rowCount: rowCount)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: true) {
+                        seatGrid(allSeats: allSeats, columnCount: columnCount, rowCount: rowCount)
+                            .frame(minWidth: desiredWidth)
                     }
                 }
             }
@@ -454,6 +661,34 @@ struct SeatingTableView: View {
         .overlay(badgeBottom(), alignment: .bottom)
         .overlay(badgeLeft(), alignment: .leading)
         .overlay(badgeRight(), alignment: .trailing)
+    }
+    
+    @ViewBuilder
+    private func seatGrid(allSeats: [SeatingMember?], columnCount: Int, rowCount: Int) -> some View {
+        Grid(horizontalSpacing: 8, verticalSpacing: 12) {
+            ForEach(0..<rowCount, id: \.self) { row in
+                GridRow {
+                    ForEach(0..<columnCount, id: \.self) { col in
+                        let index = row * columnCount + col
+                        if index < allSeats.count {
+                            if let member = allSeats[index] {
+                                Button {
+                                    presenter.toggleLock(tableId: table.id, memberId: member.id)
+                                } label: {
+                                    SeatView(member: member)
+                                }
+                                .buttonStyle(.plain)
+                                .id(member.id.uuidString)
+                            } else {
+                                EmptySeatCell(idString: "\(table.id.uuidString)-empty-\(index)")
+                            }
+                        } else {
+                            Color.clear
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -495,7 +730,7 @@ struct SeatView: View {
 // 小さなヘルパー視点: 空席セルをラップして複雑な式を外に出す
 private struct EmptySeatCell: View {
     let idString: String
-
+    
     var body: some View {
         SeatView(member: nil)
             .id(idString)
@@ -512,9 +747,10 @@ struct TableEditView: View {
     @State private var columnCount: Int
     @State private var layoutDirection: LayoutDirection
     @State private var layoutText: String
+    @State private var applyToAllTables: Bool = false
     private let maxInputLength: Int = 20
     let tableId: UUID
-
+    
     init(table: SeatingTable, presenter: SeatingChartPresenter) {
         self.presenter = presenter
         self.tableId = table.id
@@ -535,28 +771,38 @@ struct TableEditView: View {
                                 name = String(newValue.prefix(maxInputLength))
                             }
                         }
-                    Stepper("定員: \(capacity)人", value: $capacity, in: 2...10)
-                    Stepper("横の列数: \(columnCount)列", value: $columnCount, in: 1...4)
+                    Stepper("定員: \(capacity)人", value: $capacity, in: 1...10)
+                        .onChange(of: capacity) { _, newValue in
+                            // 定員が減った場合、列数も自動的に調整
+                            if columnCount > newValue {
+                                columnCount = newValue
+                            }
+                        }
+                    Stepper("横の列数: \(columnCount)列", value: $columnCount, in: 1...capacity)
+                    
+                    Toggle("すべてのテーブルに適用", isOn: $applyToAllTables)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
                 
                 Section("会場レイアウト（向き）") {
                     // 十字の方向ボタン
                     VStack(spacing: 8) {
-                            HStack {
-                                    Spacer()
-                                    Button(action: { withAnimation { layoutDirection = .top } }) {
-                                        Image(systemName: "arrow.up")
-                                            .font(.title2)
-                                            .padding(10)
-                                            .background(
-                                                Circle()
-                                                    .fill(layoutDirection == .top ? Color.blue.opacity(0.85) : Color(.secondarySystemGroupedBackground))
-                                            )
-                                            .foregroundColor(layoutDirection == .top ? .white : .primary)
-                                    }
-                                    .buttonStyle(.plain)
-                                    Spacer()
-                                }
+                        HStack {
+                            Spacer()
+                            Button(action: { withAnimation { layoutDirection = .top } }) {
+                                Image(systemName: "arrow.up")
+                                    .font(.title2)
+                                    .padding(10)
+                                    .background(
+                                        Circle()
+                                            .fill(layoutDirection == .top ? Color.blue.opacity(0.85) : Color(.secondarySystemGroupedBackground))
+                                    )
+                                    .foregroundColor(layoutDirection == .top ? .white : .primary)
+                            }
+                            .buttonStyle(.plain)
+                            Spacer()
+                        }
                         HStack(spacing: 16) {
                             Button(action: { withAnimation { layoutDirection = .left } }) {
                                 Image(systemName: "arrow.left")
@@ -613,13 +859,13 @@ struct TableEditView: View {
                             Spacer()
                         }
                     }
-
+                    
                     // テキストのプリセットと自由入力
                     VStack(alignment: .leading, spacing: 8) {
                         Text("ラベル（例：窓際／ステージ側）")
                             .font(.caption)
                             .foregroundColor(.secondary)
-
+                        
                         HStack {
                             Menu {
                                 Button("窓際") { layoutText = "窓際" }
@@ -632,7 +878,7 @@ struct TableEditView: View {
                                     .background(Color(.secondarySystemGroupedBackground))
                                     .cornerRadius(6)
                             }
-
+                            
                             TextField("例: 窓際（20文字まで）", text: $layoutText)
                                 .textFieldStyle(.roundedBorder)
                                 .onChange(of: layoutText) { _, newValue in
@@ -662,14 +908,25 @@ struct TableEditView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
-                        presenter.updateTable(
-                            id: tableId,
-                            newName: name,
-                            newCapacity: capacity,
-                            newColumnCount: columnCount,
-                            newLayoutDirection: layoutDirection,
-                            newLayoutText: layoutText
-                        )
+                        if applyToAllTables {
+                            presenter.updateAllTables(
+                                editingTableId: tableId,
+                                newName: name,
+                                newCapacity: capacity,
+                                newColumnCount: columnCount,
+                                newLayoutDirection: layoutDirection,
+                                newLayoutText: layoutText
+                            )
+                        } else {
+                            presenter.updateTable(
+                                id: tableId,
+                                newName: name,
+                                newCapacity: capacity,
+                                newColumnCount: columnCount,
+                                newLayoutDirection: layoutDirection,
+                                newLayoutText: layoutText
+                            )
+                        }
                         dismiss()
                     }
                 }
@@ -725,7 +982,6 @@ struct SnapshotSeatingTableView: View {
                                 SeatView(member: allSeats[index])
                             } else {
                                 Color.clear
-                                    .frame(maxWidth: .infinity)
                             }
                         }
                     }
@@ -764,7 +1020,7 @@ struct SnapshotSeatingTableView: View {
             EmptyView()
         }
     }
-
+    
     @ViewBuilder
     private func badgeBottomSmall() -> some View {
         if table.layoutDirection == .bottom {
@@ -780,7 +1036,7 @@ struct SnapshotSeatingTableView: View {
             EmptyView()
         }
     }
-
+    
     @ViewBuilder
     private func badgeLeftSmall() -> some View {
         if table.layoutDirection == .left {
@@ -796,7 +1052,7 @@ struct SnapshotSeatingTableView: View {
             EmptyView()
         }
     }
-
+    
     @ViewBuilder
     private func badgeRightSmall() -> some View {
         if table.layoutDirection == .right {

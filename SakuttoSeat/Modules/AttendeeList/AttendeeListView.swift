@@ -29,7 +29,6 @@ struct AttendeeListView: View {
     @State private var isShowingFavoriteSheet = false
     @State private var newGroupName: String = ""
     
-    @StateObject private var stateManager = AppStateManager.shared
     @StateObject private var adManager = RewardedAdManager.shared
     @State private var showingUnlockSheet = false
     @State private var shouldShowAdOnDismiss = false
@@ -133,7 +132,6 @@ struct AttendeeListView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     adManager.showAd {
                         // 動画視聴完了後の処理
-                        stateManager.hasUnlockedUnlimitedGroups = true
                         isShowingSaveAlert = true
                     }
                 }
@@ -148,7 +146,7 @@ struct AttendeeListView: View {
     private func onSaveButtonTapped() {
         // ★ @Queryで取得しているfavoriteGroupsを参照します
         let currentCount = favoriteGroups.count
-        if stateManager.canSaveMoreGroups(currentCount: currentCount) {
+        if currentCount < 3 {
             isShowingSaveAlert = true
         } else {
             showingUnlockSheet = true
@@ -452,10 +450,6 @@ struct AttendeeRow: View {
                 .font(.body)
             
             Spacer()
-            
-            Text("番席")
-                .font(.caption2)
-                .foregroundColor(.secondary)
         }
         .padding(.vertical, 4)
     }
