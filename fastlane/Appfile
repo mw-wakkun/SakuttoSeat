@@ -1,5 +1,8 @@
 app_identifier("io.github.mw-wakkun.SakuttoSeat")
-apple_id("abc123.wkwk.321cba@icloud.com")
+
+# 認証は App Store Connect API Key (.p8) に移行済みのため、Apple ID は使用しません。
+# （Fastfile の fetch_api_key レーンが ASC_KEY_* 環境変数から認証情報を組み立てます）
+# apple_id("abc123.wkwk.321cba@icloud.com")
 
 itc_team_id("128871705")
 team_id("H6KKP4L92Z")

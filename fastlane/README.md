@@ -15,6 +15,14 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 ## iOS
 
+### ios beta
+
+```sh
+[bundle exec] fastlane ios beta
+```
+
+TestFlight へビルドを配信する（ビルド番号のみ更新／Git 操作なし）
+
 ### ios release
 
 ```sh
