@@ -5,7 +5,6 @@
 //  Created by masafumi wakugawa on 2026/08/17.
 //
 
-
 import Foundation
 import Combine
 import GoogleMobileAds
@@ -13,28 +12,25 @@ import UIKit
 
 final class RewardedAdManager: NSObject, ObservableObject, FullScreenContentDelegate {
     static let shared = RewardedAdManager()
-    
+
     private var rewardedAd: RewardedAd?
     @Published var isAdReady: Bool = false
-    private var onRewardEarned: (() -> Void)?
     private var hasEarnedReward = false
-    
+    private var presentContinuation: CheckedContinuation<Void, Error>?
+
     var adUnitID: String {
-        // 環境に応じてIDを自動切り替え
         #if DEBUG
-        // デバッグ時はリワード広告用の Google 公式テストIDを使用
         return "ca-app-pub-3940256099942544/5224354917"
         #else
-        // AdMob管理画面で発行した本番用の広告ユニットID
         return "ca-app-pub-9676260030977388/5413826350"
         #endif
     }
-    
+
     private override init() {
         super.init()
         loadAd()
     }
-    
+
     func loadAd() {
         let request = Request()
         RewardedAd.load(with: adUnitID, request: request) { [weak self] ad, error in
@@ -52,40 +48,68 @@ final class RewardedAdManager: NSObject, ObservableObject, FullScreenContentDele
             }
         }
     }
-    
-    func showAd(onRewardEarned: @escaping () -> Void) {
-        // 最前面の ViewController から提示する
-        guard let rewardedAd = rewardedAd,
+
+    /// dismiss 完了時に earned → return / notEarned・failed → throw
+    @MainActor
+    func presentAsync() async throws {
+        guard presentContinuation == nil else {
+            throw RewardedAdError.failed("すでに広告を提示中です")
+        }
+
+        guard let rewardedAd,
               let topViewController = UIApplication.shared.topViewController else {
             print("広告が準備できていないか、画面が見つかりません")
             loadAd()
-            return
+            throw RewardedAdError.notReady
         }
-        
+
         hasEarnedReward = false
-        self.onRewardEarned = onRewardEarned
-        
-        // 報酬付与は広告クローズ後に実行し、シェアシート等の後続UIと衝突しないようにする
-        rewardedAd.present(from: topViewController) { [weak self] in
-            Task { @MainActor [weak self] in
-                self?.hasEarnedReward = true
+        isAdReady = false
+
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            self.presentContinuation = continuation
+            rewardedAd.present(from: topViewController) { [weak self] in
+                Task { @MainActor [weak self] in
+                    self?.hasEarnedReward = true
+                }
             }
         }
     }
-    
-    // MARK: - FullScreenContentDelegate
-    func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
-        let handler = hasEarnedReward ? onRewardEarned : nil
-        hasEarnedReward = false
-        onRewardEarned = nil
-        loadAd()
-        handler?()
+
+    /// 既存コールサイト互換。報酬獲得時のみコールバックする（内部は presentAsync）
+    func showAd(onRewardEarned: @escaping () -> Void) {
+        Task { @MainActor in
+            do {
+                try await presentAsync()
+                onRewardEarned()
+            } catch {
+                print("リワード広告提示終了: \(error.localizedDescription)")
+            }
+        }
     }
-    
+
+    // MARK: - FullScreenContentDelegate
+
+    func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
+        let earned = hasEarnedReward
+        hasEarnedReward = false
+        let continuation = presentContinuation
+        presentContinuation = nil
+        loadAd()
+
+        if earned {
+            continuation?.resume(returning: ())
+        } else {
+            continuation?.resume(throwing: RewardedAdError.notEarned)
+        }
+    }
+
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         print("広告表示エラー: \(error.localizedDescription)")
         hasEarnedReward = false
-        onRewardEarned = nil
+        let continuation = presentContinuation
+        presentContinuation = nil
         loadAd()
+        continuation?.resume(throwing: RewardedAdError.failed(error.localizedDescription))
     }
 }

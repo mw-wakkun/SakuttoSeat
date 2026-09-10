@@ -2,10 +2,9 @@
 //  SeatingChartContracts.swift
 //  SakuttoSeat
 //
-//  refactor_seating.md Phase 3（Presenter → Interactor へのロジック移送）
+//  refactor_seating.md Phase 4（Router 実体化・Gateway 化）
 //
 
-import SwiftData
 import SwiftUI
 import UIKit
 
@@ -33,26 +32,21 @@ protocol SeatingChartPresenterProtocol: AnyObject {
     func didTapTable(id: TableID)
     func didTapSeat(tableID: TableID, memberID: MemberID)
     func didTapShuffle()
-    /// - Parameter canSave: Phase 4 で Gateway 経由の判定に置き換えるまでの暫定引数
-    func didTapSaveTemplate(canSave: Bool)
-    func didConfirmSaveTemplate(name: String, context: ModelContext)
+    func didTapSaveTemplate()
+    func didConfirmSaveTemplate(name: String)
     func didTapLoadTemplate()
     func didSelectTemplate(_ template: SeatingLayoutTemplate)
     func didTapShare()
     func didSelectShareKind(_ kind: ShareSelectionKind)
-    /// 広告準備状況を View（AdManager）から受け取り、route を更新する。
-    /// 報酬獲得後の画像出力は `onReward` で View 側に戻す（Phase 4 で Router へ移管）。
-    func didConfirmImageShareWithAd(isAdReady: Bool, onReward: @escaping () -> Void)
+    /// 広告準備状況を View（AdManager）から受け取り、視聴→画像出力まで Router へ委譲する
+    func didConfirmImageShareWithAd(isAdReady: Bool)
     func didRequestImageShare()
     func didTapSettings()
     func dismissRoute()
 
     func makeShareText() -> String
 
-    /// シート dismiss 後に実行する共有種別（View が消費して nil にする）
-    var pendingShareSelection: ShareSelectionKind? { get set }
-    /// Unlock シート dismiss 後に広告を出すか
-    var shouldShowAdOnDismiss: Bool { get set }
+    func attachTemplateGateway(_ gateway: SeatingTemplateGatewayBase)
 }
 
 // MARK: - Presenter -> Interactor
@@ -76,10 +70,11 @@ nonisolated protocol SeatingChartInteractorProtocol: AnyObject {
     func grantSessionUnlock()
     var isSessionUnlocked: Bool { get }
 
-    /// Phase 4 で Gateway の `fetchCount` に置き換えるまでの暫定 API
-    func templateSaveAvailability(currentCount: Int) -> TemplateSaveAvailability
+    func templateSaveAvailability() -> TemplateSaveAvailability
+    func saveCurrentLayoutAsTemplate(named name: String) throws
     func makeLayoutTemplate(named name: String) -> LayoutTemplateSnapshot?
     func applyTemplate(_ snapshot: LayoutTemplateSnapshot) -> [SeatingTable]
+    func attachTemplateGateway(_ gateway: SeatingTemplateGatewayBase)
 
     func makeShareText() -> String
     func shareImageRequirement() -> UnlockRequirement
@@ -87,29 +82,18 @@ nonisolated protocol SeatingChartInteractorProtocol: AnyObject {
 
 // MARK: - Presenter -> Router
 
-/// Phase 4 で実装を実体化する。
-@MainActor
+/// Protocol 自体には @MainActor を付けない（存在型保持時の deinit 不整合を避ける）。
+/// 各メソッドに @MainActor を付与する。
 protocol SeatingChartRouterProtocol: AnyObject {
-    func presentShareSheet(text: String)
-    func presentShareSheet(image: UIImage)
-    func presentRewardedAd() async throws
-    func makeTableEditModule(tableID: TableID, output: TableEditModuleOutput) -> AnyView
-    func makeVenueSettingsModule(output: VenueSettingsModuleOutput) -> AnyView
-    func makeTemplateListModule(output: TemplateListModuleOutput) -> AnyView
-}
-
-// MARK: - Interactor -> Entity Gateway
-
-protocol SeatingTemplateGateway {
-    func fetchCount() throws -> Int
-    func fetchAll() throws -> [SeatingLayoutTemplate]
-    func insert(_ template: SeatingLayoutTemplate) throws
-    func delete(id: UUID) throws
-}
-
-nonisolated protocol FeatureUnlockGateway: AnyObject {
-    var isSessionUnlocked: Bool { get }
-    func grantSessionUnlock()
+    @MainActor func presentShareSheet(text: String)
+    @MainActor func presentShareSheet(image: UIImage)
+    @MainActor func presentShareSheetWhenReady(text: String) async
+    @MainActor func presentShareSheetWhenReady(image: UIImage) async
+    @MainActor func presentRewardedAd() async throws
+    @MainActor func exportAndShareSeatingChart(viewData: SeatingChartViewData) async -> Bool
+    @MainActor func makeTableEditModule(tableID: TableID, output: TableEditModuleOutput) -> AnyView
+    @MainActor func makeVenueSettingsModule(output: VenueSettingsModuleOutput) -> AnyView
+    @MainActor func makeTemplateListModule(output: TemplateListModuleOutput) -> AnyView
 }
 
 // MARK: - 子モジュール Output（Phase 5 で結線）

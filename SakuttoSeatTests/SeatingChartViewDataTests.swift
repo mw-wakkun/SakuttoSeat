@@ -134,12 +134,32 @@ final class SeatingChartViewDataTests: XCTestCase {
         XCTAssertNil(presenter.route)
     }
 
-    func test_didTapSaveTemplate_保存不可ならunlockルートになる() {
-        let presenter = makePresenter(names: ["A"])
-        presenter.didTapSaveTemplate(canSave: false)
-        XCTAssertEqual(presenter.route, .unlockForSave)
+    func test_didTapSaveTemplate_上限到達ならテンプレート上限アラートになる() throws {
+        let gateway = InMemorySeatingTemplateGateway()
+        for index in 1...FeatureLimit.freeTemplateCount {
+            try gateway.insert(
+                SeatingLayoutTemplate(name: "既存\(index)", tables: [], globalColumnCount: 2)
+            )
+        }
+        let presenter = SeatingChartPresenter(
+            interactor: SeatingChartInteractor(
+                attendees: [Attendee(name: "A")],
+                templateGateway: gateway
+            ),
+            router: SeatingChartRouter()
+        )
 
-        presenter.didTapSaveTemplate(canSave: true)
-        XCTAssertEqual(presenter.route, .saveTemplatePrompt)
+        presenter.didTapSaveTemplate()
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.templateLimitReached(
+                currentCount: FeatureLimit.freeTemplateCount,
+                limit: FeatureLimit.freeTemplateCount
+            ))
+        )
+
+        let availablePresenter = makePresenter(names: ["A"])
+        availablePresenter.didTapSaveTemplate()
+        XCTAssertEqual(availablePresenter.route, .saveTemplatePrompt)
     }
 }

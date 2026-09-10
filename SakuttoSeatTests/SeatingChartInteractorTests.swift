@@ -23,11 +23,13 @@ final class SeatingChartInteractorTests: XCTestCase {
 
     private func makeInteractor(
         names: [String],
-        featureUnlock: FeatureUnlockState? = nil
+        featureUnlock: FeatureUnlockState? = nil,
+        templateGateway: SeatingTemplateGatewayBase = InMemorySeatingTemplateGateway()
     ) -> SeatingChartInteractor {
         SeatingChartInteractor(
             attendees: makeAttendees(names),
-            featureUnlock: featureUnlock
+            featureUnlock: featureUnlock,
+            templateGateway: templateGateway
         )
     }
 
@@ -540,14 +542,26 @@ final class SeatingChartInteractorTests: XCTestCase {
         XCTAssertNil(interactor.makeLayoutTemplate(named: "   "))
     }
 
-    func test_テンプレート保存可否_無料枠は3件まで() {
-        let interactor = makeInteractor(names: ["A"])
+    func test_テンプレート保存可否_無料枠は3件まで() throws {
+        let gateway = InMemorySeatingTemplateGateway()
+        let interactor = makeInteractor(names: ["A"], templateGateway: gateway)
 
-        XCTAssertEqual(interactor.templateSaveAvailability(currentCount: 2), .available)
+        XCTAssertEqual(interactor.templateSaveAvailability(), .available)
+
+        try interactor.saveCurrentLayoutAsTemplate(named: "1")
+        try interactor.saveCurrentLayoutAsTemplate(named: "2")
+        try interactor.saveCurrentLayoutAsTemplate(named: "3")
+
         XCTAssertEqual(
-            interactor.templateSaveAvailability(currentCount: 3),
-            .limitReached(currentCount: 3, limit: 3)
+            interactor.templateSaveAvailability(),
+            .limitReached(currentCount: 3, limit: FeatureLimit.freeTemplateCount)
         )
+        XCTAssertThrowsError(try interactor.saveCurrentLayoutAsTemplate(named: "4")) { error in
+            XCTAssertEqual(
+                error as? TemplateSaveError,
+                .limitReached(currentCount: 3, limit: FeatureLimit.freeTemplateCount)
+            )
+        }
     }
 
     // MARK: - 会場設定とセッション解放

@@ -64,6 +64,14 @@ enum TemplateSaveAvailability: Equatable {
     case limitReached(currentCount: Int, limit: Int)
 }
 
+/// テンプレート保存の失敗理由
+enum TemplateSaveError: Error, Equatable {
+    case limitReached(currentCount: Int, limit: Int)
+    case invalidName
+    case emptyLayout
+    case persistenceFailed(message: String)
+}
+
 /// 永続化モデル（SwiftData）を Interactor から隔離するためのスナップショット
 struct LayoutTemplateSnapshot {
     let name: String

@@ -2,54 +2,27 @@
 //  SeatingChartPresenterTests.swift
 //  SakuttoSeatTests
 //
-//  refactor_seating.md Phase 3（仲介層としての Presenter 回帰）
+//  refactor_seating.md Phase 4（Gateway / Router 仲介の回帰）
 //
 
 import XCTest
-import SwiftData
-import SwiftUI
-import UIKit
 @testable import SakuttoSeat
 
-@MainActor
-private final class SeatingChartRouterSpy: SeatingChartRouterProtocol {
-    func presentShareSheet(text: String) {}
-    func presentShareSheet(image: UIImage) {}
-    func presentRewardedAd() async throws {}
-    func makeTableEditModule(tableID: TableID, output: TableEditModuleOutput) -> AnyView {
-        AnyView(EmptyView())
-    }
-    func makeVenueSettingsModule(output: VenueSettingsModuleOutput) -> AnyView {
-        AnyView(EmptyView())
-    }
-    func makeTemplateListModule(output: TemplateListModuleOutput) -> AnyView {
-        AnyView(EmptyView())
-    }
-}
-
-/// ドメイン判断は Interactor 側で固定する。ここでは ViewData / route / 永続化の仲介だけを検証する。
+/// ドメイン判断は Interactor 側で固定する。ここでは ViewData / route / Gateway 仲介だけを検証する。
 @MainActor
 final class SeatingChartPresenterTests: XCTestCase {
 
     private func makePresenter(
         names: [String],
-        featureUnlock: FeatureUnlockState? = nil
+        featureUnlock: FeatureUnlockState? = nil,
+        templateGateway: SeatingTemplateGatewayBase = InMemorySeatingTemplateGateway()
     ) -> SeatingChartPresenter {
-        SeatingChartPresenter(
-            interactor: SeatingChartInteractor(
-                attendees: names.map { Attendee(name: $0) },
-                featureUnlock: featureUnlock
-            ),
-            router: SeatingChartRouterSpy()
+        let interactor = SeatingChartInteractor(
+            attendees: names.map { Attendee(name: $0) },
+            featureUnlock: featureUnlock,
+            templateGateway: templateGateway
         )
-    }
-
-    private func makeInMemoryContext() throws -> ModelContext {
-        let container = try ModelContainer(
-            for: SeatingLayoutTemplate.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-        )
-        return ModelContext(container)
+        return SeatingChartPresenter(interactor: interactor, router: SeatingChartRouter())
     }
 
     private func firstTableID(in presenter: SeatingChartPresenter) -> TableID {
@@ -111,47 +84,47 @@ final class SeatingChartPresenterTests: XCTestCase {
         }
     }
 
-    func test_テンプレート保存_無料枠は3件までで4件目から保存不可になる() throws {
-        let context = try makeInMemoryContext()
-        let presenter = makePresenter(names: ["A", "B"])
+    func test_テンプレート保存_無料枠は3件までで4件目から上限アラートになる() throws {
+        let gateway = InMemorySeatingTemplateGateway()
+        let presenter = makePresenter(names: ["A", "B"], templateGateway: gateway)
 
-        XCTAssertTrue(presenter.canSaveTemplate(context: context))
+        presenter.didTapSaveTemplate()
+        XCTAssertEqual(presenter.route, .saveTemplatePrompt)
 
-        presenter.saveLayoutAsTemplate(templateName: "1件目", context: context)
-        presenter.saveLayoutAsTemplate(templateName: "2件目", context: context)
-        XCTAssertTrue(presenter.canSaveTemplate(context: context))
+        presenter.didConfirmSaveTemplate(name: "1件目")
+        presenter.didConfirmSaveTemplate(name: "2件目")
+        presenter.didConfirmSaveTemplate(name: "3件目")
+        XCTAssertEqual(gateway.templates.count, 3)
 
-        presenter.saveLayoutAsTemplate(templateName: "3件目", context: context)
-        XCTAssertFalse(presenter.canSaveTemplate(context: context))
-
-        let saved = try context.fetch(FetchDescriptor<SeatingLayoutTemplate>())
-        XCTAssertEqual(saved.count, 3)
+        presenter.didTapSaveTemplate()
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.templateLimitReached(currentCount: 3, limit: FeatureLimit.freeTemplateCount))
+        )
     }
 
     func test_テンプレート保存_現在のレイアウトと会場列数が保存される() throws {
-        let context = try makeInMemoryContext()
-        let presenter = makePresenter(names: ["A", "B", "C", "D", "E"])
+        let gateway = InMemorySeatingTemplateGateway()
+        let presenter = makePresenter(names: ["A", "B", "C", "D", "E"], templateGateway: gateway)
         presenter.sessionUnlockedColumns = true
         presenter.globalColumnCount = 3
 
-        presenter.saveLayoutAsTemplate(templateName: "歓迎会", context: context)
+        presenter.didConfirmSaveTemplate(name: "歓迎会")
 
-        let saved = try context.fetch(FetchDescriptor<SeatingLayoutTemplate>())
-        XCTAssertEqual(saved.count, 1)
-        XCTAssertEqual(saved[0].name, "歓迎会")
-        XCTAssertEqual(saved[0].globalColumnCount, 3)
-        XCTAssertEqual(saved[0].tables.map(\.name), ["テーブルA", "テーブルB"])
-        XCTAssertEqual(saved[0].tables.map(\.capacity), [4, 4])
+        XCTAssertEqual(gateway.templates.count, 1)
+        XCTAssertEqual(gateway.templates[0].name, "歓迎会")
+        XCTAssertEqual(gateway.templates[0].globalColumnCount, 3)
+        XCTAssertEqual(gateway.templates[0].tables.map(\.name), ["テーブルA", "テーブルB"])
+        XCTAssertEqual(gateway.templates[0].tables.map(\.capacity), [4, 4])
     }
 
     func test_テンプレート保存_名前が空白のみなら保存されない() throws {
-        let context = try makeInMemoryContext()
-        let presenter = makePresenter(names: ["A"])
+        let gateway = InMemorySeatingTemplateGateway()
+        let presenter = makePresenter(names: ["A"], templateGateway: gateway)
 
-        presenter.saveLayoutAsTemplate(templateName: "   ", context: context)
+        presenter.didConfirmSaveTemplate(name: "   ")
 
-        let saved = try context.fetch(FetchDescriptor<SeatingLayoutTemplate>())
-        XCTAssertTrue(saved.isEmpty)
+        XCTAssertTrue(gateway.templates.isEmpty)
     }
 
     func test_セッション解放フラグはGatewayへ委譲される() {

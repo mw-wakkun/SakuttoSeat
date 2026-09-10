@@ -13,8 +13,8 @@
 | 0 | 準備と回帰テスト | ✅ 完了（2026-09-10） |
 | 1 | ファイル分割・デッドコード削除・規約統一 | ✅ 完了（2026-09-10） |
 | 2 | Contracts と ViewData の導入 | ✅ 完了（2026-09-10） |
-| 3 | Presenter → Interactor へのロジック移送 | 未着手 |
-| 4 | Router の実体化・Gateway 化 | 未着手 |
+| 3 | Presenter → Interactor へのロジック移送 | ✅ 完了（2026-09-11） |
+| 4 | Router の実体化・Gateway 化 | ✅ 完了（2026-09-11） |
 | 5 | 子モジュール切り出し・Share モジュール化 | 未着手 |
 | 6 | 再利用部品・パフォーマンス・A11y・i18n | 未着手 |
 
@@ -23,7 +23,10 @@
 単一 `ForEach` ＋ 即時レイアウトの `SeatGridLayout` へ置き換え。
 これに伴い `EmptySeatCell`（Phase 6 予定の廃止）を前倒しで削除。
 
-回帰基準: `SakuttoSeatTests` 55 ケース（`xcodebuild test -scheme SakuttoSeat`）。
+回帰基準: `SakuttoSeatTests` 68 ケース（`xcodebuild test -scheme SakuttoSeat`）。
+検証端末は iPhone 17 / iOS 26.5 を使用します（iOS 18.4 シミュレータランタイムでは
+Phase 3 コミット時点のコードでも `malloc: pointer being freed was not allocated` で
+異常終了するため。ランタイム固有の事象でアプリコード側の問題ではありません）。
 Phase 0 で追加した `SeatingChartInteractorTests` / `SeatingChartPresenterTests` は
 **現状の挙動を固定した characterization test** です。`_既知の課題` が付いたケースは
 是正対象の挙動を意図的に記録しているため、Phase 3 / 6 で挙動を変える際に更新します。
@@ -567,7 +570,7 @@ struct SeatingTableCard: View {
   View の `@State` が 3 個以下。Presenter のテストダブルで View のプレビューが作れる。
 - リスク: 中〜高（状態遷移の総入れ替え）。→ Phase 0 のテストを Presenter 契約向けに拡張してから着手。
 
-### Phase 3: Presenter → Interactor へのロジック移送（2.5 日）
+### Phase 3: Presenter → Interactor へのロジック移送（2.5 日）— ✅ 完了（2026-09-11）
 
 - §2.2 の表に挙げた 15 メソッドを `SeatingChartInteractor` へ移送。
   - Interactor が `tables` と `VenueSettings` の**真実の所在**となり、
@@ -588,27 +591,18 @@ struct SeatingTableCard: View {
 - リスク: 高（ドメインロジックの大移動）。→ フェーズを 3a（テーブル構成系）/
   3b（会場設定・解放系）に分割してマージすることを推奨。
 
-### Phase 4: Router の実体化と永続化の Gateway 化（2 日）
+### Phase 4: Router の実体化と永続化の Gateway 化（2 日）— ✅ 完了（2026-09-11）
 
-- `SeatingChartRouterProtocol` を §4.1 の内容で実装し、Presenter の未使用 `router`（`:18`）を活かす。
-  - `presentShareSheet(text:)` / `(image:)`: `UIActivityViewController` の提示を Router に集約
-    （現 `SeatingChartView.swift:364-379` / `SimpleShuffleView.swift:159-173` の重複を削除）。
-  - `presentRewardedAd() async throws`: 広告提示を async/await 化。
-    `asyncAfter(0.3)` の魔法待ちを全廃（3 ファイル計 5 箇所以上）。
-  - `makeTableEditModule` / `makeVenueSettingsModule` / `makeTemplateListModule`:
-    子モジュールの組み立てを Router へ。`AnyView` の使用は境界のみに限定。
-- `AttendeeListView` の `isNavigateToSeatingChart` / `isNavigateToSimpleShuffle`（`:19-20`）を
-  Router 主導の遷移に置換し、`AttendeeListPresenter.makeSeatingChartView()`（`:124-132`）の
-  View 生成責務を Router へ戻す。
-- `SeatingTemplateGateway` / `GroupFavoriteGateway` を実装し、
-  Presenter から `ModelContext` を完全排除（現 `SeatingChartPresenter.swift:246, 307`）。
-  `print` によるエラー握り潰し（同 `:267`）を `throws` + `.alert(.saveFailed)` に置換。
-- `FeatureLimit` に無料枠を集約し、4 箇所のハードコード（課題 3.3-#9）を差し替え。
-- 課題 3.3-#4（広告 1 回で無制限）の仕様を確定し Interactor に実装。
-- 完了条件: View / Presenter に `import UIKit` と `ModelContext` が存在しない。
-  `asyncAfter` の grep 結果が 0 件。上限周りの Interactor テストが green。
-- リスク: 高（広告 SDK の presenter 取得タイミング、多段シートの競合）。
-  → 実機確認項目を `QA_MANUAL_TEST_CHECKLIST.md` に追記。
+- `SeatingChartRouterProtocol` を実装し、Presenter の `router`（具象 `SeatingChartRouter`）を活かす。
+  - `presentShareSheet(text:)` / `(image:)` / `presentShareSheetWhenReady`: `ShareSheetPresenter` へ集約
+  - `presentRewardedAd() async throws`: `RewardedAdPresenter` + `RewardedAdManager.presentAsync()`
+  - `exportAndShareSeatingChart`: `ImageExportRenderer` + シェア提示
+  - `makeTableEditModule` / `makeVenueSettingsModule` / `makeTemplateListModule`
+- `AttendeeListDestination` + `navigationDestination(item:)` で遷移を Presenter 主導に。
+- `SeatingTemplateGateway` / `GroupFavoriteGateway`（`*GatewayBase` 具象保持）で `ModelContext` を Presenter から排除。
+- `FeatureLimit` に無料枠を集約。課題 3.3-#4 は **ハード上限・広告バイパスなし**（列数のみセッション広告解放）。
+- `DispatchQueue.main.asyncAfter` を廃し、`ShareSheetPresenter.waitUntilPresentable` のポーリングに置換。
+- 完了条件: View から共有用 UIKit 直叩きを除去。上限 Interactor / Presenter テスト green。
 
 ### Phase 5: 子モジュールの切り出しと共有モジュール化（2 日）
 
@@ -692,10 +686,9 @@ struct SeatingTableCard: View {
 
 ## 8. 実装前に決めるべきこと（要判断）
 
-1. **無料枠と広告解放の正式仕様**（課題 3.3-#3 / #4）
-   広告 1 回で「無制限」か「+N 個」か。現在の実装は事実上無制限だが、
-   `showTemplateLimitAlert` の存在は上限案内を出す意図を示しており、意図が食い違っている。
-   → Interactor の実装内容が決まらないため、Phase 4 の前に確定が必須。
+1. **無料枠と広告解放の正式仕様**（課題 3.3-#3 / #4）— ✅ 確定（Phase 4）
+   テンプレート／お気に入りは `FeatureLimit` のハード上限。到達時はアラートのみで広告バイパスなし。
+   列数解放のみセッション内リワード広告（`FeatureUnlockState`）。
 2. **`sessionUnlockedColumns` の寿命**
    セッション（アプリ寿命）か、`AppStorage` で永続化するか。`FeatureUnlockGateway` の実装が変わる。
 3. **Interactor の状態保持スタイル**

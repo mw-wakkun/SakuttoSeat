@@ -16,29 +16,24 @@ struct AttendeeListView: View {
     @State private var newName: String = ""
     @State private var isShowingResetAlert = false
     @FocusState private var isTextFieldFocused: Bool
-    @State private var isNavigateToSeatingChart = false
-    @State private var isNavigateToSimpleShuffle = false
-    
+
     // MARK: - SwiftDataのモデルコンテキスト
     @Environment(\.modelContext) private var modelContext
-    
+
     // MARK: - お気に入り機能用のState
     @Query(sort: \GroupFavorite.createdAt, order: .reverse) private var favoriteGroups: [GroupFavorite]
     @State private var isShowingSaveAlert = false
     @State private var isShowingLimitAlert = false
     @State private var isShowingFavoriteSheet = false
     @State private var newGroupName: String = ""
-    
-    @StateObject private var adManager = RewardedAdManager.shared
-    @State private var showingUnlockSheet = false
-    @State private var shouldShowAdOnDismiss = false
-    
+    @State private var limitAlertMessage = ""
+
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
                 Color(.systemBackground)
                     .ignoresSafeArea()
-                
+
                 VStack(spacing: 0) {
                     if presenter.attendees.isEmpty {
                         Spacer()
@@ -55,14 +50,14 @@ struct AttendeeListView: View {
                     Spacer()
                         .frame(height: presenter.attendees.isEmpty ? 200 : 240)
                 }
-                
+
                 VStack(spacing: 0) {
                     shuffleButton
                         .padding(.horizontal, 24)
                         .padding(.top, 16)
                         .padding(.bottom, 8)
                         .background(Color(.systemBackground).opacity(0.9))
-                    
+
                     AdBannerView()
                         .frame(width: 320, height: 50)
                         .padding(.vertical, 4)
@@ -83,7 +78,6 @@ struct AttendeeListView: View {
             } message: {
                 Text("参加者リストを全員削除してもよろしいですか？")
             }
-            // グループ保存用名入れアラート
             .alert("お気に入り登録", isPresented: $isShowingSaveAlert) {
                 TextField("グループ名（例: 同期、〇〇課）", text: $newGroupName)
                 Button("キャンセル", role: .cancel) { newGroupName = "" }
@@ -93,63 +87,39 @@ struct AttendeeListView: View {
             } message: {
                 Text("現在のメンバーをグループとして保存します。")
             }
-            // 上限到達アラート
             .alert("お気に入り上限", isPresented: $isShowingLimitAlert) {
                 Button("OK", role: .cancel) { }
             } message: {
-                Text("保存できるグループは最大3個までとなっています。新しいグループを保存するには、お気に入り一覧から既存のグループを削除してください。")
+                Text(limitAlertMessage)
             }
-            // お気に入り一覧を表示するハーフシート
             .sheet(isPresented: $isShowingFavoriteSheet) {
                 favoriteGroupSheetView
             }
-            // 一括ペースト追加用シート（追加部分）
             .sheet(isPresented: $isShowingBulkAddSheet) {
                 bulkAddSheetView
             }
             .onAppear {
+                presenter.attachFavoriteGateway(SwiftDataGroupFavoriteGateway(context: modelContext))
                 presenter.onAppear()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    isTextFieldFocused = true
-                }
+                isTextFieldFocused = true
             }
             .onTapGesture {
                 isTextFieldFocused = false
             }
-            .navigationDestination(isPresented: $isNavigateToSeatingChart) {
-                presenter.makeSeatingChartView()
-            }
-            .navigationDestination(isPresented: $isNavigateToSimpleShuffle) {
-                presenter.makeSimpleShuffleView()
-            }
-        }
-        .sheet(isPresented: $showingUnlockSheet, onDismiss: {
-            // シートが閉じ終わったら広告を表示する
-            if shouldShowAdOnDismiss {
-                shouldShowAdOnDismiss = false
-                
-                // シート閉鎖アニメーション完了を待つため少しだけ遅延実行
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    adManager.showAd {
-                        // 動画視聴完了後の処理
-                        isShowingSaveAlert = true
-                    }
-                }
-            }
-        }) {
-            UnlockSheetView {
-                shouldShowAdOnDismiss = true
+            .navigationDestination(item: $presenter.destination) { destination in
+                presenter.view(for: destination)
             }
         }
     }
-    // 保存ボタンが押された時の呼び出し関数
+
     private func onSaveButtonTapped() {
-        // ★ @Queryで取得しているfavoriteGroupsを参照します
-        let currentCount = favoriteGroups.count
-        if currentCount < 3 {
+        switch presenter.favoriteSaveAvailability() {
+        case .available:
             isShowingSaveAlert = true
-        } else {
-            showingUnlockSheet = true
+        case .limitReached(let currentCount, let limit):
+            limitAlertMessage =
+                "保存できるグループは最大\(limit)個までとなっています（現在\(currentCount)個）。新しいグループを保存するには、お気に入り一覧から既存のグループを削除してください。"
+            isShowingLimitAlert = true
         }
     }
 }
@@ -159,20 +129,18 @@ private extension AttendeeListView {
     func saveCurrentAttendeesProcess() {
         let trimmedGroupName = newGroupName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedGroupName.isEmpty else { return }
-        
-        // PresenterにContextを渡して保存
-        presenter.didTapSaveFavoriteGroup(name: trimmedGroupName, context: modelContext)
+
+        presenter.didTapSaveFavoriteGroup(name: trimmedGroupName)
         newGroupName = ""
     }
-    
-    // MARK: - 一括ペースト追加用シート（追加部分）
+
     var bulkAddSheetView: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 12) {
                 Text("改行またはカンマ（、）区切りで参加者名を入力・ペーストしてください。")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                
+
                 TextEditor(text: $bulkInputText)
                     .padding(8)
                     .background(Color(.secondarySystemBackground))
@@ -204,8 +172,7 @@ private extension AttendeeListView {
         }
         .presentationDetents([.medium, .large])
     }
-    
-    // MARK: - お気に入り一覧を表示するハーフシート
+
     var favoriteGroupSheetView: some View {
         NavigationStack {
             Group {
@@ -242,7 +209,7 @@ private extension AttendeeListView {
                                 }
                             }
                             .onDelete { offsets in
-                                presenter.didDeleteFavoriteGroups(at: offsets, context: modelContext)
+                                presenter.didDeleteFavoriteGroups(at: offsets)
                             }
                         }
                     }
@@ -255,7 +222,7 @@ private extension AttendeeListView {
                 ToolbarItem(placement: .navigationBarLeading) {
                     EditButton()
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("閉じる") { isShowingFavoriteSheet = false }
                 }
@@ -273,7 +240,7 @@ private extension AttendeeListView {
                 .focused($isTextFieldFocused)
                 .onSubmit { addAttendeeProcess() }
                 .submitLabel(.done)
-            
+
             Button(action: addAttendeeProcess) {
                 Image(systemName: "plus.circle.fill")
                     .font(.title2)
@@ -283,19 +250,19 @@ private extension AttendeeListView {
         }
         .padding()
     }
-    
+
     var emptyStateView: some View {
         VStack(spacing: 20) {
             Image(systemName: "person.3.fill")
                 .font(.system(size: 80))
                 .foregroundColor(.sakuttoBlueStart.opacity(0.3))
-            
+
             Text("参加者を追加してください")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
     }
-    
+
     var attendeeList: some View {
         List {
             ForEach(Array(presenter.attendees.enumerated()), id: \.element.id) { index, attendee in
@@ -307,24 +274,23 @@ private extension AttendeeListView {
         }
         .listStyle(.insetGrouped)
     }
-    
+
     var shuffleButton: some View {
         VStack(spacing: 12) {
-            // アクションボタン（一括追加・保存・リセット）
             actionButtons
-            
+
             VStack(spacing: 12) {
                 Button(action: {
                     isTextFieldFocused = false
-                    isNavigateToSeatingChart = true
+                    presenter.destination = .seatingChart
                 }) {
                     buttonLabel(text: "座席表で決める", icon: "square.grid.2x2.fill", isPrimary: true)
                 }
                 .disabled(presenter.attendees.isEmpty || !newName.isEmpty)
-                
+
                 Button(action: {
                     isTextFieldFocused = false
-                    isNavigateToSimpleShuffle = true
+                    presenter.destination = .simpleShuffle
                 }) {
                     buttonLabel(text: "番号札で決める（シンプル）", icon: "list.number", isPrimary: false)
                 }
@@ -333,33 +299,27 @@ private extension AttendeeListView {
             .opacity((presenter.attendees.isEmpty || !newName.isEmpty) ? 0.5 : 1.0)
         }
     }
-    
-    // MARK: - アクションボタン
-    /// 一括追加・保存・リセット・お気に入りボタンを横並びで表示
+
     var actionButtons: some View {
         ActionButtonsView(
-            // 1番目：お気に入りグループ読込
             button1: .init(title: "お気に入り", icon: "star.fill", color: .orange, action: {
                 isTextFieldFocused = false
                 isShowingFavoriteSheet = true
             }),
-            // 2番目：一括入力
             button2: .init(title: "一括入力", icon: "list.star", color: .blue, action: {
                 isTextFieldFocused = false
                 isShowingBulkAddSheet = true
             }),
-            // 3番目：保存
             button3: .init(title: "保存", icon: "square.and.arrow.down", color: .green, action: {
                 isTextFieldFocused = false
                 onSaveButtonTapped()
             }, isDisabled: presenter.attendees.isEmpty),
-            // 4番目：削除
             button4: .init(title: "削除", icon: "trash", color: .red, action: {
                 isShowingResetAlert = true
             }, isDisabled: presenter.attendees.isEmpty)
         )
     }
-    
+
     private func buttonLabel(text: String, icon: String, isPrimary: Bool) -> some View {
         HStack {
             Image(systemName: icon)
@@ -380,7 +340,7 @@ private extension AttendeeListView {
             radius: 8, x: 0, y: 4
         )
     }
-    
+
     func addAttendeeProcess() {
         let trimmedName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
@@ -394,23 +354,23 @@ private extension AttendeeListView {
 struct AttendeeRow: View {
     let index: Int
     let name: String
-    
+
     var body: some View {
         HStack(spacing: 15) {
             ZStack {
                 Circle()
                     .fill(Color.sakuttoBlueStart.opacity(0.1))
                     .frame(width: 35, height: 35)
-                
+
                 Text("\(index + 1)")
                     .font(.system(.subheadline, design: .rounded))
                     .bold()
                     .foregroundColor(.sakuttoBlueStart)
             }
-            
+
             Text(name)
                 .font(.body)
-            
+
             Spacer()
         }
         .padding(.vertical, 4)
@@ -420,7 +380,7 @@ struct AttendeeRow: View {
 extension Color {
     static let sakuttoBlueStart = Color(red: 0.0, green: 0.4, blue: 0.9)
     static let sakuttoBlueEnd = Color(red: 0.3, green: 0.7, blue: 1.0)
-    
+
     static var sakuttoGradient: LinearGradient {
         LinearGradient(
             gradient: Gradient(colors: [.sakuttoBlueStart, .sakuttoBlueEnd]),

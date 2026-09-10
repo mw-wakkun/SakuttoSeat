@@ -11,15 +11,15 @@ struct SimpleShuffleView: View {
     // Presenter の所有権は 3 モジュールで @StateObject に統一している
     // （@ObservedObject では親の再評価ごとに Presenter が作り直され、シャッフル結果が失われる）
     @StateObject var presenter: SimpleShufflePresenter
-    
+
     // MARK: - アンロック・広告管理
     @StateObject private var adManager = RewardedAdManager.shared
-    
+
     @State private var showingShareOptions = false
     @State private var pendingShareSelection: ShareSelectionKind?
     @State private var showingImageShareAdAlert = false
     @State private var showingAdNotReadyAlert = false
-    
+
     private var shareText: String {
         var text = "【サクッと席決め】シャッフル結果\n"
         for (index, name) in presenter.attendees.enumerated() {
@@ -27,7 +27,7 @@ struct SimpleShuffleView: View {
         }
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             List {
@@ -45,13 +45,13 @@ struct SimpleShuffleView: View {
                                         .foregroundColor(.blue)
                                 }
                             }
-                            
+
                             Text(name)
                                 .font(.body)
                                 .padding(.leading, 8)
-                            
+
                             Spacer()
-                            
+
                             Text("番席")
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
@@ -64,7 +64,7 @@ struct SimpleShuffleView: View {
                     Text("この番号の席に座ってもらいましょう。")
                 }
             }
-            
+
             AdBannerView()
                 .frame(width: 320, height: 50)
                 .padding(.vertical, 4)
@@ -75,15 +75,13 @@ struct SimpleShuffleView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
-                // シェアボタン
                 Button {
                     showingShareOptions = true
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                         .font(.body)
                 }
-                
-                // 再シャッフルボタン
+
                 Button {
                     presenter.didTapShuffleButton()
                 } label: {
@@ -95,13 +93,14 @@ struct SimpleShuffleView: View {
         .sheet(isPresented: $showingShareOptions, onDismiss: {
             guard let pendingShareSelection else { return }
             self.pendingShareSelection = nil
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+
+            Task { @MainActor in
+                await ShareSheetPresenter.waitUntilPresentable()
                 switch pendingShareSelection {
                 case .text:
-                    presentShareSheet(with: shareText)
+                    ShareSheetPresenter.present(items: [shareText])
                 case .image:
-                    handleImageShareTapped()
+                    showingImageShareAdAlert = true
                 }
             }
         }) {
@@ -112,7 +111,9 @@ struct SimpleShuffleView: View {
         .alert("画像で共有", isPresented: $showingImageShareAdAlert) {
             Button("キャンセル", role: .cancel) { }
             Button("OK") {
-                playRewardedAdThenShareImage()
+                Task { @MainActor in
+                    await playRewardedAdThenShareImage()
+                }
             }
         } message: {
             Text("動画広告を視聴して画像を出力しますか？")
@@ -123,62 +124,27 @@ struct SimpleShuffleView: View {
             Text("広告の準備ができていません。しばらく待ってからもう一度お試しください。")
         }
     }
-    
-    private func handleImageShareTapped() {
-        // 画像出力は常にリワード広告の視聴を必要とする
-        showingImageShareAdAlert = true
-    }
-    
-    private func playRewardedAdThenShareImage() {
-        guard adManager.isAdReady else {
-            adManager.loadAd()
-            showingAdNotReadyAlert = true
-            return
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            adManager.showAd {
-                exportAndShareShuffleImage()
-            }
-        }
-    }
-    
+
     @MainActor
-    private func exportAndShareShuffleImage() {
-        let exportWidth: CGFloat = 400
-        let exportView = SimpleShuffleSnapshotView(attendees: presenter.attendees)
-            .frame(width: exportWidth)
-            .background(Color(.systemGroupedBackground))
-        
-        let renderer = ImageRenderer(content: exportView)
-        renderer.scale = UIScreen.main.scale
-        renderer.proposedSize = ProposedViewSize(width: exportWidth, height: nil)
-        
-        guard let image = renderer.uiImage else { return }
-        presentShareSheet(with: image)
-    }
-    
-    private func presentShareSheet(with item: Any) {
-        guard let topViewController = UIApplication.shared.topViewController else {
-            return
+    private func playRewardedAdThenShareImage() async {
+        do {
+            try await RewardedAdPresenter.present()
+            guard let image = ImageExportRenderer.renderSimpleShuffle(attendees: presenter.attendees) else {
+                return
+            }
+            await ShareSheetPresenter.presentWhenReady(items: [image])
+        } catch RewardedAdError.notReady {
+            showingAdNotReadyAlert = true
+        } catch {
+            // notEarned / failed
         }
-        
-        let activityVC = UIActivityViewController(activityItems: [item], applicationActivities: nil)
-        
-        if let popoverController = activityVC.popoverPresentationController {
-            popoverController.sourceView = topViewController.view
-            popoverController.sourceRect = CGRect(x: topViewController.view.bounds.midX, y: topViewController.view.bounds.midY, width: 0, height: 0)
-            popoverController.permittedArrowDirections = []
-        }
-        
-        topViewController.present(activityVC, animated: true, completion: nil)
     }
 }
 
 // MARK: - 番号札モード用スナップショット
-private struct SimpleShuffleSnapshotView: View {
+struct SimpleShuffleSnapshotView: View {
     let attendees: [String]
-    
+
     var body: some View {
         VStack(spacing: 16) {
             VStack(spacing: 4) {
@@ -191,7 +157,7 @@ private struct SimpleShuffleSnapshotView: View {
                     .foregroundColor(.primary)
             }
             .padding(.top, 8)
-            
+
             VStack(spacing: 8) {
                 ForEach(Array(attendees.enumerated()), id: \.offset) { index, name in
                     HStack {
@@ -204,14 +170,14 @@ private struct SimpleShuffleSnapshotView: View {
                                 .bold()
                                 .foregroundColor(.blue)
                         }
-                        
+
                         Text(name)
                             .font(.body)
                             .foregroundColor(.primary)
                             .padding(.leading, 8)
-                        
+
                         Spacer()
-                        
+
                         Text("番席")
                             .font(.caption2)
                             .foregroundColor(.secondary)

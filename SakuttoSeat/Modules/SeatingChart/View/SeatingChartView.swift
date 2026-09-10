@@ -104,16 +104,17 @@ struct SeatingChartView: View {
             }
         }
         .onAppear {
+            presenter.attachTemplateGateway(SwiftDataSeatingTemplateGateway(context: modelContext))
             presenter.onAppear()
         }
         .sheet(item: sheetRouteBinding) { route in
-            sheetContent(for: route)
+            presenter.makeRouteSheet(route)
         }
         .alert("レイアウトを保存", isPresented: savePromptBinding) {
             TextField("テンプレート名 (例: デフォルト設定)", text: $templateName)
             Button("キャンセル", role: .cancel) { }
             Button("保存") {
-                presenter.didConfirmSaveTemplate(name: templateName, context: modelContext)
+                presenter.didConfirmSaveTemplate(name: templateName)
             }
         } message: {
             Text("現在のテーブル構成をテンプレートとして保存します。")
@@ -199,60 +200,6 @@ private extension SeatingChartView {
     }
 
     @ViewBuilder
-    func sheetContent(for route: SeatingChartRoute) -> some View {
-        switch route {
-        case .tableEdit(let tableID):
-            TableEditView(tableID: tableID, presenter: presenter)
-        case .venueSettings:
-            SettingsSheetView(
-                globalTableColumnCount: $presenter.globalColumnCount,
-                sessionUnlockedColumns: $presenter.sessionUnlockedColumns,
-                adManager: adManager
-            )
-            .presentationDetents([.medium])
-        case .templateList:
-            SeatingTemplateListView { selectedTemplate in
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                    presenter.didSelectTemplate(selectedTemplate)
-                }
-            }
-            .presentationDetents([.medium, .large])
-        case .shareSelection:
-            ShareSelectionView { kind in
-                presenter.didSelectShareKind(kind)
-            }
-            .onDisappear {
-                guard let pending = presenter.pendingShareSelection else { return }
-                presenter.pendingShareSelection = nil
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    switch pending {
-                    case .text:
-                        presentShareSheet(with: presenter.makeShareText())
-                    case .image:
-                        presenter.didRequestImageShare()
-                    }
-                }
-            }
-        case .unlockForSave:
-            UnlockSheetView {
-                presenter.shouldShowAdOnDismiss = true
-            }
-            .onDisappear {
-                guard presenter.shouldShowAdOnDismiss else { return }
-                presenter.shouldShowAdOnDismiss = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    adManager.showAd {
-                        presenter.sessionUnlockedColumns = true
-                        presenter.route = .saveTemplatePrompt
-                    }
-                }
-            }
-        case .saveTemplatePrompt, .alert:
-            EmptyView()
-        }
-    }
-
-    @ViewBuilder
     func alertButtons(for alert: SeatingChartAlert) -> some View {
         switch alert {
         case .templateLimitReached:
@@ -264,11 +211,7 @@ private extension SeatingChartView {
                 if !isReady {
                     adManager.loadAd()
                 }
-                presenter.didConfirmImageShareWithAd(isAdReady: isReady) {
-                    adManager.showAd {
-                        exportAndShareSeatingChartImage()
-                    }
-                }
+                presenter.didConfirmImageShareWithAd(isAdReady: isReady)
             }
         case .adNotReady:
             Button("OK", role: .cancel) { }
@@ -309,7 +252,7 @@ extension SeatingChartView {
                 }),
                 button2: .init(title: "保存", icon: "square.and.arrow.down", color: .green, action: {
                     templateName = ""
-                    presenter.didTapSaveTemplate(canSave: presenter.canSaveTemplate(context: modelContext))
+                    presenter.didTapSaveTemplate()
                 }, isDisabled: !presenter.viewData.isSaveEnabled),
                 button3: .init(title: "共有", icon: "square.and.arrow.up", color: .blue, action: {
                     presenter.didTapShare()
@@ -333,61 +276,6 @@ extension SeatingChartView {
                 .shadow(color: .black.opacity(0.05), radius: 3, y: -3)
                 .ignoresSafeArea(edges: .bottom)
         )
-    }
-
-    @MainActor
-    private func exportAndShareSeatingChartImage() {
-        let screenWidth = UIScreen.main.bounds.width
-        let tableWidth: CGFloat = 140
-        let tableSpacing: CGFloat = 16
-        let horizontalPadding: CGFloat = 32
-
-        let tableCount = CGFloat(presenter.viewData.globalColumnCount)
-        let calculatedWidth = tableCount * tableWidth + (tableCount - 1) * tableSpacing + horizontalPadding
-        let exportWidth = max(screenWidth, calculatedWidth)
-
-        let tableHeight: CGFloat = 150
-        let verticalSpacing: CGFloat = 16
-        let verticalPadding: CGFloat = 32
-        let tableOnlyCount = presenter.viewData.rows.reduce(0) { partial, row in
-            partial + row.items.filter {
-                if case .table = $0 { return true }
-                return false
-            }.count
-        }
-        let tableRowCount = ceil(CGFloat(tableOnlyCount) / CGFloat(presenter.viewData.globalColumnCount))
-        let calculatedHeight = tableRowCount * (tableHeight + verticalSpacing) + verticalPadding
-        let exportHeight = max(400, calculatedHeight)
-
-        let exportView = SeatingChartSnapshotView(viewData: presenter.viewData)
-            .frame(width: exportWidth, height: exportHeight, alignment: .topLeading)
-            .background(Color(.systemBackground))
-
-        let renderer = ImageRenderer(content: exportView)
-        renderer.scale = UIScreen.main.scale
-        renderer.proposedSize = ProposedViewSize(width: exportWidth, height: exportHeight)
-
-        guard let image = renderer.uiImage else {
-            presenter.route = .alert(.imageExportFailed)
-            return
-        }
-        presentShareSheet(with: image)
-    }
-
-    private func presentShareSheet(with item: Any) {
-        guard let topViewController = UIApplication.shared.topViewController else {
-            return
-        }
-
-        let activityVC = UIActivityViewController(activityItems: [item], applicationActivities: nil)
-
-        if let popoverController = activityVC.popoverPresentationController {
-            popoverController.sourceView = topViewController.view
-            popoverController.sourceRect = CGRect(x: topViewController.view.bounds.midX, y: topViewController.view.bounds.midY, width: 0, height: 0)
-            popoverController.permittedArrowDirections = []
-        }
-
-        topViewController.present(activityVC, animated: true, completion: nil)
     }
 }
 

@@ -15,7 +15,6 @@ enum SeatingChartRoute: Identifiable, Equatable {
     case templateList
     case shareSelection
     case saveTemplatePrompt
-    case unlockForSave
     case alert(SeatingChartAlert)
 
     var id: String {
@@ -30,8 +29,6 @@ enum SeatingChartRoute: Identifiable, Equatable {
             return "shareSelection"
         case .saveTemplatePrompt:
             return "saveTemplatePrompt"
-        case .unlockForSave:
-            return "unlockForSave"
         case .alert(let alert):
             return "alert-\(alert.id)"
         }
@@ -40,7 +37,7 @@ enum SeatingChartRoute: Identifiable, Equatable {
     /// `.sheet(item:)` で提示するケースか
     var presentsAsSheet: Bool {
         switch self {
-        case .tableEdit, .venueSettings, .templateList, .shareSelection, .unlockForSave:
+        case .tableEdit, .venueSettings, .templateList, .shareSelection:
             return true
         case .saveTemplatePrompt, .alert:
             return false

@@ -10,7 +10,7 @@
 
 import Foundation
 
-nonisolated final class FeatureUnlockState {
+nonisolated final class FeatureUnlockState: FeatureUnlockGateway {
     private(set) var isSessionUnlocked: Bool
 
     init(isSessionUnlocked: Bool = false) {

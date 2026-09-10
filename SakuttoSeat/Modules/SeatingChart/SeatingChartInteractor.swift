@@ -8,25 +8,28 @@
 import Foundation
 
 nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
-    private enum Limits {
-        static let freeColumnCount = 2
-        static let freeTemplateCount = 3
-    }
-
     private let attendees: [Attendee]
     private let featureUnlock: FeatureUnlockState
+    /// Protocol existential は保持しない（deinit の malloc abort 回避）
+    private var templateGateway: SeatingTemplateGatewayBase
     private var tables: [SeatingTable] = []
     private var venueSettings: VenueSettings
 
     init(
         attendees: [Attendee] = [],
         venueSettings: VenueSettings = .default,
-        featureUnlock: FeatureUnlockState? = nil
+        featureUnlock: FeatureUnlockState? = nil,
+        templateGateway: SeatingTemplateGatewayBase = SeatingTemplateGatewayBase()
     ) {
         self.attendees = attendees
         self.venueSettings = venueSettings
         self.featureUnlock = featureUnlock ?? FeatureUnlockState()
+        self.templateGateway = templateGateway
         _ = buildInitialTables()
+    }
+
+    func attachTemplateGateway(_ gateway: SeatingTemplateGatewayBase) {
+        templateGateway = gateway
     }
 
     func currentTables() -> [SeatingTable] {
@@ -179,7 +182,7 @@ nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
     // MARK: - 会場設定と解放
 
     func columnCountChangeRequirement(for count: Int) -> UnlockRequirement {
-        if count <= Limits.freeColumnCount {
+        if count <= FeatureLimit.freeColumnCount {
             return .none
         }
         return featureUnlock.isSessionUnlocked ? .none : .rewardedAd
@@ -202,11 +205,39 @@ nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
 
     // MARK: - テンプレート
 
-    func templateSaveAvailability(currentCount: Int) -> TemplateSaveAvailability {
-        if currentCount < Limits.freeTemplateCount {
+    func templateSaveAvailability() -> TemplateSaveAvailability {
+        let currentCount = (try? templateGateway.fetchCount()) ?? 0
+        if currentCount < FeatureLimit.freeTemplateCount {
             return .available
         }
-        return .limitReached(currentCount: currentCount, limit: Limits.freeTemplateCount)
+        return .limitReached(currentCount: currentCount, limit: FeatureLimit.freeTemplateCount)
+    }
+
+    func saveCurrentLayoutAsTemplate(named name: String) throws {
+        switch templateSaveAvailability() {
+        case .limitReached(let currentCount, let limit):
+            throw TemplateSaveError.limitReached(currentCount: currentCount, limit: limit)
+        case .available:
+            break
+        }
+
+        guard !tables.isEmpty else {
+            throw TemplateSaveError.emptyLayout
+        }
+        guard let snapshot = makeLayoutTemplate(named: name) else {
+            throw TemplateSaveError.invalidName
+        }
+
+        let template = SeatingLayoutTemplate(
+            name: snapshot.name,
+            tables: snapshot.tables,
+            globalColumnCount: snapshot.globalColumnCount
+        )
+        do {
+            try templateGateway.insert(template)
+        } catch {
+            throw TemplateSaveError.persistenceFailed(message: error.localizedDescription)
+        }
     }
 
     func makeLayoutTemplate(named name: String) -> LayoutTemplateSnapshot? {
