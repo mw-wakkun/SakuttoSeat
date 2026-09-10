@@ -10,7 +10,10 @@ import SwiftData
 
 // レイアウト情報のみを保持するためのCodableな構造体
 // 注意: 方向（layoutDirection）と表示テキスト（layoutText）を分離
-struct TableTemplate: Codable {
+//
+// `nonisolated`: 既定の MainActor 隔離だと明示 init を
+// `nonisolated` な Interactor から呼べないため。
+nonisolated struct TableTemplate: Codable {
     var name: String
     var capacity: Int
     var columnCount: Int

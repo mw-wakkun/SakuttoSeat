@@ -24,7 +24,10 @@ enum LayoutDirection: String, CaseIterable, Identifiable, Codable, Equatable, Ha
 }
 
 /// 会場全体の設定（Phase 3 で Interactor が真実の所在になる）
-struct VenueSettings: Equatable, Hashable {
+///
+/// `nonisolated`: 既定の MainActor 隔離だと `static let default` を
+/// `nonisolated` な Interactor から参照できないため。
+nonisolated struct VenueSettings: Equatable, Hashable {
     var globalColumnCount: Int
     var defaultCapacity: Int
     var defaultColumnCount: Int
@@ -37,7 +40,10 @@ struct VenueSettings: Equatable, Hashable {
 }
 
 /// テーブル編集のリクエスト（Phase 5 で子モジュール Output から渡す）
-struct TableUpdateRequest: Equatable {
+///
+/// `nonisolated`: `TableEditInteractor`（nonisolated）が生成し、
+/// `SeatingChartInteractor`（nonisolated）が受け取るため。
+nonisolated struct TableUpdateRequest: Equatable {
     let tableID: TableID
     let name: String
     let capacity: Int
@@ -48,7 +54,9 @@ struct TableUpdateRequest: Equatable {
 }
 
 /// 列数変更や画像共有などに必要な解放条件
-enum UnlockRequirement: Equatable {
+///
+/// `nonisolated`: Interactor（nonisolated）の戻り値として使うため。
+nonisolated enum UnlockRequirement: Equatable {
     case none
     case rewardedAd
 }
@@ -80,14 +88,19 @@ struct LayoutTemplateSnapshot {
 }
 
 // 参加者モデル
-struct SeatingMember: Identifiable, Equatable, Hashable {
+//
+// `nonisolated`: `SeatingTable`（nonisolated）の Equatable / Hashable 合成に必要。
+nonisolated struct SeatingMember: Identifiable, Equatable, Hashable {
     let id: MemberID
     let name: String
     var isLocked: Bool = false
 }
 
 // テーブルモデル
-struct SeatingTable: Identifiable, Equatable, Hashable {
+//
+// `nonisolated`: 既定の MainActor 隔離だと明示 init を
+// `nonisolated` な Interactor から呼べないため。
+nonisolated struct SeatingTable: Identifiable, Equatable, Hashable {
     let id: TableID
     var name: String
     var capacity: Int // 定員

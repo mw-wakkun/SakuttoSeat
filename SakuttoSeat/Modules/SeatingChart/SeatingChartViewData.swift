@@ -67,7 +67,8 @@ struct SeatViewData: Identifiable, Equatable {
     let displayName: String
     let isLocked: Bool
 
-    var isEmpty: Bool { memberID == nil }
+    /// `nonisolated`: 共有テキストの整形（`ShareInteractor`）から参照するため。
+    nonisolated var isEmpty: Bool { memberID == nil }
 }
 
 // MARK: - Entity → ViewData
@@ -79,7 +80,8 @@ enum SeatingChartViewDataBuilder {
 
     static func build(tables: [SeatingTable], globalColumnCount: Int) -> SeatingChartViewData {
         let columnCount = max(1, globalColumnCount)
-        let tableViewData = tables.map(makeTableViewData)
+        // 関数参照ではなくクロージャで渡す（関数参照だと呼び出し側の隔離を引き継げない）
+        let tableViewData = tables.map { makeTableViewData(from: $0) }
         let hasTables = !tables.isEmpty
 
         var items: [SeatingChartViewData.Item] = tableViewData.map { .table($0) }

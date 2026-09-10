@@ -10,7 +10,10 @@ import Foundation
 // MARK: - 編集中の値
 
 /// 編集対象の初期値。親（SeatingChartInteractor）が Entity から組み立てて渡す。
-struct TableEditDraft: Equatable {
+///
+/// `nonisolated`: 既定の MainActor 隔離だと明示 init を
+/// `nonisolated` な Interactor から呼べないため。
+nonisolated struct TableEditDraft: Equatable {
     let tableID: TableID
     var name: String
     var capacity: Int

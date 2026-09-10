@@ -7,7 +7,8 @@
 
 import Foundation
 
-enum FeatureLimit {
+/// `nonisolated`: Interactor（nonisolated）から上限値を参照するため。
+nonisolated enum FeatureLimit {
     static let freeTemplateCount = 3
     static let freeFavoriteGroupCount = 3
     static let freeColumnCount = 2

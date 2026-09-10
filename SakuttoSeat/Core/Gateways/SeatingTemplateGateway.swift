@@ -11,7 +11,9 @@
 import Foundation
 import SwiftData
 
-protocol SeatingTemplateGateway: AnyObject {
+/// `nonisolated`: 要件が MainActor 隔離だと、それを満たす具象側のメソッドも
+/// MainActor 隔離と推論され、`nonisolated` な Interactor から呼べなくなるため。
+nonisolated protocol SeatingTemplateGateway: AnyObject {
     func fetchCount() throws -> Int
     func fetchAll() throws -> [SeatingLayoutTemplate]
     func insert(_ template: SeatingLayoutTemplate) throws
