@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_seating.md Phase 5（シェアシート提示・広告提示・画像出力）
+//  refactor_simple.md Phase 2（番号札画像も ViewData 駆動）
 //
 
 import SwiftUI
@@ -42,8 +43,8 @@ final class ShareRouter: ShareRouterProtocol {
         switch subject {
         case .seatingChart(let viewData):
             return ImageExportRenderer.renderSeatingChart(viewData: viewData)
-        case .numberedList(let attendees):
-            return ImageExportRenderer.renderSimpleShuffle(attendees: attendees)
+        case .numberedList(let viewData):
+            return ImageExportRenderer.renderSimpleShuffle(viewData: viewData)
         }
     }
 }

@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_seating.md Phase 5（共有フローの横断モジュール化）
+//  refactor_simple.md Phase 2（番号札は SimpleShuffleViewData を渡す）
 //
 //  座席表・番号札の 2 画面に重複していた共有フロー
 //  （選択シート → 広告確認 → 画像出力 → シェアシート提示）を
@@ -24,8 +25,8 @@ enum ShareSelectionKind {
 enum ShareSubject: Equatable {
     /// 座席表（テキスト整形・画像出力の両方を表示専用モデルから作る）
     case seatingChart(SeatingChartViewData)
-    /// 番号札（登録順の一覧）
-    case numberedList(attendees: [String])
+    /// 番号札（タップ時点の並び。表示専用モデルから作る）
+    case numberedList(SimpleShuffleViewData)
 }
 
 // MARK: - ルーティング定義

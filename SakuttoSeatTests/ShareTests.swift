@@ -3,11 +3,10 @@
 //  SakuttoSeatTests
 //
 //  refactor_seating.md Phase 5（共有モジュールの回帰）
-//  refactor_simple.md Phase 0（番号札 payload と index 採番の固定）
+//  refactor_simple.md Phase 2（番号札は ViewData 駆動。number を再計算しない）
 //
 //  Phase 4 まで `SeatingChartInteractor` / `SimpleShuffleView` が持っていた
 //  共有テキストの整形を Share モジュールへ移送したため、検証もここへ移した。
-//  `_既知の課題` の番号札テストは Phase 2 で ViewData 駆動に更新する。
 //
 
 import XCTest
@@ -23,6 +22,19 @@ final class ShareInteractorTests: XCTestCase {
         return SeatingChartViewDataBuilder.build(
             tables: interactor.currentTables(),
             globalColumnCount: globalColumnCount
+        )
+    }
+
+    private func makeNumberedList(
+        _ names: [String],
+        numbers: [Int]? = nil
+    ) -> SimpleShuffleViewData {
+        guard !names.isEmpty else { return .empty }
+        let assignedNumbers = numbers ?? Array(1...names.count)
+        return SimpleShuffleViewDataBuilder.build(
+            seats: zip(names, assignedNumbers).map { name, number in
+                NumberedSeat(id: UUID(), name: name, number: number)
+            }
         )
     }
 
@@ -88,20 +100,22 @@ final class ShareInteractorTests: XCTestCase {
     // MARK: - 番号札
 
     func test_番号札の共有テキストは渡した順の番号付きになる() {
-        let text = ShareInteractor().makeShareText(for: .numberedList(attendees: ["太郎", "花子"]))
+        let text = ShareInteractor().makeShareText(for: .numberedList(makeNumberedList(["太郎", "花子"])))
 
         XCTAssertEqual(text, "【サクッと席決め】シャッフル結果\n1番席: 太郎\n2番席: 花子")
     }
 
-    func test_番号札テキストの番号は配列の位置から採番する_ViewData非依存_既知の課題() {
-        let text = ShareInteractor().makeShareText(for: .numberedList(attendees: ["花子", "太郎"]))
+    func test_番号札テキストの番号はViewDataのnumberを使う() {
+        let viewData = makeNumberedList(["花子", "太郎"], numbers: [10, 3])
+        let text = ShareInteractor().makeShareText(for: .numberedList(viewData))
 
-        XCTAssertEqual(text, "【サクッと席決め】シャッフル結果\n1番席: 花子\n2番席: 太郎")
-        XCTAssertFalse(text.contains("2番席: 花子"))
+        XCTAssertEqual(text, "【サクッと席決め】シャッフル結果\n10番席: 花子\n3番席: 太郎")
+        XCTAssertFalse(text.contains("1番席:"))
+        XCTAssertFalse(text.contains("2番席:"))
     }
 
     func test_番号札の空配列は見出しだけになる() {
-        let text = ShareInteractor().makeShareText(for: .numberedList(attendees: []))
+        let text = ShareInteractor().makeShareText(for: .numberedList(.empty))
 
         XCTAssertEqual(text, "【サクッと席決め】シャッフル結果")
     }
@@ -127,11 +141,14 @@ final class SharePresenterTests: XCTestCase {
 
     func test_共有ボタンで選択シートが開き対象が保持される() {
         let presenter = makePresenter()
+        let viewData = SimpleShuffleViewDataBuilder.build(
+            seats: [NumberedSeat(id: UUID(), name: "A", number: 1)]
+        )
 
-        presenter.didTapShare(subject: .numberedList(attendees: ["A"]))
+        presenter.didTapShare(subject: .numberedList(viewData))
 
         XCTAssertEqual(presenter.route, .selection)
-        XCTAssertEqual(presenter.subject, .numberedList(attendees: ["A"]))
+        XCTAssertEqual(presenter.subject, .numberedList(viewData))
     }
 
     func test_共有対象が未設定なら選択しても何も起きない() {
@@ -144,7 +161,13 @@ final class SharePresenterTests: XCTestCase {
 
     func test_ルートは明示的に閉じられる() {
         let presenter = makePresenter()
-        presenter.didTapShare(subject: .numberedList(attendees: ["A"]))
+        presenter.didTapShare(
+            subject: .numberedList(
+                SimpleShuffleViewDataBuilder.build(
+                    seats: [NumberedSeat(id: UUID(), name: "A", number: 1)]
+                )
+            )
+        )
 
         presenter.dismissRoute()
 

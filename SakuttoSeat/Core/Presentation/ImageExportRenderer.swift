@@ -4,6 +4,7 @@
 //
 //  refactor_seating.md Phase 4（ImageRenderer ラッパ）
 //  Phase 5（出力サイズの実測化・`UIScreen.main` 依存の排除）
+//  refactor_simple.md Phase 2（番号札は Snapshot の exportWidth と ViewData を使う）
 //
 
 import SwiftUI
@@ -24,9 +25,9 @@ enum ImageExportRenderer {
         return render(exportView, width: exportWidth)
     }
 
-    static func renderSimpleShuffle(attendees: [String]) -> UIImage? {
-        let exportWidth: CGFloat = 400
-        let exportView = SimpleShuffleSnapshotView(attendees: attendees)
+    static func renderSimpleShuffle(viewData: SimpleShuffleViewData) -> UIImage? {
+        let exportWidth = SimpleShuffleSnapshotView.exportWidth
+        let exportView = SimpleShuffleSnapshotView(viewData: viewData)
             .frame(width: exportWidth)
             .background(Color(.systemGroupedBackground))
 

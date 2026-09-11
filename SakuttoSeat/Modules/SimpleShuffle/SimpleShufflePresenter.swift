@@ -4,6 +4,7 @@
 //
 //  Created by masafumi wakugawa on 2026/05/07.
 //  refactor_simple.md Phase 1（Share は Router から注入。shuffle の戻りで ViewData を更新）
+//  refactor_simple.md Phase 2（共有は ViewData をそのまま渡す）
 //
 
 import Combine
@@ -29,9 +30,9 @@ final class SimpleShufflePresenter: ObservableObject, SimpleShufflePresenterProt
         publishState(seats: interactor.shuffle())
     }
 
-    /// 共有はタップ時点の並び順を Share モジュールへ渡すだけ
+    /// 共有はタップ時点の並び（ViewData）を Share モジュールへ渡すだけ
     func didTapShare() {
-        share.didTapShare(subject: .numberedList(attendees: viewData.rows.map(\.name)))
+        share.didTapShare(subject: .numberedList(viewData))
     }
 
     private func publishState(seats: [NumberedSeat]) {

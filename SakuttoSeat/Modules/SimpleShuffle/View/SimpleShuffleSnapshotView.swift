@@ -2,13 +2,16 @@
 //  SimpleShuffleSnapshotView.swift
 //  SakuttoSeat
 //
-//  refactor_AttendeeList.md Phase 5（共有画像用。行 UI は NumberedPersonRow）
+//  refactor_simple.md Phase 2（共有画像用。入力は ViewData。番号は再計算しない）
 //
 
 import SwiftUI
 
 struct SimpleShuffleSnapshotView: View {
-    let attendees: [String]
+    /// 出力幅。`ImageExportRenderer` と共有する唯一の定義
+    static let exportWidth: CGFloat = 400
+
+    let viewData: SimpleShuffleViewData
 
     var body: some View {
         VStack(spacing: 16) {
@@ -24,10 +27,10 @@ struct SimpleShuffleSnapshotView: View {
             .padding(.top, 8)
 
             VStack(spacing: 8) {
-                ForEach(Array(attendees.enumerated()), id: \.offset) { index, name in
+                ForEach(viewData.rows) { row in
                     NumberedPersonRow(
-                        number: index + 1,
-                        name: name,
+                        number: row.number,
+                        name: row.name,
                         accessory: String(localized: "番席"),
                         tint: .blue,
                         rowVerticalPadding: 0

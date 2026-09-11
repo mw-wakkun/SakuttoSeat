@@ -17,7 +17,7 @@ SimpleShuffle の **5 層の箱と ViewData** は AttendeeList Phase 5 で既に
 | --- | --- | --- |
 | 0 | 準備と回帰テスト | ✅ 完了（2026-09-11） |
 | 1 | 規約穴埋め（Router DI / Protocol / Entity 純化） | ✅ 完了（2026-09-11） |
-| 2 | Share / Snapshot を ViewData 駆動にする | 未着手 |
+| 2 | Share / Snapshot を ViewData 駆動にする | ✅ 完了（2026-09-11） |
 | 3 | 再利用・一貫性・i18n / A11y | 未着手 |
 | 4 | 性能・初期表示仕様・空状態 | 未着手 |
 
@@ -501,6 +501,15 @@ QA 9.1 と「番号札で決める」CTA の期待に揃う。登録順を見た
 Share の番号札経路が座席表と同じく ViewData を受け取る。既存共有テキストの文字列が
 通常データ（number == index+1）では Phase 0 と一致する。
 リスク: 中（Share は座席表も使う。番号札 case 以外を壊さないこと）。
+
+実装時の決定（2026-09-11）:
+
+- `ShareSubject.numberedList` の associated value を `SimpleShuffleViewData` に変更。コメントは「タップ時点の並び」。
+- Presenter は `.numberedList(viewData)` をそのまま渡す。名前配列への落としも番号の再計算もしない。
+- `ShareInteractor.makeNumberedListText` は `row.number` / `row.name` を使う。番号札経路から `enumerated()` を削除。
+- Snapshot は `SimpleShuffleViewData` を受け取り `ForEach(viewData.rows)`。見出しは既存 Catalog リテラルのまま（画面との差分は §8.8 どおり維持。Copy 集約は Phase 3）。
+- 出力幅は `SimpleShuffleSnapshotView.exportWidth`（400）。Renderer はそれを読む。
+- `ShareTests` に number ≠ index+1 の ViewData を渡す回帰を追加。通常データ（1-based 連番）の共有文字列は Phase 0 と一致。
 
 ### Phase 3: 再利用・一貫性・i18n / A11y（0.75 日）
 

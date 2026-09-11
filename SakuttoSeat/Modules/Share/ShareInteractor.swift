@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_seating.md Phase 5（共有ペイロードの生成と広告要否の判断）
+//  refactor_simple.md Phase 2（番号札テキストは ViewData.Row.number を使う）
 //
 //  もとは SeatingChartView / SimpleShuffleView / SeatingChartInteractor に
 //  分散していた共有テキストの整形をここへ集約する。
@@ -23,8 +24,8 @@ nonisolated final class ShareInteractor: ShareInteractorProtocol {
         switch subject {
         case .seatingChart(let viewData):
             return makeSeatingChartText(tables: Self.tableContents(from: viewData))
-        case .numberedList(let attendees):
-            return makeNumberedListText(attendees: attendees)
+        case .numberedList(let viewData):
+            return makeNumberedListText(viewData: viewData)
         }
     }
 
@@ -67,10 +68,10 @@ nonisolated final class ShareInteractor: ShareInteractorProtocol {
         return text
     }
 
-    func makeNumberedListText(attendees: [String]) -> String {
+    func makeNumberedListText(viewData: SimpleShuffleViewData) -> String {
         var text = "【サクッと席決め】シャッフル結果\n"
-        for (index, name) in attendees.enumerated() {
-            text += "\(index + 1)番席: \(name)\n"
+        for row in viewData.rows {
+            text += "\(row.number)番席: \(row.name)\n"
         }
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }

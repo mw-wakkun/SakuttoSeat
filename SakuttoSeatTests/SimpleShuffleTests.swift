@@ -2,10 +2,10 @@
 //  SimpleShuffleTests.swift
 //  SakuttoSeatTests
 //
-//  refactor_simple.md Phase 0 / Phase 1（番号札の現状挙動を固定する回帰。Share は必須注入）
+//  refactor_simple.md Phase 0〜2（番号札の回帰。Share は ViewData を渡す）
 //
 //  `_既知の課題` が付いたテストは是正対象の挙動を意図的に固定している。
-//  初期表示の登録順は Phase 4、Share / Snapshot の `[String]` 依存は Phase 2 で更新する。
+//  初期表示の登録順は Phase 4 で更新する。
 //
 
 import XCTest
@@ -159,22 +159,23 @@ final class SimpleShufflePresenterTests: XCTestCase {
         XCTAssertTrue(presenter.share === share)
     }
 
-    func test_共有は初期の登録順の名前配列をShareへ渡す() {
+    func test_共有は初期の登録順のViewDataをShareへ渡す() {
         let attendees = [Attendee(name: "太郎"), Attendee(name: "花子")]
         let share = ShareRouter.assemblePresenter()
         let presenter = makePresenter(attendees: attendees, share: share)
+        let viewData = presenter.viewData
 
         presenter.didTapShare()
 
         XCTAssertEqual(share.route, .selection)
-        XCTAssertEqual(share.subject, .numberedList(attendees: ["太郎", "花子"]))
+        XCTAssertEqual(share.subject, .numberedList(viewData))
         XCTAssertEqual(
             ShareInteractor().makeShareText(for: share.subject!),
             "【サクッと席決め】シャッフル結果\n1番席: 太郎\n2番席: 花子"
         )
     }
 
-    func test_シャッフル後の共有は現在の並びの名前配列をShareへ渡す() {
+    func test_シャッフル後の共有は現在のViewDataをShareへ渡す() {
         let attendees = (1...8).map { Attendee(name: "N\($0)") }
         let share = ShareRouter.assemblePresenter()
         let presenter = makePresenter(attendees: attendees, share: share)
@@ -190,13 +191,15 @@ final class SimpleShufflePresenterTests: XCTestCase {
         }
         XCTAssertNotEqual(currentNames, originalNames, "8名のシャッフルが100回とも元の順のまま")
 
+        let currentViewData = presenter.viewData
         presenter.didTapShare()
 
         XCTAssertEqual(share.route, .selection)
-        XCTAssertEqual(share.subject, .numberedList(attendees: currentNames))
+        XCTAssertEqual(share.subject, .numberedList(currentViewData))
+        let expectedLines = currentViewData.rows.map { "\($0.number)番席: \($0.name)" }
         XCTAssertEqual(
             ShareInteractor().makeShareText(for: share.subject!),
-            ShareInteractor().makeShareText(for: .numberedList(attendees: currentNames))
+            "【サクッと席決め】シャッフル結果\n" + expectedLines.joined(separator: "\n")
         )
     }
 }
