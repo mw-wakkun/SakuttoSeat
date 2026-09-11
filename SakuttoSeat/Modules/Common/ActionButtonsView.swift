@@ -55,16 +55,3 @@ struct SingleActionButton: View {
         .modifier(OptionalAccessibilityHint(hint: config.accessibilityHint))
     }
 }
-
-private struct OptionalAccessibilityHint: ViewModifier {
-    let hint: String?
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if let hint, !hint.isEmpty {
-            content.accessibilityHint(hint)
-        } else {
-            content
-        }
-    }
-}

@@ -96,6 +96,17 @@
         }
       }
     },
+    "グループを削除できるようにします" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "グループを削除できるようにします"
+          }
+        }
+      }
+    },
     "このグループを参加者リストに読み込みます" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -253,6 +264,17 @@
         }
       }
     },
+    "保存済みグループの一覧を閉じます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存済みグループの一覧を閉じます"
+          }
+        }
+      }
+    },
     "保存済みグループの一覧を開きます" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -304,6 +326,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "共有"
+          }
+        }
+      }
+    },
+    "完了" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完了"
           }
         }
       }
@@ -628,7 +661,37 @@
       }
     },
     "編集" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編集"
+          }
+        }
+      }
+    },
+    "編集を終了します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編集を終了します"
+          }
+        }
+      }
+    },
+    "編集中は読み込みできません" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編集中は読み込みできません"
+          }
+        }
+      }
     },
     "複数の参加者をまとめて追加します" : {
       "extractionState" : "manual",
@@ -676,6 +739,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "閉じる"
+          }
+        }
+      }
+    },
+    "閉じるボタンで参加者リストに戻ります" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "閉じるボタンで参加者リストに戻ります"
           }
         }
       }

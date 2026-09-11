@@ -7,6 +7,7 @@
 //  refactor_favorite.md Phase 2（View は ViewData.Row と route のみ）
 //  refactor_favorite.md Phase 4（presentationDetents は Router 組み立て側）
 //  refactor_favorite.md Phase 5（SavedListRow / SheetChromeToolbar。編集中は選択しない）
+//  refactor_favorite.md Phase 6（閉じる / 編集 / 空状態の A11y。編集中は読み込み Hint を出さない）
 //  一覧・削除は Presenter → Interactor。選択結果は Output のみ。
 //  Gateway は親が assemble 時に同じインスタンスを渡す（子 View は ModelContext を持たない）。
 //
@@ -24,7 +25,8 @@ struct FavoriteGroupView: View {
                     Section {
                         EmptyStateView(
                             systemImage: "star.slash",
-                            message: FavoriteGroupCopy.emptyMessage
+                            message: FavoriteGroupCopy.emptyMessage,
+                            accessibilityHint: FavoriteGroupCopy.emptyAccessibilityHint
                         )
                         .frame(maxWidth: .infinity, minHeight: 120)
                         .listRowInsets(EdgeInsets())
@@ -41,7 +43,9 @@ struct FavoriteGroupView: View {
                             }
                             .accessibilityLabel(row.name)
                             .accessibilityValue(row.memberSummary)
-                            .accessibilityHint(FavoriteGroupCopy.selectAccessibilityHint)
+                            .accessibilityHint(
+                                FavoriteGroupCopy.rowAccessibilityHint(isEditing: editMode == .active)
+                            )
                         }
                         .onDelete { offsets in
                             presenter.didDeleteGroups(at: offsets)
@@ -62,6 +66,13 @@ struct FavoriteGroupView: View {
                     showsEditButton: !presenter.viewData.isEmpty,
                     editTitle: FavoriteGroupCopy.edit,
                     closeTitle: FavoriteGroupCopy.close,
+                    editAccessibilityLabel: FavoriteGroupCopy.editAccessibilityLabel(
+                        isEditing: editMode == .active
+                    ),
+                    editAccessibilityHint: FavoriteGroupCopy.editButtonAccessibilityHint(
+                        isEditing: editMode == .active
+                    ),
+                    closeAccessibilityHint: FavoriteGroupCopy.closeAccessibilityHint,
                     onToggleEdit: {
                         withAnimation {
                             editMode = (editMode == .active) ? .inactive : .active

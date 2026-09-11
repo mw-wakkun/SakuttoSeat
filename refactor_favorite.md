@@ -23,7 +23,7 @@ FavoriteGroup の **5 層の箱** は AttendeeList Phase 5 で既に置いてあ
 | 3 | Gateway API の ID 志向化と親 Interactor の純化 | ✅ 完了（2026-09-11） |
 | 4 | シート identity と Router 境界の安定化 | ✅ 完了（2026-09-11） |
 | 5 | 再利用部品（一覧行・シートクロム） | ✅ 完了（2026-09-11） |
-| 6 | 性能・A11y・i18n・編集モード UX | 未着手 |
+| 6 | 性能・A11y・i18n・編集モード UX | ✅ 完了（2026-09-11） |
 
 回帰基準: 既存 `FavoriteGroupTests` + `AttendeeListInteractorTests` のお気に入り系 +
 `AttendeeListPresenterTests` の FavoriteGroup Output + `AttendeeListRouterTests` の組み立て。
@@ -522,6 +522,17 @@ Phase 3–5 で残った品質項目。
 - `Self._printChanges()` でシート表示中の親再描画回数を Phase 4 前後で比較（任意）。
 - 完了条件: 編集中に誤って読み込まない。空状態と 1 件状態で VoiceOver が辿れる。
 - リスク: 低〜中（UX 差はテンプレ一覧との意図的統一）。
+
+実装時の決定（2026-09-11）:
+
+- 編集中選択の無効化は Phase 5 済み。Phase 6 では VoiceOver も揃えた。
+  編集中の行 Hint は「編集中は読み込みできません」。チェックマークは Label「完了」。
+- 閉じる Hint は親の「保存済みグループの一覧を開きます」と対になる
+  「保存済みグループの一覧を閉じます」。空状態は「閉じるボタンで参加者リストに戻ります」。
+- 削除失敗 / 読込失敗のタイトルは既存 Catalog キーのまま。SwiftUI `.alert` が読み上げる。
+- Catalog は ja のみ追加（en 等は増やさない）。漏れだった `"編集"` に ja 値を入れた。
+- `OptionalAccessibilityHint` を Components へ移し、EmptyStateView / SheetChromeToolbar / CTA で共有。
+- `Self._printChanges()` による再描画計測は任意のため未実施（Phase 4 の Presenter 保持テストで代替）。
 
 ---
 

@@ -6,6 +6,7 @@
 //  refactor_favorite.md Phase 0 / Phase 1（attach は Interactor のみ）
 //  refactor_favorite.md Phase 2 / Phase 3（ID 削除・Snapshot 戻り）
 //  refactor_favorite.md Phase 5（Copy.edit。行 UI は View の SavedListRow）
+//  refactor_favorite.md Phase 6（閉じる / 編集 / 空状態の A11y Copy）
 //
 
 import XCTest
@@ -257,6 +258,44 @@ final class FavoriteGroupCopyTests: XCTestCase {
         XCTAssertEqual(FavoriteGroupCopy.ok, "OK")
         XCTAssertEqual(FavoriteGroupCopy.deleteFailedTitle, "削除に失敗しました")
         XCTAssertEqual(FavoriteGroupCopy.loadFailedTitle, "読み込みに失敗しました")
+    }
+
+    func test_閉じる編集空状態のHintは親シート導線と対になる() {
+        XCTAssertEqual(FavoriteGroupCopy.closeAccessibilityHint, "保存済みグループの一覧を閉じます")
+        XCTAssertEqual(FavoriteGroupCopy.editAccessibilityHint, "グループを削除できるようにします")
+        XCTAssertEqual(FavoriteGroupCopy.done, "完了")
+        XCTAssertEqual(FavoriteGroupCopy.doneAccessibilityHint, "編集を終了します")
+        XCTAssertEqual(FavoriteGroupCopy.emptyAccessibilityHint, "閉じるボタンで参加者リストに戻ります")
+        XCTAssertEqual(FavoriteGroupCopy.editingSelectDisabledHint, "編集中は読み込みできません")
+    }
+
+    func test_行のHintは編集中に読み込み案内を出さない() {
+        XCTAssertEqual(
+            FavoriteGroupCopy.rowAccessibilityHint(isEditing: false),
+            "このグループを参加者リストに読み込みます"
+        )
+        XCTAssertEqual(
+            FavoriteGroupCopy.rowAccessibilityHint(isEditing: true),
+            "編集中は読み込みできません"
+        )
+    }
+
+    func test_編集トグルのLabelとHintは完了時に切り替わる() {
+        XCTAssertEqual(FavoriteGroupCopy.editAccessibilityLabel(isEditing: false), "編集")
+        XCTAssertEqual(FavoriteGroupCopy.editAccessibilityLabel(isEditing: true), "完了")
+        XCTAssertEqual(
+            FavoriteGroupCopy.editButtonAccessibilityHint(isEditing: false),
+            "グループを削除できるようにします"
+        )
+        XCTAssertEqual(
+            FavoriteGroupCopy.editButtonAccessibilityHint(isEditing: true),
+            "編集を終了します"
+        )
+    }
+
+    func test_失敗アラートのタイトルはCatalogにある() {
+        XCTAssertEqual(FavoriteGroupCopy.deleteFailedTitle, String(localized: "削除に失敗しました"))
+        XCTAssertEqual(FavoriteGroupCopy.loadFailedTitle, String(localized: "読み込みに失敗しました"))
     }
 }
 
