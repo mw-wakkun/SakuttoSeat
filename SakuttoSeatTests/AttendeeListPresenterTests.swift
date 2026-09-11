@@ -2,7 +2,7 @@
 //  AttendeeListPresenterTests.swift
 //  SakuttoSeatTests
 //
-//  refactor_AttendeeList.md Phase 0 / Phase 1 / Phase 2 / Phase 3 / Phase 4
+//  refactor_AttendeeList.md Phase 0 / Phase 1 / Phase 2 / Phase 3 / Phase 4 / Phase 5
 //  意図メソッド → ViewData / Route の契約を固定する。
 //
 
@@ -176,8 +176,6 @@ final class AttendeeListPresenterTests: XCTestCase {
         XCTAssertEqual(saved.count, 1)
         XCTAssertEqual(saved.first?.name, "同期")
         XCTAssertEqual(saved.first?.members, ["太郎", "花子"])
-        XCTAssertEqual(presenter.viewData.favoriteGroups.map(\.name), ["同期"])
-        XCTAssertEqual(presenter.viewData.favoriteGroups.first?.memberSummary, "太郎, 花子")
         XCTAssertNil(presenter.route)
     }
 
@@ -186,7 +184,7 @@ final class AttendeeListPresenterTests: XCTestCase {
         try gateway.insert(GroupFavorite(name: "新メンバ", members: ["新1", "新2", "新3"]))
         let presenter = makePresenter(names: ["旧1", "旧2"], gateway: gateway)
 
-        presenter.didSelectFavoriteGroup(id: presenter.viewData.favoriteGroups[0].id)
+        presenter.didSelectFavoriteGroup(id: try XCTUnwrap(gateway.fetchAll().first?.id))
 
         XCTAssertEqual(names(of: presenter), ["新1", "新2", "新3"])
         XCTAssertNil(presenter.route)
@@ -197,26 +195,9 @@ final class AttendeeListPresenterTests: XCTestCase {
         try gateway.insert(GroupFavorite(name: "空", members: []))
         let presenter = makePresenter(names: ["残したくない"], gateway: gateway)
 
-        presenter.didSelectFavoriteGroup(id: presenter.viewData.favoriteGroups[0].id)
+        presenter.didSelectFavoriteGroup(id: try XCTUnwrap(gateway.fetchAll().first?.id))
 
         XCTAssertTrue(presenter.viewData.isEmpty)
-    }
-
-    func test_お気に入りをoffset指定で削除する() throws {
-        let gateway = InMemoryGroupFavoriteGateway()
-        let presenter = makePresenter(gateway: gateway)
-        presenter.didConfirmSaveFavorite(name: "古い")
-        presenter.didConfirmSaveFavorite(name: "新しい")
-
-        let before = presenter.viewData.favoriteGroups
-        XCTAssertEqual(before.count, 2)
-        let removedName = before[0].name
-
-        presenter.didDeleteFavoriteGroups(at: IndexSet(integer: 0))
-
-        let after = presenter.viewData.favoriteGroups
-        XCTAssertEqual(after.count, 1)
-        XCTAssertNotEqual(after.first?.name, removedName)
     }
 
     func test_空白のみのグループ名では保存しない() throws {
@@ -227,7 +208,6 @@ final class AttendeeListPresenterTests: XCTestCase {
         presenter.didConfirmSaveFavorite(name: "   ")
 
         XCTAssertTrue(try gateway.fetchAll().isEmpty)
-        XCTAssertTrue(presenter.viewData.favoriteGroups.isEmpty)
         XCTAssertNil(presenter.route)
     }
 
@@ -240,7 +220,7 @@ final class AttendeeListPresenterTests: XCTestCase {
             presenter.route,
             .alert(.saveFailed(message: "書き込みに失敗しました"))
         )
-        XCTAssertTrue(presenter.viewData.favoriteGroups.isEmpty)
+        XCTAssertEqual(names(of: presenter), ["A"])
     }
 
     func test_存在しないお気に入りを選んでもリストとRouteは変わらない() {
@@ -253,7 +233,7 @@ final class AttendeeListPresenterTests: XCTestCase {
         XCTAssertEqual(presenter.route, .favoriteList)
     }
 
-    // MARK: - 子モジュール Output（Phase 4）
+    // MARK: - 子モジュール Output（Phase 5）
 
     func test_FavoriteGroupOutputの選択はリストを置換してシートを閉じる() throws {
         let gateway = InMemoryGroupFavoriteGateway()
@@ -261,23 +241,10 @@ final class AttendeeListPresenterTests: XCTestCase {
         let presenter = makePresenter(names: ["旧"], gateway: gateway)
         presenter.didTapShowFavorites()
 
-        presenter.favoriteGroupDidSelect(id: presenter.viewData.favoriteGroups[0].id)
+        presenter.favoriteGroupDidSelect(id: try XCTUnwrap(gateway.fetchAll().first?.id))
 
         XCTAssertEqual(names(of: presenter), ["新1", "新2"])
         XCTAssertNil(presenter.route)
-    }
-
-    func test_FavoriteGroupOutputの削除は一覧から消す() throws {
-        let gateway = InMemoryGroupFavoriteGateway()
-        let presenter = makePresenter(gateway: gateway)
-        presenter.didConfirmSaveFavorite(name: "古い")
-        presenter.didConfirmSaveFavorite(name: "新しい")
-        presenter.didTapShowFavorites()
-
-        presenter.favoriteGroupDidDelete(at: IndexSet(integer: 0))
-
-        XCTAssertEqual(presenter.viewData.favoriteGroups.map(\.name), ["古い"])
-        XCTAssertEqual(presenter.route, .favoriteList)
     }
 
     func test_FavoriteGroupOutputのキャンセルはシートを閉じる() {

@@ -2,7 +2,7 @@
 //  AttendeeListViewDataTests.swift
 //  SakuttoSeatTests
 //
-//  refactor_AttendeeList.md Phase 2（ViewData / Route の回帰）
+//  refactor_AttendeeList.md Phase 2 / Phase 5（ViewData / Route の回帰）
 //
 
 import XCTest
@@ -18,7 +18,6 @@ final class AttendeeListViewDataTests: XCTestCase {
         XCTAssertFalse(viewData.canStartSeating)
         XCTAssertFalse(viewData.canSaveFavorite)
         XCTAssertFalse(viewData.canReset)
-        XCTAssertTrue(viewData.favoriteGroups.isEmpty)
     }
 
     func test_行番号は1始まりでAttendeeのidを引き継ぐ() {
@@ -33,22 +32,6 @@ final class AttendeeListViewDataTests: XCTestCase {
         XCTAssertTrue(viewData.canSaveFavorite)
         XCTAssertTrue(viewData.canReset)
         XCTAssertFalse(viewData.isEmpty)
-    }
-
-    func test_お気に入りスナップショットをViewDataに載せられる() {
-        let snapshot = FavoriteGroupSnapshot(
-            id: UUID(),
-            name: "同期",
-            memberNames: ["太郎", "花子"],
-            memberSummary: "太郎, 花子"
-        )
-
-        let viewData = AttendeeListViewDataBuilder.build(
-            attendees: [Attendee(name: "太郎")],
-            favoriteGroups: [snapshot]
-        )
-
-        XCTAssertEqual(viewData.favoriteGroups, [snapshot])
     }
 
     func test_Routeの提示区分() {

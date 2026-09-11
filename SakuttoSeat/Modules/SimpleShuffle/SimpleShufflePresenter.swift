@@ -3,33 +3,39 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/07.
+//  refactor_AttendeeList.md Phase 5（ViewData 公開。withAnimation は View 側）
 //
 
-import SwiftUI
 import Combine
+import Foundation
 
 @MainActor
-class SimpleShufflePresenter: ObservableObject {
-    @Published var attendees: [String]
+final class SimpleShufflePresenter: ObservableObject, SimpleShufflePresenterProtocol {
+    @Published private(set) var viewData: SimpleShuffleViewData = .empty
 
     /// 共有フロー（Share モジュール）。View は `.shareFlow(presenter.share)` で取り付ける。
     let share: SharePresenter
 
-    init(attendees: [String], share: SharePresenter? = nil) {
-        // 初期表示時は登録順のまま保持（シャッフルはボタンタップ時のみ）
-        self.attendees = attendees
+    /// protocol existential を MainActor クラスが保持すると deinit で malloc abort するため具象型で保持する。
+    private let interactor: SimpleShuffleInteractor
+
+    init(interactor: SimpleShuffleInteractor, share: SharePresenter? = nil) {
+        self.interactor = interactor
         self.share = share ?? ShareRouter.assemblePresenter()
+        publishState()
     }
 
-    func didTapShuffleButton() {
-        // .easeInOut よりも .spring の方が「シャッフルしてる感」が出ます
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-            attendees.shuffle()
-        }
+    func didTapShuffle() {
+        _ = interactor.shuffle()
+        publishState()
     }
 
     /// 共有はタップ時点の並び順を Share モジュールへ渡すだけ
     func didTapShare() {
-        share.didTapShare(subject: .numberedList(attendees: attendees))
+        share.didTapShare(subject: .numberedList(attendees: viewData.rows.map(\.name)))
+    }
+
+    private func publishState() {
+        viewData = SimpleShuffleViewDataBuilder.build(seats: interactor.allSeats())
     }
 }

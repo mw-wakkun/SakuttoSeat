@@ -3,7 +3,7 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/05.
-//  refactor_AttendeeList.md Phase 4（遷移・提示・子モジュール組み立て）
+//  refactor_AttendeeList.md Phase 4 / Phase 5（遷移・提示・子モジュール組み立て）
 //
 
 import SwiftUI
@@ -37,38 +37,14 @@ final class AttendeeListRouter: AttendeeListRouterProtocol {
 
     @MainActor
     func makeFavoriteGroupModule(
-        groups: [FavoriteGroupSnapshot],
+        favoriteGateway: GroupFavoriteGatewayBase,
         output: (any FavoriteGroupModuleOutput)?
     ) -> AnyView {
-        AnyView(
-            FavoriteGroupSheetView(
-                groups: groups,
-                onSelect: { id in
-                    output?.favoriteGroupDidSelect(id: id)
-                },
-                onDelete: { offsets in
-                    output?.favoriteGroupDidDelete(at: offsets)
-                },
-                onClose: {
-                    output?.favoriteGroupDidCancel()
-                }
-            )
-            .presentationDetents([.medium, .large])
-        )
+        FavoriteGroupRouter.assembleModule(favoriteGateway: favoriteGateway, output: output)
     }
 
     @MainActor
     func makeBulkAddModule(output: (any BulkAddModuleOutput)?) -> AnyView {
-        AnyView(
-            BulkAddSheetView(
-                onConfirm: { text in
-                    output?.bulkAddDidConfirm(text: text)
-                },
-                onCancel: {
-                    output?.bulkAddDidCancel()
-                }
-            )
-            .presentationDetents([.medium, .large])
-        )
+        BulkAddRouter.assembleModule(output: output)
     }
 }

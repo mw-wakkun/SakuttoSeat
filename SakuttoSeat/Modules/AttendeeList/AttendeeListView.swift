@@ -3,7 +3,7 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/05.
-//  refactor_AttendeeList.md Phase 2 / Phase 4（route / viewData 集約。遷移は Presenter → Router）
+//  refactor_AttendeeList.md Phase 2 / Phase 4 / Phase 5（route / viewData 集約。シートは子モジュール）
 //
 
 import SwiftUI

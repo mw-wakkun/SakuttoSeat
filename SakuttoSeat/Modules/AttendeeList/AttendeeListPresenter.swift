@@ -3,8 +3,9 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/05.
-//  refactor_AttendeeList.md Phase 3 / Phase 4
+//  refactor_AttendeeList.md Phase 3 / Phase 4 / Phase 5
 //  永続化は Interactor。遷移先の組み立ては Router へ委譲。
+//  お気に入り一覧・一括追加は子モジュール。選択／確定は Output で受ける。
 //
 
 import Combine
@@ -91,7 +92,6 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
     }
 
     func didTapShowFavorites() {
-        publishState()
         route = .favoriteList
     }
 
@@ -102,19 +102,6 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
             publishState()
         } catch FavoriteSaveError.notFound {
             return
-        } catch let error as FavoriteSaveError {
-            if case .persistenceFailed(let message) = error {
-                route = .alert(.saveFailed(message: message))
-            }
-        } catch {
-            route = .alert(.saveFailed(message: error.localizedDescription))
-        }
-    }
-
-    func didDeleteFavoriteGroups(at offsets: IndexSet) {
-        do {
-            try interactor.deleteFavorites(at: offsets)
-            publishState()
         } catch let error as FavoriteSaveError {
             if case .persistenceFailed(let message) = error {
                 route = .alert(.saveFailed(message: message))
@@ -157,7 +144,7 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
         switch route {
         case .favoriteList:
             return router.makeFavoriteGroupModule(
-                groups: viewData.favoriteGroups,
+                favoriteGateway: interactor.currentFavoriteGateway(),
                 output: self
             )
         case .bulkAdd:
@@ -170,10 +157,7 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
     // MARK: - Private
 
     private func publishState() {
-        viewData = AttendeeListViewDataBuilder.build(
-            attendees: interactor.allAttendees(),
-            favoriteGroups: interactor.allFavorites()
-        )
+        viewData = AttendeeListViewDataBuilder.build(attendees: interactor.allAttendees())
     }
 }
 
@@ -182,10 +166,6 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
 extension AttendeeListPresenter: FavoriteGroupModuleOutput {
     func favoriteGroupDidSelect(id: FavoriteGroupID) {
         didSelectFavoriteGroup(id: id)
-    }
-
-    func favoriteGroupDidDelete(at offsets: IndexSet) {
-        didDeleteFavoriteGroups(at: offsets)
     }
 
     func favoriteGroupDidCancel() {

@@ -18,7 +18,7 @@
 | 2 | Contracts と ViewData / Route の導入 | ✅ 完了（2026-09-11） |
 | 3 | Presenter → Interactor へのロジック移送・Gateway の正しい配置 | ✅ 完了（2026-09-11） |
 | 4 | Router の実体化・遷移の Presenter 主導化 | ✅ 完了（2026-09-11） |
-| 5 | 子モジュール切り出し（FavoriteGroup / BulkAdd）と SimpleShuffle の VIPER 化 | 未着手 |
+| 5 | 子モジュール切り出し（FavoriteGroup / BulkAdd）と SimpleShuffle の VIPER 化 | ✅ 完了（2026-09-11） |
 | 6 | 再利用部品・パフォーマンス・A11y・i18n | 未着手 |
 
 回帰基準: `SakuttoSeatTests` の既存スイート
@@ -608,36 +608,22 @@ SeatingChart の `safeAreaInset` に合わせ、固定 `Spacer(height: 200/240)`
 完了条件: View が子モジュール型名を知らない。Presenter が `AnyView` を自分で組み立てない。
 リスク: 低〜中。
 
-### Phase 5: 子モジュール切り出しと SimpleShuffle の VIPER 化（2 日）
+### Phase 5: 子モジュール切り出しと SimpleShuffle の VIPER 化（2 日）— ✅ 完了（2026-09-11）
 
-**(5a) FavoriteGroup モジュール**
+実装時の決定（計画からの差分）:
 
-- `favoriteGroupSheetView` を独立させる。
-- 一覧の取得・削除は `GroupFavoriteGateway` をこの Interactor が持つ
-  （親と Gateway を共有するか、同じ SwiftData context から各々生成するかは §8）。
-- 選択結果は `FavoriteGroupModuleOutput` のみ。
-- 空状態は `EmptyStateView` をテンプレート一覧と共有できる形にする。
-
-**(5b) BulkAdd モジュール**
-
-- 入力・プレースホルダ・区切り説明をこの View に閉じる。
-- パースは親 Interactor に残す（ドメインの単一所在）。子はテキストを返すだけ。
-- 区切り文字の説明文を実装（`\n , 、`）に一致させる。
-
-**(5c) SimpleShuffle の正式 VIPER 化**
-
-- Interactor が `[NumberedSeat]` を保持し、`shuffle()` は集合不変・順序変更。
-- Presenter は ViewData を公開。`withAnimation` は View 側
-  （SeatingChart のシャッフルボタンと同じ）。
-- 親からは `[Attendee]` を渡し、ID を維持する。
-- `ForEach(id: \.self)` / `firstIndex` を廃止し、ViewData の `number` + 安定 `id` を使う。
-- 行 UI は `NumberedPersonRow` に統合。Snapshot は style だけ変える。
-- Share モジュールはそのまま使う（Phase 5 済み資産）。
-
-**(5d オプション) SeatingTemplateListView の Gateway 化**
-
-- お気に入りと同じ穴（`@Query` + View 削除）を塞ぐ。
-- AttendeeList 完了後でも、差分が小さいうちに揃えると後の Phase 6 が楽。
+- FavoriteGroup / BulkAdd は TableEdit と同じ 5 層（Contracts / Interactor / Presenter / Router / View）。
+  一覧・削除は FavoriteGroupInteractor が Gateway を持つ。保存・読込置換は親のまま。
+  SwiftData の Gateway は親と同じインスタンスを assemble 時に渡す（空点滅を避ける）。
+  子 View は `ModelContext` を持たない。
+- `FavoriteGroupModuleOutput` から `favoriteGroupDidDelete` を外した。削除は子が完結し、
+  親は選択とキャンセルだけを受ける。
+- `AttendeeListViewData.favoriteGroups` を削除。一覧は子の ViewData のみ。
+- BulkAdd はテキスト検証のみ。パースは親 Interactor。区切り説明を `,` / `、` / 改行に一致させた。
+- SimpleShuffle は `[Attendee]` を受け取り `NumberedSeat` で ID を維持。`withAnimation` は View。
+  行 UI は `NumberedPersonRow`。Snapshot は style だけ変える。Share は名前配列のまま。
+- `EmptyStateView` を Components に置き、お気に入り空状態で使用（テンプレ一覧は Phase 5d 未実施）。
+- 5d（SeatingTemplateListView の Gateway 化）はオプションのため未着手。
 
 完了条件: `AttendeeListView` が 200 行以下 / 1 型。シート UI が子モジュールにのみ存在する。
 SimpleShuffle に Contracts がある。共有フローは引き続き Share モジュールのみ。

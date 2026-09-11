@@ -1,25 +1,24 @@
 //
-//  BulkAddSheetView.swift
+//  BulkAddView.swift
 //  SakuttoSeat
 //
-//  refactor_AttendeeList.md Phase 4（Router が組み立てるシート。Phase 5 で BulkAdd モジュールへ移す）
+//  refactor_AttendeeList.md Phase 5（一括追加の子 VIPER）
+//  入力・プレースホルダ・区切り説明をこの View に閉じる。パースは親 Interactor。
 //
 
 import SwiftUI
 
-struct BulkAddSheetView: View {
-    @State private var bulkInputText = ""
-    let onConfirm: (String) -> Void
-    let onCancel: () -> Void
+struct BulkAddView: View {
+    @StateObject var presenter: BulkAddPresenter
 
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 12) {
-                Text("改行またはカンマ（、）区切りで参加者名を入力・ペーストしてください。")
+                Text(presenter.viewData.delimiterHint)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
-                TextEditor(text: $bulkInputText)
+                TextEditor(text: textBinding)
                     .padding(8)
                     .background(Color(.secondarySystemBackground))
                     .cornerRadius(8)
@@ -34,18 +33,30 @@ struct BulkAddSheetView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("キャンセル") {
-                        bulkInputText = ""
-                        onCancel()
+                        presenter.didTapCancel()
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("追加") {
-                        onConfirm(bulkInputText)
-                        bulkInputText = ""
+                        presenter.didTapConfirm()
                     }
-                    .disabled(bulkInputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(!presenter.viewData.canConfirm)
                 }
             }
         }
+        .presentationDetents([.medium, .large])
+    }
+
+    private var textBinding: Binding<String> {
+        Binding(
+            get: { presenter.viewData.text },
+            set: { presenter.didChangeText($0) }
+        )
     }
 }
+
+#if DEBUG
+#Preview("一括追加") {
+    BulkAddView(presenter: BulkAddPresenter(output: nil))
+}
+#endif

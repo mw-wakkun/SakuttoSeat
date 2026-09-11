@@ -70,6 +70,10 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
         favoriteGateway = gateway
     }
 
+    func currentFavoriteGateway() -> GroupFavoriteGatewayBase {
+        favoriteGateway
+    }
+
     func favoriteSaveAvailability() -> FavoriteSaveAvailability {
         let currentCount = (try? favoriteGateway.fetchCount()) ?? 0
         if currentCount < FeatureLimit.freeFavoriteGroupCount {
@@ -101,14 +105,7 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
 
     func allFavorites() -> [FavoriteGroupSnapshot] {
         let favorites = (try? favoriteGateway.fetchAll()) ?? []
-        return favorites.map { favorite in
-            FavoriteGroupSnapshot(
-                id: favorite.id,
-                name: favorite.name,
-                memberNames: favorite.members,
-                memberSummary: favorite.members.joined(separator: ", ")
-            )
-        }
+        return favorites.map { $0.makeSnapshot() }
     }
 
     func deleteFavorites(at offsets: IndexSet) throws {

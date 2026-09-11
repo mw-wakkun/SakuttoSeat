@@ -2,7 +2,7 @@
 //  AttendeeListContracts.swift
 //  SakuttoSeat
 //
-//  refactor_AttendeeList.md Phase 2 / Phase 3 / Phase 4（層間境界の明示）
+//  refactor_AttendeeList.md Phase 2 / Phase 3 / Phase 4 / Phase 5（層間境界の明示）
 //
 
 import SwiftUI
@@ -28,7 +28,6 @@ protocol AttendeeListPresenterProtocol: AnyObject {
     func didConfirmSaveFavorite(name: String)
     func didTapShowFavorites()
     func didSelectFavoriteGroup(id: FavoriteGroupID)
-    func didDeleteFavoriteGroups(at offsets: IndexSet)
     func didTapBulkAddEntry()
     func didTapSeatingChart()
     func didTapSimpleShuffle()
@@ -67,27 +66,9 @@ nonisolated protocol AttendeeListInteractorProtocol: AnyObject {
 protocol AttendeeListRouterProtocol: AnyObject {
     @MainActor func makeSeatingChartModule(attendees: [Attendee]) -> AnyView
     @MainActor func makeSimpleShuffleModule(attendees: [Attendee]) -> AnyView
-    /// Phase 5 で子 Interactor が Gateway を持つまでの過渡期。一覧は親が渡す。
     @MainActor func makeFavoriteGroupModule(
-        groups: [FavoriteGroupSnapshot],
+        favoriteGateway: GroupFavoriteGatewayBase,
         output: (any FavoriteGroupModuleOutput)?
     ) -> AnyView
     @MainActor func makeBulkAddModule(output: (any BulkAddModuleOutput)?) -> AnyView
-}
-
-// MARK: - 子モジュール Output
-//
-// Phase 5 で FavoriteGroup / BulkAdd を独立モジュール化する。
-// Phase 4 では Router が組み立てるシート View と Presenter を結線する。
-
-protocol FavoriteGroupModuleOutput: AnyObject {
-    func favoriteGroupDidSelect(id: FavoriteGroupID)
-    /// Phase 5 で子が Gateway を持つまでの過渡期。親 Interactor が削除する。
-    func favoriteGroupDidDelete(at offsets: IndexSet)
-    func favoriteGroupDidCancel()
-}
-
-protocol BulkAddModuleOutput: AnyObject {
-    func bulkAddDidConfirm(text: String)
-    func bulkAddDidCancel()
 }

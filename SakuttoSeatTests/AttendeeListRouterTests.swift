@@ -2,7 +2,7 @@
 //  AttendeeListRouterTests.swift
 //  SakuttoSeatTests
 //
-//  refactor_AttendeeList.md Phase 4
+//  refactor_AttendeeList.md Phase 4 / Phase 5
 //  子モジュール生成と Output 結線を固定する。
 //
 
@@ -30,26 +30,23 @@ final class AttendeeListRouterTests: XCTestCase {
         _ = AttendeeListRouter().makeSimpleShuffleModule(attendees: attendees)
     }
 
-    func test_お気に入りシートはOutputを結線する() {
+    func test_お気に入りモジュールはFavoriteGroupRouterへ委譲する() {
         let router = AttendeeListRouter()
         let output = FavoriteGroupOutputSpy()
-        let groups = [
-            FavoriteGroupSnapshot(
-                id: UUID(),
-                name: "同期",
-                memberNames: ["太郎"],
-                memberSummary: "太郎"
-            )
-        ]
 
-        _ = router.makeFavoriteGroupModule(groups: groups, output: output)
+        _ = router.makeFavoriteGroupModule(
+            favoriteGateway: InMemoryGroupFavoriteGateway(),
+            output: output
+        )
+        _ = FavoriteGroupRouter.assembleModule(output: output)
     }
 
-    func test_一括追加シートはOutputを結線する() {
+    func test_一括追加モジュールはBulkAddRouterへ委譲する() {
         let router = AttendeeListRouter()
         let output = BulkAddOutputSpy()
 
         _ = router.makeBulkAddModule(output: output)
+        _ = BulkAddRouter.assembleModule(output: output)
     }
 
     func test_RouterはProtocolに準拠する() {
@@ -58,7 +55,7 @@ final class AttendeeListRouterTests: XCTestCase {
 
         _ = router.makeSeatingChartModule(attendees: attendees)
         _ = router.makeSimpleShuffleModule(attendees: attendees)
-        _ = router.makeFavoriteGroupModule(groups: [], output: nil)
+        _ = router.makeFavoriteGroupModule(favoriteGateway: InMemoryGroupFavoriteGateway(), output: nil)
         _ = router.makeBulkAddModule(output: nil)
     }
 }
@@ -66,15 +63,10 @@ final class AttendeeListRouterTests: XCTestCase {
 @MainActor
 private final class FavoriteGroupOutputSpy: FavoriteGroupModuleOutput {
     var selectedID: FavoriteGroupID?
-    var deletedOffsets: IndexSet?
     var didCancel = false
 
     func favoriteGroupDidSelect(id: FavoriteGroupID) {
         selectedID = id
-    }
-
-    func favoriteGroupDidDelete(at offsets: IndexSet) {
-        deletedOffsets = offsets
     }
 
     func favoriteGroupDidCancel() {

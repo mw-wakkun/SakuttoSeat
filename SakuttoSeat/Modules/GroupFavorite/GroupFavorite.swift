@@ -21,4 +21,13 @@ final class GroupFavorite {
         self.members = members
         self.createdAt = Date()
     }
+
+    func makeSnapshot() -> FavoriteGroupSnapshot {
+        FavoriteGroupSnapshot(
+            id: id,
+            name: name,
+            memberNames: members,
+            memberSummary: members.joined(separator: ", ")
+        )
+    }
 }

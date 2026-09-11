@@ -2,18 +2,18 @@
 //  SimpleShuffleRouter.swift
 //  SakuttoSeat
 //
-//  refactor_AttendeeList.md Phase 4（Router の箱。本体の VIPER 化は Phase 5）
+//  refactor_AttendeeList.md Phase 5（番号札モジュールの組み立て）
 //
 
 import SwiftUI
 
 final class SimpleShuffleRouter {
 
-    /// モジュールの組み立て（Builder 相当）。
-    /// Phase 5 で ID を維持したまま ViewData 化する。ここでは名前配列へ写像する。
+    /// モジュールの組み立て（Builder 相当）。親から `[Attendee]` を受け取り ID を維持する。
     @MainActor
     static func assembleModule(attendees: [Attendee]) -> AnyView {
-        let presenter = SimpleShufflePresenter(attendees: attendees.map(\.name))
+        let interactor = SimpleShuffleInteractor(attendees: attendees)
+        let presenter = SimpleShufflePresenter(interactor: interactor)
         return AnyView(SimpleShuffleView(presenter: presenter))
     }
 }
