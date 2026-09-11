@@ -20,7 +20,7 @@
 | 0 | 準備と回帰テスト | ✅ 完了（2026-09-11） |
 | — | Phase 0 完了後の表示 hotfix（下記） | ✅ 完了（2026-09-11） |
 | 1 | 配置・命名・設定の単一化（挙動は変えない） | ✅ 完了（2026-09-11） |
-| 2 | Gateway 契約と Router 注入口 | 未着手 |
+| 2 | Gateway 契約と Router 注入口 | ✅ 完了（2026-09-11） |
 | 3 | SDK 寿命・報酬判定・バナー Coordinator の是正 | 未着手 |
 | 4 | Share / VenueSettings の提示経路をテスト可能にする | 未着手 |
 | 5 | バナー UI の単一窓口化・余白規約 | 未着手 |
@@ -448,6 +448,19 @@ enum SessionRewardedAd {
 を **assemble と App の preload 専用**にする。機能 View / Presenter は触らない。
 完全 DI（App から全 Router へ引数で渡す）は組み立てが長いので、本プロジェクトの
 `SessionFeatureUnlock.shared` 踏襲を優先する。
+
+実施済み（2026-09-11）:
+- `RewardedAdGatewayImpl` を現行 Manager の移植として追加。`RewardedAdPresenter.present()` の
+  未準備判定も Impl に吸収
+- `RewardedAdGatewayBase` を新設。Router は existential ではなく具象 Base を保持
+  （`GroupFavoriteGatewayBase` と同じ malloc abort 回避）
+- `SessionRewardedAd.shared` を assemble 専用に追加。View / Presenter は触らない
+- `ShareRouter` / `VenueSettingsRouter` の `init` で Gateway を受け取り、assemble が
+  `SessionRewardedAd.shared` を渡す
+- `RewardedAdManager` / `RewardedAdPresenter` を削除
+- Fake は Base を継承。Router が Fake の `present` を 1 回呼ぶテストを追加。
+  Presenter 分岐のケース追加は Phase 4
+- App の `start()` 完了後 `preload()` 接続は Phase 3
 
 ### Phase 3: SDK 寿命・報酬判定・バナー Coordinator の是正（1 日）
 

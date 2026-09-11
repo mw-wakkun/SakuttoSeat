@@ -6,7 +6,7 @@
 //
 //  Phase 4 まで SettingsSheetView.applySelection() が持っていた列数の課金ルールを
 //  Interactor へ移送したため、規則はここで固定する。
-//  refactor_Ad.md Phase 0（リワード提示経路は注入口待ちで XCTSkip）
+//  refactor_Ad.md Phase 2（Router へ Gateway を注入。Presenter 分岐のケース追加は Phase 4）
 //
 
 import XCTest
@@ -78,6 +78,7 @@ final class VenueSettingsPresenterTests: XCTestCase {
     private func makePresenter(
         currentColumnCount: Int = 2,
         featureUnlock: FeatureUnlockState = FeatureUnlockState(),
+        rewardedAd: RewardedAdGatewayBase = RewardedAdGatewayFake(),
         output: OutputSpy
     ) -> VenueSettingsPresenter {
         VenueSettingsPresenter(
@@ -85,7 +86,7 @@ final class VenueSettingsPresenterTests: XCTestCase {
                 currentColumnCount: currentColumnCount,
                 featureUnlock: featureUnlock
             ),
-            router: VenueSettingsRouter(),
+            router: VenueSettingsRouter(rewardedAd: rewardedAd),
             output: output
         )
     }
@@ -137,7 +138,7 @@ final class VenueSettingsPresenterTests: XCTestCase {
         XCTAssertFalse(presenter.viewData.requiresUnlock)
     }
 
-    // MARK: - リワード提示（Phase 2 で Router に Gateway を注入してから有効化）
+    // MARK: - リワード提示（Presenter 分岐のケース追加は Phase 4）
     //
     // 期待（現行 VenueSettingsPresenter.didConfirmWatchAd）:
     // - Fake.success → grantSessionUnlock + Output に列数が渡る
@@ -145,14 +146,29 @@ final class VenueSettingsPresenterTests: XCTestCase {
     // - Fake.notEarned / failed → 未解放のまま Output なし
 
     func test_視聴確認_成功ならセッション解放して適用する() throws {
-        throw XCTSkip("Phase 2 で VenueSettingsRouter に RewardedAdGateway を注入できるようになってから有効化する")
+        throw XCTSkip("Phase 4 で VenueSettingsPresenter のリワード分岐を有効化する")
     }
 
     func test_視聴確認_未準備ならアラートになり適用しない() throws {
-        throw XCTSkip("Phase 2 で VenueSettingsRouter に RewardedAdGateway を注入できるようになってから有効化する")
+        throw XCTSkip("Phase 4 で VenueSettingsPresenter のリワード分岐を有効化する")
     }
 
     func test_視聴確認_未獲得と失敗では解放しない() throws {
-        throw XCTSkip("Phase 2 で VenueSettingsRouter に RewardedAdGateway を注入できるようになってから有効化する")
+        throw XCTSkip("Phase 4 で VenueSettingsPresenter のリワード分岐を有効化する")
+    }
+}
+
+// MARK: - Router（Gateway 注入）
+
+@MainActor
+final class VenueSettingsRouterTests: XCTestCase {
+
+    func test_presentRewardedAdは注入したGatewayを1回呼ぶ() async throws {
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let router = VenueSettingsRouter(rewardedAd: fake)
+
+        try await router.presentRewardedAd()
+
+        XCTAssertEqual(fake.presentCallCount, 1)
     }
 }

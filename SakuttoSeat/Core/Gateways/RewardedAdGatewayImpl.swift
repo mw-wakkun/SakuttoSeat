@@ -1,41 +1,52 @@
 //
-//  RewardedAdManager.swift
+//  RewardedAdGatewayImpl.swift
 //  SakuttoSeat
 //
-//  Created by masafumi wakugawa on 2026/08/17.
-//  refactor_Ad.md Phase 1（Core/Gateways へ移設。ObservableObject を削除。Impl 化は Phase 2）
+//  refactor_Ad.md Phase 2（RewardedAdManager の移植。報酬競合の是正は Phase 3）
 //
 
 import Foundation
 import GoogleMobileAds
 import UIKit
 
-final class RewardedAdManager: NSObject, FullScreenContentDelegate {
-    static let shared = RewardedAdManager()
-
+final class RewardedAdGatewayImpl: RewardedAdGatewayBase, FullScreenContentDelegate {
     private var rewardedAd: RewardedAd?
-    var isAdReady: Bool = false
     private var hasEarnedReward = false
     private var presentContinuation: CheckedContinuation<Void, Error>?
 
-    private override init() {
+    fileprivate override init() {
         super.init()
+        preload()
+    }
+
+    override func preload() {
         loadAd()
     }
 
-    func loadAd() {
+    /// 準備済みなら提示し、dismiss 時に earned / notEarned / failed で完了する。
+    /// 旧 `RewardedAdPresenter.present()` の判定をここに吸収した。
+    @MainActor
+    override func present() async throws {
+        guard isReady else {
+            preload()
+            throw RewardedAdError.notReady
+        }
+        try await presentAsync()
+    }
+
+    private func loadAd() {
         let request = Request()
         RewardedAd.load(with: AdConfiguration.rewardedUnitID, request: request) { [weak self] ad, error in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if let error = error {
                     print("リワード広告読み込み失敗: \(error.localizedDescription)")
-                    self.isAdReady = false
+                    self.isReady = false
                     return
                 }
                 self.rewardedAd = ad
                 self.rewardedAd?.fullScreenContentDelegate = self
-                self.isAdReady = true
+                self.isReady = true
                 print("リワード広告の準備が完了しました")
             }
         }
@@ -43,7 +54,7 @@ final class RewardedAdManager: NSObject, FullScreenContentDelegate {
 
     /// dismiss 完了時に earned → return / notEarned・failed → throw
     @MainActor
-    func presentAsync() async throws {
+    private func presentAsync() async throws {
         guard presentContinuation == nil else {
             throw RewardedAdError.failed("すでに広告を提示中です")
         }
@@ -56,7 +67,7 @@ final class RewardedAdManager: NSObject, FullScreenContentDelegate {
         }
 
         hasEarnedReward = false
-        isAdReady = false
+        isReady = false
 
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             self.presentContinuation = continuation
@@ -92,4 +103,10 @@ final class RewardedAdManager: NSObject, FullScreenContentDelegate {
         loadAd()
         continuation?.resume(throwing: RewardedAdError.failed(error.localizedDescription))
     }
+}
+
+/// アプリ起動中だけ有効なリワード Gateway。assemble と App の preload 専用。
+/// 機能 View / Presenter は触らない（`SessionFeatureUnlock` と同じ）。
+enum SessionRewardedAd {
+    static let shared = RewardedAdGatewayImpl()
 }

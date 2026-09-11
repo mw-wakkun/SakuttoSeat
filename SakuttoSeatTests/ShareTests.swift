@@ -7,7 +7,7 @@
 //
 //  Phase 4 まで `SeatingChartInteractor` / `SimpleShuffleView` が持っていた
 //  共有テキストの整形を Share モジュールへ移送したため、検証もここへ移した。
-//  refactor_Ad.md Phase 0（リワード提示経路は注入口待ちで XCTSkip）
+//  refactor_Ad.md Phase 2（Router へ Gateway を注入。Presenter 分岐のケース追加は Phase 4）
 //
 
 import XCTest
@@ -136,8 +136,13 @@ final class ShareInteractorTests: XCTestCase {
 @MainActor
 final class SharePresenterTests: XCTestCase {
 
-    private func makePresenter() -> SharePresenter {
-        ShareRouter.assemblePresenter()
+    private func makePresenter(
+        rewardedAd: RewardedAdGatewayBase = RewardedAdGatewayFake()
+    ) -> SharePresenter {
+        SharePresenter(
+            interactor: ShareInteractor(),
+            router: ShareRouter(rewardedAd: rewardedAd)
+        )
     }
 
     func test_共有ボタンで選択シートが開き対象が保持される() {
@@ -175,7 +180,7 @@ final class SharePresenterTests: XCTestCase {
         XCTAssertNil(presenter.route)
     }
 
-    // MARK: - リワード提示（Phase 2 で Router に Gateway を注入してから有効化）
+    // MARK: - リワード提示（Presenter 分岐のケース追加は Phase 4）
     //
     // 期待（現行 SharePresenter.didConfirmImageShare）:
     // - Fake.notReady → route == .alert(.adNotReady)。画像シェアは呼ばない
@@ -183,14 +188,43 @@ final class SharePresenterTests: XCTestCase {
     // - Fake.notEarned / failed → route なし、共有なし
 
     func test_画像共有確認_広告未準備ならアラート() throws {
-        throw XCTSkip("Phase 2 で ShareRouter に RewardedAdGateway を注入できるようになってから有効化する")
+        throw XCTSkip("Phase 4 で SharePresenter のリワード分岐を有効化する")
     }
 
     func test_画像共有確認_視聴完了なら画像出力へ進む() throws {
-        throw XCTSkip("Phase 2 で ShareRouter に RewardedAdGateway を注入できるようになってから有効化する")
+        throw XCTSkip("Phase 4 で SharePresenter のリワード分岐を有効化する")
     }
 
     func test_画像共有確認_未獲得と失敗では共有しない() throws {
-        throw XCTSkip("Phase 2 で ShareRouter に RewardedAdGateway を注入できるようになってから有効化する")
+        throw XCTSkip("Phase 4 で SharePresenter のリワード分岐を有効化する")
+    }
+}
+
+// MARK: - Router（Gateway 注入）
+
+@MainActor
+final class ShareRouterTests: XCTestCase {
+
+    func test_presentRewardedAdは注入したGatewayを1回呼ぶ() async throws {
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let router = ShareRouter(rewardedAd: fake)
+
+        try await router.presentRewardedAd()
+
+        XCTAssertEqual(fake.presentCallCount, 1)
+    }
+
+    func test_presentRewardedAdはFakeのnotReadyを再throwする() async {
+        let fake = RewardedAdGatewayFake(outcome: .notReady)
+        let router = ShareRouter(rewardedAd: fake)
+
+        do {
+            try await router.presentRewardedAd()
+            XCTFail("expected notReady")
+        } catch RewardedAdError.notReady {
+            XCTAssertEqual(fake.presentCallCount, 1)
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
     }
 }

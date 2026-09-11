@@ -4,8 +4,9 @@
 //
 //  refactor_Ad.md Phase 0
 //  バナー再 load 判断・リワード契約・エラー型を現行挙動のまま固定する。
-//  Share / VenueSettings の提示経路は Router 注入（Phase 2）まで XCTSkip。
+//  Share / VenueSettings の Presenter 分岐は Phase 4 まで XCTSkip。
 //  refactor_Ad.md Phase 1（AdConfiguration / UnlockRequirement の移設を固定）
+//  refactor_Ad.md Phase 2（Router が Fake を注入できることを固定）
 //
 
 import XCTest

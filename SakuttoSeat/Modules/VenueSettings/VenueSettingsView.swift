@@ -116,7 +116,7 @@ private extension VenueSettingsView {
                 currentColumnCount: 2,
                 featureUnlock: FeatureUnlockState()
             ),
-            router: VenueSettingsRouter(),
+            router: VenueSettingsRouter(rewardedAd: RewardedAdGatewayBase()),
             output: nil
         )
     )

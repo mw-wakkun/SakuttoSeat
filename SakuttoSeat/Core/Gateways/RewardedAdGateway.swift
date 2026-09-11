@@ -2,15 +2,13 @@
 //  RewardedAdGateway.swift
 //  SakuttoSeat
 //
-//  refactor_Ad.md Phase 0（契約の固定。Router 注入と本番実装の差し替えは Phase 2）
+//  refactor_Ad.md Phase 0（契約の固定）
+//  refactor_Ad.md Phase 2（具象 Base。Router は existential ではなくこれを保持する）
 //
 
 import Foundation
 
 /// リワード広告のロード状態。Interactor からも読めるよう nonisolated。
-///
-/// 本番の `RewardedAdManager` への適合と Router 注入は Phase 2。
-/// Phase 1 で Manager は `Core/Gateways` へ移設済み。
 nonisolated protocol RewardedAdGateway: AnyObject {
     var isReady: Bool { get }
     func preload()
@@ -19,4 +17,18 @@ nonisolated protocol RewardedAdGateway: AnyObject {
 /// リワード広告のフルスクリーン提示。UIKit 提示のため Router から MainActor で呼ぶ。
 protocol RewardedAdPresenting: AnyObject {
     @MainActor func present() async throws
+}
+
+/// Protocol existential をクラスが保持すると deinit で malloc abort するため、
+/// Router は具象基底クラスだけを保持する（`GroupFavoriteGatewayBase` と同じ）。
+/// `NSObject`: 本番 Impl が `FullScreenContentDelegate` を満たすため。
+nonisolated class RewardedAdGatewayBase: NSObject, RewardedAdGateway, RewardedAdPresenting {
+    var isReady: Bool = false
+
+    func preload() {}
+
+    @MainActor
+    func present() async throws {
+        throw RewardedAdError.notReady
+    }
 }
