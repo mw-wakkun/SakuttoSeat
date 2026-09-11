@@ -7,19 +7,25 @@
 //  PreferenceKey では計測できない。containerRelativeFrame で親幅を確定する。
 //  refactor_Ad.md Phase 1（AdBannerView と Components に同居。公開 API はこの Container）
 //  refactor_Ad.md Phase 5（上下余白を Container 内に閉じる。Representable は fileprivate）
+//  refactor_Ad.md Phase 6（非表示時は Representable を外す。VoiceOver は現行どおり隠す）
 //
 
 import GoogleMobileAds
 import SwiftUI
 
-/// 親の幅に合わせたアダプティブバナー。VoiceOver では広告を飛ばして操作できるように隠す。
+/// 親の幅に合わせたアダプティブバナー。
+///
+/// VoiceOver: `.accessibilityHidden(true)` で広告を操作対象から外す。
+/// 「飛ばせるが存在する」にはしない。CTA などアプリ本体だけを辿れるようにする。
 /// 機能 View が置いてよい唯一の広告 UI。SDK / ユニット ID / Representable は知らない。
 struct AdBannerContainer: View {
     @State private var bannerWidth: CGFloat = 0
+    /// Navigation で隠れた画面では false。シート提示では親の onDisappear は通常来ない。
+    @State private var isOnScreen = false
 
     var body: some View {
         ZStack {
-            if bannerWidth > 0 {
+            if AdBannerMetrics.shouldMountBanner(isOnScreen: isOnScreen, width: bannerWidth) {
                 AdBannerView(width: bannerWidth)
                     .frame(width: bannerWidth, height: bannerHeight)
             }
@@ -31,6 +37,8 @@ struct AdBannerContainer: View {
             updateWidth(newWidth)
         }
         .padding(.vertical, AppSpacing.bannerVerticalPadding)
+        .onAppear { isOnScreen = true }
+        .onDisappear { isOnScreen = false }
         .accessibilityHidden(true)
     }
 
@@ -57,6 +65,12 @@ enum AdBannerMetrics {
     static func shouldReloadBanner(previous: CGSize?, next: CGSize) -> Bool {
         guard let previous else { return true }
         return roundedPointSize(previous) != roundedPointSize(next)
+    }
+
+    /// Navigation で隠れた画面、または幅未確定では Representable を載せない。
+    /// 3 画面で 1 つの `BannerView` を使い回さない。プレースホルダ高さは Container 側で維持する。
+    static func shouldMountBanner(isOnScreen: Bool, width: CGFloat) -> Bool {
+        isOnScreen && width > 0
     }
 
     fileprivate static func anchoredAdaptiveAdSize(width: CGFloat) -> AdSize {
@@ -87,6 +101,10 @@ fileprivate struct AdBannerView: UIViewRepresentable {
             AdBannerMetrics.anchoredAdaptiveAdSize(width: width),
             on: uiView
         )
+    }
+
+    static func dismantleUIView(_ uiView: BannerView, coordinator: Coordinator) {
+        coordinator.dismantle(uiView)
     }
 
     /// BannerView の intrinsic サイズが SwiftUI の親を押し広げないようにする。
@@ -142,6 +160,15 @@ extension AdBannerView {
             }
             banner.rootViewController = rootViewController
             banner.load(Request())
+        }
+
+        /// 非表示で Representable が外れたとき、進行中の load と自動 refresh を止める。
+        func dismantle(_ banner: BannerView) {
+            loadGeneration += 1
+            lastLoadedSize = nil
+            banner.isAutoloadEnabled = false
+            banner.delegate = nil
+            banner.rootViewController = nil
         }
 
         /// 起動直後は keyWindow がまだ無いことがあるので、Share シートと同じく短く待つ。

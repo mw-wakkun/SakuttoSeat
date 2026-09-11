@@ -24,7 +24,7 @@
 | 3 | SDK 寿命・報酬判定・バナー Coordinator の是正 | ✅ 完了（2026-09-11） |
 | 4 | Share / VenueSettings の提示経路をテスト可能にする | ✅ 完了（2026-09-11） |
 | 5 | バナー UI の単一窓口化・余白規約 | ✅ 完了（2026-09-11） |
-| 6 | パフォーマンス・A11y・収益まわりの仕上げ | 未着手 |
+| 6 | パフォーマンス・A11y・収益まわりの仕上げ | ✅ 完了（2026-09-11） |
 
 回帰基準: `SakuttoSeatTests` の既存スイート
 （SeatingChart / Share / TableEdit / VenueSettings / AttendeeList を含む）に加え、
@@ -568,6 +568,20 @@ enum SessionRewardedAd {
 - 完了条件: 画面遷移でバナー実体が意図どおり増減する。QA §10 / リワード項目が更新済み。
 - リスク: 中（収益・A11y は仕様判断を含む）。
 
+実施済み（2026-09-11）:
+- 非表示時: `AdBannerContainer` が `onAppear` / `onDisappear` で Representable を付け外し。
+  機能 View は `AdBannerContainer()` のまま。`dismantleUIView` で進行中 load を無効化し、
+  delegate / rootVC / autoload を切る。3 画面で 1 本の `BannerView` 使い回しはしない。
+  プレースホルダ高さは維持してジャンプを避ける。`shouldMountBanner` をユニットで固定
+- VoiceOver: `.accessibilityHidden(true)` を維持。広告は操作対象から外し、CTA 等アプリ本体に限定。
+  「飛ばせるが存在する」には切り替えない（§8 推奨どおり）
+- SKAdNetwork: `Info.plist` を Google AdMob quick-start の推奨リスト
+  （https://developers.google.com/admob/ios/quick-start 、2026-09-11 時点 50 件）へ更新。
+  Google 公式 `cstr6suwn9.skadnetwork` を含むことをテストで固定
+- ATT: 出さない（現状維持）。`NSUserTrackingUsageDescription` は置かない。出す場合は別タスク
+- Instruments での `BannerView` 生存数は QA §10.7 の手動確認。ユニットは mount 判定を固定
+- QA §10.7 に非表示バナー・VoiceOver・ATT 非表示を追記
+
 ---
 
 ## 6. 見込み効果
@@ -618,10 +632,14 @@ enum SessionRewardedAd {
    次のサイズ変更または再表示で再 load。
 4. **非表示バナー** — 推奨: Navigation で隠れた画面の load/refresh を止める。
    1 つの BannerView を全画面で使い回さない。
+   → **Phase 6 で実施。** Container の onAppear/onDisappear + `dismantleUIView`。
 5. **VoiceOver** — 推奨: 現行どおり広告を隠し、操作対象をアプリ本体に限定する。
    変更するなら Phase 6 で明示的にひっくり返す。
+   → **Phase 6 で確認済み。** `.accessibilityHidden(true)` を維持。ひっくり返さない。
 6. **ATT** — 本計画のデフォルトは現状維持（出さない）。出す場合は別タスク。
+   → **Phase 6 でチェック済み。** 出さない。`NSUserTrackingUsageDescription` は置かない。
 7. **SKAdNetwork リスト拡充** — 推奨: Google の最新リストへ更新（コード層と独立、Phase 6）。
+   → **Phase 6 で実施。** AdMob quick-start の推奨リストへ更新（2026-09-11 時点 50 件）。
 8. **未準備アラート文言** — 推奨: タイトル・本文を VenueSettings 側に揃え、
    Share の「広告を読み込み中」をやめる（実際は読み込み開始を投げているだけで
    プログレスでは無いため）。

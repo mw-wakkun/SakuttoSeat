@@ -9,6 +9,7 @@
 //  refactor_Ad.md Phase 3（報酬フラグの順序・バナー幅の pt 丸め）
 //  refactor_Ad.md Phase 4（未準備アラート文言の単一化。Presenter 分岐は Share / VenueSettings テスト）
 //  refactor_Ad.md Phase 5（バナー余白トークンとプレースホルダ高さ。Representable は fileprivate）
+//  refactor_Ad.md Phase 6（非表示時は mount しない。SKAdNetwork 拡充。ATT は出さない）
 //
 
 import XCTest
@@ -58,6 +59,24 @@ final class AdBannerReloadPolicyTests: XCTestCase {
                 next: CGSize(width: 320.6, height: 50)
             )
         )
+    }
+}
+
+// MARK: - 非表示時は Representable を載せない（Phase 6）
+
+final class AdBannerVisibilityTests: XCTestCase {
+
+    func test_画面上で幅が確定していれば載せる() {
+        XCTAssertTrue(AdBannerMetrics.shouldMountBanner(isOnScreen: true, width: 390))
+    }
+
+    func test_Navigationで隠れた画面は載せない() {
+        XCTAssertFalse(AdBannerMetrics.shouldMountBanner(isOnScreen: false, width: 390))
+    }
+
+    func test_幅未確定では載せない() {
+        XCTAssertFalse(AdBannerMetrics.shouldMountBanner(isOnScreen: true, width: 0))
+        XCTAssertFalse(AdBannerMetrics.shouldMountBanner(isOnScreen: false, width: 0))
     }
 }
 
@@ -275,6 +294,38 @@ final class RewardedAdPresentationStateTests: XCTestCase {
         XCTAssertTrue(state.beginPresenting())
         XCTAssertFalse(state.hasEarnedReward)
         XCTAssertEqual(state.dismiss(), .notEarned)
+    }
+}
+
+// MARK: - SKAdNetwork / ATT（Phase 6。収益まわりの仕様固定）
+
+final class AdPrivacyConfigurationTests: XCTestCase {
+
+    func test_SKAdNetworkはGoogle公式識別子を含み1件だけではない() {
+        let identifiers = skAdNetworkIdentifiers()
+
+        XCTAssertTrue(
+            identifiers.contains("cstr6suwn9.skadnetwork"),
+            "Google 公式の cstr6suwn9.skadnetwork が必要"
+        )
+        // Google AdMob quick-start（2026-09-11）は 50 件。1 件への回帰を防ぐ。
+        XCTAssertGreaterThanOrEqual(identifiers.count, 50)
+        XCTAssertEqual(identifiers.count, Set(identifiers).count, "重複があってはならない")
+        XCTAssertTrue(identifiers.allSatisfy { $0.hasSuffix(".skadnetwork") })
+    }
+
+    func test_ATTは出さないのでUsageDescriptionを持たない() {
+        let description = appInfoDictionary()["NSUserTrackingUsageDescription"]
+        XCTAssertNil(description)
+    }
+
+    private func skAdNetworkIdentifiers() -> [String] {
+        let items = appInfoDictionary()["SKAdNetworkItems"] as? [[String: String]] ?? []
+        return items.compactMap { $0["SKAdNetworkIdentifier"] }
+    }
+
+    private func appInfoDictionary() -> [String: Any] {
+        Bundle(for: RewardedAdGatewayImpl.self).infoDictionary ?? [:]
     }
 }
 
