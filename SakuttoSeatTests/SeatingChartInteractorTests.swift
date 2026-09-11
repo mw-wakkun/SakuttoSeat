@@ -521,6 +521,35 @@ final class SeatingChartInteractorTests: XCTestCase {
         XCTAssertEqual(tables.map(\.id), originalIDs)
     }
 
+    func test_loadAndApplyTemplate_ID指定でレイアウトを復元する() throws {
+        let gateway = InMemorySeatingTemplateGateway()
+        let attendees = makeAttendees(["A", "B", "C", "D", "E", "F"])
+        let interactor = SeatingChartInteractor(attendees: attendees, templateGateway: gateway)
+        let template = SeatingLayoutTemplate(
+            name: "宴会場",
+            tables: [
+                TableTemplate(name: "受付卓", capacity: 3, columnCount: 3, layoutDirection: .left, layoutText: "入り口側"),
+                TableTemplate(name: "奥卓", capacity: 3, columnCount: 3, layoutDirection: .right, layoutText: "窓際")
+            ],
+            globalColumnCount: 4
+        )
+        try gateway.insert(template)
+
+        let tables = try interactor.loadAndApplyTemplate(id: template.id)
+
+        XCTAssertEqual(interactor.currentVenueSettings().globalColumnCount, 4)
+        XCTAssertEqual(tables.map(\.name), ["受付卓", "奥卓"])
+        XCTAssertEqual(assignedIDs(tables), Set(attendees.map(\.id)))
+    }
+
+    func test_loadAndApplyTemplate_存在しないIDはnotFound() {
+        let interactor = makeInteractor(names: ["A"], templateGateway: InMemorySeatingTemplateGateway())
+
+        XCTAssertThrowsError(try interactor.loadAndApplyTemplate(id: UUID())) { error in
+            XCTAssertEqual(error as? TemplateSaveError, .notFound)
+        }
+    }
+
     // MARK: - テンプレート保存スナップショット
 
     func test_テンプレート保存_現在のレイアウトと会場列数がスナップショットされる() throws {
@@ -577,6 +606,15 @@ final class SeatingChartInteractorTests: XCTestCase {
 
         XCTAssertEqual(first.templates.map(\.name), ["最初"])
         XCTAssertEqual(second.templates.map(\.name), ["差し替え後"])
+    }
+
+    func test_currentTemplateGatewayはattachしたインスタンスを返す() {
+        let gateway = InMemorySeatingTemplateGateway()
+        let interactor = makeInteractor(names: ["A"])
+
+        interactor.attachTemplateGateway(gateway)
+
+        XCTAssertTrue(interactor.currentTemplateGateway() === gateway)
     }
 
     // MARK: - 会場設定とセッション解放

@@ -2,10 +2,8 @@
 //  SeatingChartRouterTests.swift
 //  SakuttoSeatTests
 //
-//  refactor_templateListView.md Phase 0（テンプレート一覧の組み立てを固定）
-//
-//  `_既知の課題`: `makeTemplateListModule` は Gateway を受け取らず、
-//  素の `SeatingTemplateListView`（`@Query`）を包むだけ。子 VIPER 化は Phase 2。
+//  refactor_templateListView.md Phase 0 / Phase 2
+//  テンプレート一覧は子 VIPER に委譲する。シート identity は Phase 4。
 //
 
 import SwiftUI
@@ -15,55 +13,68 @@ import XCTest
 @MainActor
 final class SeatingChartRouterTests: XCTestCase {
 
-    func test_makeTemplateListModuleはSeatingTemplateListViewを組み立てる() {
+    func test_makeTemplateListModuleはSeatingTemplateViewを組み立てる() {
         let router = SeatingChartRouter()
         let output = TemplateListOutputSpy()
 
-        let sheet = router.makeTemplateListModule(output: output)
+        let sheet = router.makeTemplateListModule(
+            gateway: InMemorySeatingTemplateGateway(),
+            output: output
+        )
 
         XCTAssertTrue(
-            viewTreeContainsTypeName(sheet, "SeatingTemplateListView"),
-            "テンプレート一覧シートの中身は SeatingTemplateListView である"
+            viewTreeContainsTypeName(sheet, "SeatingTemplateView"),
+            "テンプレート一覧シートの中身は SeatingTemplateView である"
         )
     }
 
     func test_RouterProtocol経由でもテンプレート一覧を組み立てる() {
         let router: any SeatingChartRouterProtocol = SeatingChartRouter()
 
-        let sheet = router.makeTemplateListModule(output: TemplateListOutputSpy())
+        let sheet = router.makeTemplateListModule(
+            gateway: InMemorySeatingTemplateGateway(),
+            output: TemplateListOutputSpy()
+        )
 
-        XCTAssertTrue(viewTreeContainsTypeName(sheet, "SeatingTemplateListView"))
+        XCTAssertTrue(viewTreeContainsTypeName(sheet, "SeatingTemplateView"))
     }
 
     func test_同じoutputで2回makeしても組み立てられる() {
         let router = SeatingChartRouter()
+        let gateway = InMemorySeatingTemplateGateway()
         let output = TemplateListOutputSpy()
 
-        _ = router.makeTemplateListModule(output: output)
-        _ = router.makeTemplateListModule(output: output)
+        _ = router.makeTemplateListModule(gateway: gateway, output: output)
+        _ = router.makeTemplateListModule(gateway: gateway, output: output)
     }
 
-    /// `_既知の課題`: 親 Interactor の Gateway を一覧へ渡せない。組み立ては fetch しない。
-    func test_既知の課題_一覧組み立てはGatewayを読まない() throws {
+    func test_一覧組み立ては渡したGatewayインスタンスから一覧を読む() throws {
         let gateway = FetchCountingSeatingTemplateGateway()
         try gateway.insert(
             SeatingLayoutTemplate(name: "共有", tables: [], globalColumnCount: 2)
         )
         XCTAssertEqual(gateway.fetchAllCallCount, 0)
 
-        _ = SeatingChartRouter().makeTemplateListModule(output: TemplateListOutputSpy())
+        _ = SeatingChartRouter().makeTemplateListModule(
+            gateway: gateway,
+            output: TemplateListOutputSpy()
+        )
+        _ = SeatingTemplateRouter.assembleModule(
+            gateway: gateway,
+            output: TemplateListOutputSpy()
+        )
 
-        XCTAssertEqual(gateway.fetchAllCallCount, 0)
+        XCTAssertGreaterThanOrEqual(gateway.fetchAllCallCount, 2)
     }
 }
 
 @MainActor
-private final class TemplateListOutputSpy: TemplateListModuleOutput {
-    var selected: SeatingLayoutTemplate?
+private final class TemplateListOutputSpy: SeatingTemplateModuleOutput {
+    var selectedID: SeatingTemplateID?
     var cancelCount = 0
 
-    func templateListDidSelect(template: SeatingLayoutTemplate) {
-        selected = template
+    func templateListDidSelect(id: SeatingTemplateID) {
+        selectedID = id
     }
 
     func templateListDidCancel() {

@@ -3,7 +3,7 @@
 //  SakuttoSeatTests
 //
 //  refactor_seating.md Phase 4（Gateway / Router 仲介の回帰）
-//  refactor_templateListView.md Phase 0（TemplateList Output / route の characterization）
+//  refactor_templateListView.md Phase 0 / Phase 2（TemplateList Output は ID。cancel は閉じるから接続）
 //
 
 import XCTest
@@ -65,8 +65,9 @@ final class SeatingChartPresenterTests: XCTestCase {
         }
     }
 
-    func test_テンプレート適用で会場列数がViewDataに反映され先頭へスクロールする() {
-        let presenter = makePresenter(names: ["A", "B", "C", "D", "E", "F"])
+    func test_テンプレート適用で会場列数がViewDataに反映され先頭へスクロールする() throws {
+        let gateway = InMemorySeatingTemplateGateway()
+        let presenter = makePresenter(names: ["A", "B", "C", "D", "E", "F"], templateGateway: gateway)
         let template = SeatingLayoutTemplate(
             name: "宴会場",
             tables: [
@@ -75,11 +76,14 @@ final class SeatingChartPresenterTests: XCTestCase {
             ],
             globalColumnCount: 4
         )
+        try gateway.insert(template)
+        presenter.didTapLoadTemplate()
 
-        presenter.applyTemplate(template)
+        presenter.templateListDidSelect(id: template.id)
 
         XCTAssertEqual(presenter.globalColumnCount, 4)
         XCTAssertEqual(presenter.viewData.globalColumnCount, 4)
+        XCTAssertNil(presenter.route)
         guard case .scrollToTop = presenter.canvasEvent else {
             return XCTFail("テンプレート適用後は先頭へスクロールする")
         }
@@ -209,8 +213,9 @@ final class SeatingChartPresenterTests: XCTestCase {
         XCTAssertEqual(presenter.route, .templateList)
     }
 
-    func test_TemplateListOutputの選択は会場列数を反映してシートを閉じる() {
-        let presenter = makePresenter(names: ["A", "B", "C", "D", "E", "F"])
+    func test_TemplateListOutputの選択は会場列数を反映してシートを閉じる() throws {
+        let gateway = InMemorySeatingTemplateGateway()
+        let presenter = makePresenter(names: ["A", "B", "C", "D", "E", "F"], templateGateway: gateway)
         presenter.didTapLoadTemplate()
         let template = SeatingLayoutTemplate(
             name: "宴会場",
@@ -220,8 +225,9 @@ final class SeatingChartPresenterTests: XCTestCase {
             ],
             globalColumnCount: 4
         )
+        try gateway.insert(template)
 
-        presenter.templateListDidSelect(template: template)
+        presenter.templateListDidSelect(id: template.id)
 
         XCTAssertEqual(presenter.globalColumnCount, 4)
         XCTAssertEqual(presenter.viewData.globalColumnCount, 4)
@@ -231,8 +237,6 @@ final class SeatingChartPresenterTests: XCTestCase {
         }
     }
 
-    /// `_既知の課題`: 本番の閉じるボタンは `dismiss()` で、Output の cancel は未接続。
-    /// 呼ばれたときの挙動（route を nil にする）だけ固定する。
     func test_TemplateListOutputのキャンセルはシートを閉じる() {
         let presenter = makePresenter(names: ["A"])
         presenter.didTapLoadTemplate()
@@ -240,6 +244,15 @@ final class SeatingChartPresenterTests: XCTestCase {
         presenter.templateListDidCancel()
 
         XCTAssertNil(presenter.route)
+    }
+
+    func test_存在しないIDの選択はシートを閉じない() {
+        let presenter = makePresenter(names: ["A"])
+        presenter.didTapLoadTemplate()
+
+        presenter.templateListDidSelect(id: UUID())
+
+        XCTAssertEqual(presenter.route, .templateList)
     }
 
     func test_makeRouteSheetはテンプレート一覧を組み立てる() {

@@ -11,9 +11,12 @@ import XCTest
 @MainActor
 final class SeatingChartViewDataTests: XCTestCase {
 
-    private func makePresenter(names: [String]) -> SeatingChartPresenter {
+    private func makePresenter(names: [String], templateGateway: SeatingTemplateGatewayBase = InMemorySeatingTemplateGateway()) -> SeatingChartPresenter {
         SeatingChartPresenter(
-            interactor: SeatingChartInteractor(attendees: names.map { Attendee(name: $0) }),
+            interactor: SeatingChartInteractor(
+                attendees: names.map { Attendee(name: $0) },
+                templateGateway: templateGateway
+            ),
             router: SeatingChartRouter()
         )
     }
@@ -99,8 +102,9 @@ final class SeatingChartViewDataTests: XCTestCase {
         XCTAssertEqual(presenter.route, .tableEdit(tableID))
     }
 
-    func test_テンプレート適用_同一インデックスのテーブルIDを引き継ぐ() {
-        let presenter = makePresenter(names: ["A", "B", "C", "D", "E", "F"])
+    func test_テンプレート適用_同一インデックスのテーブルIDを引き継ぐ() throws {
+        let gateway = InMemorySeatingTemplateGateway()
+        let presenter = makePresenter(names: ["A", "B", "C", "D", "E", "F"], templateGateway: gateway)
         let originalIDs = tableIDs(in: presenter.viewData)
         let template = SeatingLayoutTemplate(
             name: "宴会場",
@@ -110,14 +114,16 @@ final class SeatingChartViewDataTests: XCTestCase {
             ],
             globalColumnCount: 4
         )
+        try gateway.insert(template)
 
-        presenter.applyTemplate(template)
+        presenter.templateListDidSelect(id: template.id)
 
         XCTAssertEqual(tableIDs(in: presenter.viewData), originalIDs)
     }
 
-    func test_didSelectTemplate_会場列数もViewDataに反映される() {
-        let presenter = makePresenter(names: ["A", "B", "C", "D", "E", "F"])
+    func test_didSelectTemplate_会場列数もViewDataに反映される() throws {
+        let gateway = InMemorySeatingTemplateGateway()
+        let presenter = makePresenter(names: ["A", "B", "C", "D", "E", "F"], templateGateway: gateway)
         let template = SeatingLayoutTemplate(
             name: "宴会場",
             tables: [
@@ -126,8 +132,9 @@ final class SeatingChartViewDataTests: XCTestCase {
             ],
             globalColumnCount: 4
         )
+        try gateway.insert(template)
 
-        presenter.didSelectTemplate(template)
+        presenter.templateListDidSelect(id: template.id)
 
         XCTAssertEqual(presenter.globalColumnCount, 4)
         XCTAssertEqual(presenter.viewData.globalColumnCount, 4)

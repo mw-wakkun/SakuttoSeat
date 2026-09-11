@@ -3,7 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_seating.md Phase 4 / Phase 5
-//  refactor_templateListView.md Phase 1（`templateListDidCancel` は本番未接続。消さない）
+//  refactor_templateListView.md Phase 2（一覧は子 VIPER。選択は ID。閉じるは Output）
 //
 
 import Combine
@@ -93,7 +93,7 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
             switch error {
             case .limitReached(let currentCount, let limit):
                 route = .alert(.templateLimitReached(currentCount: currentCount, limit: limit))
-            case .invalidName, .emptyLayout:
+            case .invalidName, .emptyLayout, .notFound:
                 route = nil
             case .persistenceFailed(let message):
                 route = .alert(.saveFailed(message: message))
@@ -104,11 +104,6 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
     }
 
     func didTapLoadTemplate() { route = .templateList }
-
-    func didSelectTemplate(_ template: SeatingLayoutTemplate) {
-        applyTemplate(template)
-        route = nil
-    }
 
     /// 共有はタップ時点の表示内容を Share モジュールへ渡すだけ
     func didTapShare() {
@@ -133,7 +128,10 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
                 output: self
             )
         case .templateList:
-            return router.makeTemplateListModule(output: self)
+            return router.makeTemplateListModule(
+                gateway: interactor.currentTemplateGateway(),
+                output: self
+            )
         case .saveTemplatePrompt, .alert:
             return AnyView(EmptyView())
         }
@@ -147,15 +145,6 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
 
     func didRequestDeleteTable(id: TableID) {
         _ = interactor.deleteTable(id: id)
-        publishState()
-    }
-
-    func applyTemplate(_ template: SeatingLayoutTemplate) {
-        let snapshot = LayoutTemplateSnapshot(
-            name: template.name, tables: template.tables, globalColumnCount: template.globalColumnCount
-        )
-        _ = interactor.applyTemplate(snapshot)
-        canvasEvent = .scrollToTop()
         publishState()
     }
 
@@ -192,13 +181,24 @@ extension SeatingChartPresenter: VenueSettingsModuleOutput {
     }
 }
 
-extension SeatingChartPresenter: TemplateListModuleOutput {
-    func templateListDidSelect(template: SeatingLayoutTemplate) {
-        didSelectTemplate(template)
+extension SeatingChartPresenter: SeatingTemplateModuleOutput {
+    func templateListDidSelect(id: SeatingTemplateID) {
+        do {
+            _ = try interactor.loadAndApplyTemplate(id: id)
+            canvasEvent = .scrollToTop()
+            publishState()
+            route = nil
+        } catch TemplateSaveError.notFound {
+            return
+        } catch let error as TemplateSaveError {
+            if case .persistenceFailed(let message) = error {
+                route = .alert(.saveFailed(message: message))
+            }
+        } catch {
+            route = .alert(.saveFailed(message: error.localizedDescription))
+        }
     }
 
-    /// `_既知の課題`: 本番未接続。閉じるは View の `dismiss()`、スワイプは親の sheet Binding。
-    /// Phase 2 で閉じるボタンから呼ぶ。消さない。
     func templateListDidCancel() {
         route = nil
     }

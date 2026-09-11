@@ -13,7 +13,7 @@ final class FavoriteGroupRouter {
 
     /// モジュールの組み立て（Builder 相当）。
     /// 親が assemble 時に同じ Gateway インスタンスを渡す（子 View は ModelContext を持たない）。
-    /// シート detent はここで付ける（`SeatingChartRouter.makeTemplateListModule` と同じ位置）。
+    /// シート detent はここで付ける（`SeatingTemplateRouter.assembleView` と同じ位置）。
     /// インスタンスのキャッシュは持たない。シート identity は親 Presenter が route 期間中に保持する。
     @MainActor
     static func assemblePresenter(

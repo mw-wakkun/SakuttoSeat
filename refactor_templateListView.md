@@ -19,7 +19,7 @@ Gateway 化 / 子 VIPER 化）を、FavoriteGroup の完成形に揃えて実施
 | --- | --- | --- |
 | 0 | 準備と回帰テスト（ギャップ埋め） | ✅ 完了（2026-09-11） |
 | 1 | デッド API・コメント偽証・規約穴埋め | ✅ 完了（2026-09-11） |
-| 2 | 子 VIPER 化（ViewData.Row / Route / Entity） | 未着手 |
+| 2 | 子 VIPER 化（ViewData.Row / Route / Entity） | ✅ 完了（2026-09-11） |
 | 3 | Gateway の Snapshot 化と親 Interactor の純化 | 未着手 |
 | 4 | シート identity と Router 境界の安定化 | 未着手 |
 | 5 | 再利用部品の揃え（空状態・List・Copy） | 未着手 |
@@ -573,7 +573,21 @@ Phase 1 で Copy / EmptyStateView を旧 View に入れない。
 - Output プロトコル名を `SeatingTemplateModuleOutput` にリネームするなら、
   親 Contracts / Presenter extension を同コミットで置換する。typealias 残しは移行コミットだけ許容。
 
+実装時の決定（2026-09-11）:
+
+- 子 5 層を FavoriteGroup と同型で新設。`SeatingTemplateListView` は `SeatingTemplateView` に置換して削除。
+- View から `@Query` / `ModelContext` / `SeatingLayoutTemplate` を排除。空状態は List 内 `EmptyStateView`。
+- Output は `SeatingTemplateModuleOutput` にリネームし、引数を ID にした。`templateListDidCancel` は閉じるボタンから接続。
+- Gateway に `fetch(id:)` を加法。親 Interactor に `loadAndApplyTemplate(id:)`。見つからない ID は `TemplateSaveError.notFound` でシートを閉じない。
+- `LayoutTemplateSnapshot.id` は必須（未永続化は `UUID()`）。所在の移設は Phase 3。Interactor から生成できるよう `nonisolated` を付与した。
+- 親 Router は `SeatingTemplateRouter.assembleModule(gateway:output:)` に委譲。毎回 assemble（identity は Phase 4）。
+- 削除は子 Interactor が旧 `delete(id:)` を回す。`delete(ids:)` / Snapshot 戻りは Phase 3。
+- Copy は既存 Catalog キーのまま。A11y Hint は Phase 6。
+
 ### Phase 3: Gateway の Snapshot 化と親 Interactor の純化（1.0 日）
+
+Phase 2 で先行済みのため、ここでは触らない:
+`loadAndApplyTemplate(id:)`、`TemplateSaveError.notFound`（見つからない ID はシートを閉じない）。
 
 - Gateway の戻りを Snapshot にし、`insert(name:tables:globalColumnCount:)` /
   `delete(ids:)` に切り替え、旧 API を削除。
@@ -582,8 +596,7 @@ Phase 1 で Copy / EmptyStateView を旧 View に入れない。
   Presenter は ID を渡すだけ。`@Model` 型名が親 Presenter / Interactor から消える。
 - `LayoutTemplateSnapshot` を `SeatingTemplateEntity.swift` へ移設。
   親 Entity からは削除（typealias 残しは移行コミットだけ）。
-- `TemplateSaveError.notFound` を追加。見つからない ID は親がシートを閉じない
-  （お気に入りの `loadFavorite` notFound と同じ。リストは子が既に持っているので通常起きない）。
+- 見つからない ID は親がシートを閉じない（Phase 2 で `notFound` 済み。アラートは persistence 失敗だけ）。
 - `InMemorySeatingTemplateGateway.templates` の `@Model` 公開をやめる。
   テストは `fetchAll()` で断言。
 - `@Model.makeSnapshot()` 相当は Gateway プライベート。

@@ -33,6 +33,12 @@ nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
         templateGateway = gateway
     }
 
+    /// Router が子モジュール組み立て時に同じインスタンスを渡すための供給口。
+    /// Presenter の公開面には出さない。
+    func currentTemplateGateway() -> SeatingTemplateGatewayBase {
+        templateGateway
+    }
+
     func currentTables() -> [SeatingTable] {
         tables
     }
@@ -298,6 +304,29 @@ nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
         venueSettings.globalColumnCount = snapshot.globalColumnCount
         tables = assign(attendees: attendees, to: restoredTables, shuffle: false)
         return tables
+    }
+
+    @discardableResult
+    func loadAndApplyTemplate(id: SeatingTemplateID) throws -> [SeatingTable] {
+        let template: SeatingLayoutTemplate?
+        do {
+            template = try templateGateway.fetch(id: id)
+        } catch {
+            throw TemplateSaveError.persistenceFailed(message: error.localizedDescription)
+        }
+
+        guard let template else {
+            throw TemplateSaveError.notFound
+        }
+
+        return applyTemplate(
+            LayoutTemplateSnapshot(
+                id: template.id,
+                name: template.name,
+                tables: template.tables,
+                globalColumnCount: template.globalColumnCount
+            )
+        )
     }
 
     // MARK: - テーブル名
