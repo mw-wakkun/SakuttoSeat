@@ -6,6 +6,7 @@
 //  refactor_AttendeeList.md Phase 6（アダプティブサイズ。Coordinator で同じサイズなら再 load しない）
 //  refactor_Ad.md Phase 0（shouldReloadBanner を純関数化）
 //  起動直後の空バナー対策: SDK start 完了と rootViewController 確定後に load する
+//  refactor_Ad.md Phase 1（Components へ移設。ユニット ID は AdConfiguration）
 //
 
 import GoogleMobileAds
@@ -60,11 +61,7 @@ extension AdBannerView {
 
         func makeBanner(adSize: AdSize) -> BannerView {
             let banner = BannerView(adSize: adSize)
-            #if DEBUG
-            banner.adUnitID = "ca-app-pub-3940256099942544/2934735716"
-            #else
-            banner.adUnitID = "ca-app-pub-9676260030977388/3254679876"
-            #endif
+            banner.adUnitID = AdConfiguration.bannerUnitID
             banner.delegate = self
             return banner
         }

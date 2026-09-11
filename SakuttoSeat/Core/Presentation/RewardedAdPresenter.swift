@@ -3,18 +3,10 @@
 //  SakuttoSeat
 //
 //  refactor_seating.md Phase 4（リワード広告提示の async ラッパ）
+//  refactor_Ad.md Phase 1（RewardedAdError を Core/Entity へ移設。本型の削除は Phase 2）
 //
 
 import Foundation
-
-enum RewardedAdError: Error, Equatable {
-    /// 広告が未ロード、または提示先 VC が取れない
-    case notReady
-    /// 視聴は完了したが報酬未獲得のまま閉じた
-    case notEarned
-    /// 提示自体に失敗した
-    case failed(String)
-}
 
 @MainActor
 enum RewardedAdPresenter {

@@ -19,7 +19,7 @@
 | --- | --- | --- |
 | 0 | 準備と回帰テスト | ✅ 完了（2026-09-11） |
 | — | Phase 0 完了後の表示 hotfix（下記） | ✅ 完了（2026-09-11） |
-| 1 | 配置・命名・設定の単一化（挙動は変えない） | 未着手 |
+| 1 | 配置・命名・設定の単一化（挙動は変えない） | ✅ 完了（2026-09-11） |
 | 2 | Gateway 契約と Router 注入口 | 未着手 |
 | 3 | SDK 寿命・報酬判定・バナー Coordinator の是正 | 未着手 |
 | 4 | Share / VenueSettings の提示経路をテスト可能にする | 未着手 |
@@ -413,6 +413,15 @@ Phase 0 自体はテスト固定が目的で、表示バグの修正は含まな
 - 完了条件: ユニット ID のリテラルが `AdConfiguration` 以外に無い。
   `import GoogleMobileAds` が App / Gateway 実装 / バナー Representable 以外に無い。
 - リスク: 低（移動のみ）。
+
+実施済み（2026-09-11）:
+- `UnlockRequirement` → `Core/Entity/UnlockRequirement.swift`
+- `RewardedAdError` → `Core/Entity/RewardedAdError.swift`
+- `AdConfiguration` → `Core/Gateways/AdConfiguration.swift`
+- `AdBannerView` → `Components/AdBannerView.swift`（Container と同ディレクトリ）
+- `RewardedAdManager` → `Core/Gateways/RewardedAdManager.swift`。`ObservableObject` / `@Published` / Combine を削除
+- `Modules/AdBanner/` を削除
+- `RewardedAdManager.shared` と `RewardedAdPresenter.present()` は Phase 2 まで維持（Router 注入口を壊さない）
 
 ### Phase 2: Gateway 契約と Router 注入口（1 日）
 

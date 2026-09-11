@@ -5,6 +5,7 @@
 //  refactor_AttendeeList.md Phase 6（画面側の 320×50 固定を廃止し、幅に追従する）
 //  番号札のように inset 内がバナーだけの画面では、子の ideal 幅が 0 になり
 //  PreferenceKey では計測できない。containerRelativeFrame で親幅を確定する。
+//  refactor_Ad.md Phase 1（AdBannerView と Components に同居。公開 API はこの Container）
 //
 
 import SwiftUI

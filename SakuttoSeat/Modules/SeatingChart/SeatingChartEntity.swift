@@ -53,14 +53,6 @@ nonisolated struct TableUpdateRequest: Equatable {
     let applyToAll: Bool
 }
 
-/// 列数変更や画像共有などに必要な解放条件
-///
-/// `nonisolated`: Interactor（nonisolated）の戻り値として使うため。
-nonisolated enum UnlockRequirement: Equatable {
-    case none
-    case rewardedAd
-}
-
 /// 会場列数の適用に失敗した理由
 enum VenueSettingsError: Error, Equatable {
     case unlockRequired(requested: Int)

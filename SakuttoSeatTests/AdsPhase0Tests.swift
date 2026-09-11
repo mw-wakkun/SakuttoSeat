@@ -5,6 +5,7 @@
 //  refactor_Ad.md Phase 0
 //  バナー再 load 判断・リワード契約・エラー型を現行挙動のまま固定する。
 //  Share / VenueSettings の提示経路は Router 注入（Phase 2）まで XCTSkip。
+//  refactor_Ad.md Phase 1（AdConfiguration / UnlockRequirement の移設を固定）
 //
 
 import XCTest
@@ -39,7 +40,33 @@ final class AdBannerReloadPolicyTests: XCTestCase {
     }
 }
 
-// MARK: - RewardedAdError（現行 Entity）
+// MARK: - AdConfiguration（Phase 1。DEBUG は Google サンプル ID）
+
+final class AdConfigurationTests: XCTestCase {
+
+    func test_ユニットIDはビルド構成に応じた値である() {
+        #if DEBUG
+        XCTAssertEqual(AdConfiguration.bannerUnitID, "ca-app-pub-3940256099942544/2934735716")
+        XCTAssertEqual(AdConfiguration.rewardedUnitID, "ca-app-pub-3940256099942544/5224354917")
+        #else
+        XCTAssertEqual(AdConfiguration.bannerUnitID, "ca-app-pub-9676260030977388/3254679876")
+        XCTAssertEqual(AdConfiguration.rewardedUnitID, "ca-app-pub-9676260030977388/5413826350")
+        #endif
+    }
+}
+
+// MARK: - UnlockRequirement（Core Entity）
+
+final class UnlockRequirementTests: XCTestCase {
+
+    func test_同等比較できる() {
+        XCTAssertEqual(UnlockRequirement.none, .none)
+        XCTAssertEqual(UnlockRequirement.rewardedAd, .rewardedAd)
+        XCTAssertNotEqual(UnlockRequirement.none, .rewardedAd)
+    }
+}
+
+// MARK: - RewardedAdError（Core Entity）
 
 final class RewardedAdErrorTests: XCTestCase {
 

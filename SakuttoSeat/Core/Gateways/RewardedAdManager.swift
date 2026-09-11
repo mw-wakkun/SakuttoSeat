@@ -3,28 +3,20 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/08/17.
+//  refactor_Ad.md Phase 1（Core/Gateways へ移設。ObservableObject を削除。Impl 化は Phase 2）
 //
 
 import Foundation
-import Combine
 import GoogleMobileAds
 import UIKit
 
-final class RewardedAdManager: NSObject, ObservableObject, FullScreenContentDelegate {
+final class RewardedAdManager: NSObject, FullScreenContentDelegate {
     static let shared = RewardedAdManager()
 
     private var rewardedAd: RewardedAd?
-    @Published var isAdReady: Bool = false
+    var isAdReady: Bool = false
     private var hasEarnedReward = false
     private var presentContinuation: CheckedContinuation<Void, Error>?
-
-    var adUnitID: String {
-        #if DEBUG
-        return "ca-app-pub-3940256099942544/5224354917"
-        #else
-        return "ca-app-pub-9676260030977388/5413826350"
-        #endif
-    }
 
     private override init() {
         super.init()
@@ -33,7 +25,7 @@ final class RewardedAdManager: NSObject, ObservableObject, FullScreenContentDele
 
     func loadAd() {
         let request = Request()
-        RewardedAd.load(with: adUnitID, request: request) { [weak self] ad, error in
+        RewardedAd.load(with: AdConfiguration.rewardedUnitID, request: request) { [weak self] ad, error in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if let error = error {
