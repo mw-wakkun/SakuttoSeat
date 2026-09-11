@@ -2,7 +2,7 @@
 //  SimpleShuffleTests.swift
 //  SakuttoSeatTests
 //
-//  refactor_simple.md Phase 0（番号札の現状挙動を固定する回帰）
+//  refactor_simple.md Phase 0 / Phase 1（番号札の現状挙動を固定する回帰。Share は必須注入）
 //
 //  `_既知の課題` が付いたテストは是正対象の挙動を意図的に固定している。
 //  初期表示の登録順は Phase 4、Share / Snapshot の `[String]` 依存は Phase 2 で更新する。
@@ -119,11 +119,19 @@ final class SimpleShuffleViewDataTests: XCTestCase {
 @MainActor
 final class SimpleShufflePresenterTests: XCTestCase {
 
+    private func makePresenter(
+        attendees: [Attendee],
+        share: SharePresenter? = nil
+    ) -> SimpleShufflePresenter {
+        SimpleShufflePresenter(
+            interactor: SimpleShuffleInteractor(attendees: attendees),
+            share: share ?? ShareRouter.assemblePresenter()
+        )
+    }
+
     func test_初期ViewDataは登録順_QA9_1と不一致_既知の課題() {
         let attendees = [Attendee(name: "太郎"), Attendee(name: "花子")]
-        let presenter = SimpleShufflePresenter(
-            interactor: SimpleShuffleInteractor(attendees: attendees)
-        )
+        let presenter = makePresenter(attendees: attendees)
 
         XCTAssertEqual(presenter.viewData.rows.map(\.name), ["太郎", "花子"])
         XCTAssertEqual(presenter.viewData.rows.map(\.number), [1, 2])
@@ -132,9 +140,7 @@ final class SimpleShufflePresenterTests: XCTestCase {
 
     func test_シャッフル後も集合は不変で番号は1始まり() {
         let attendees = [Attendee(name: "A"), Attendee(name: "B"), Attendee(name: "C")]
-        let presenter = SimpleShufflePresenter(
-            interactor: SimpleShuffleInteractor(attendees: attendees)
-        )
+        let presenter = makePresenter(attendees: attendees)
 
         presenter.didTapShuffle()
 
@@ -143,13 +149,20 @@ final class SimpleShufflePresenterTests: XCTestCase {
         XCTAssertEqual(presenter.viewData.rows.map(\.number), [1, 2, 3])
     }
 
+    func test_注入したShareをProtocol経由で公開する() {
+        let share = ShareRouter.assemblePresenter()
+        let presenter: any SimpleShufflePresenterProtocol = makePresenter(
+            attendees: [Attendee(name: "A")],
+            share: share
+        )
+
+        XCTAssertTrue(presenter.share === share)
+    }
+
     func test_共有は初期の登録順の名前配列をShareへ渡す() {
         let attendees = [Attendee(name: "太郎"), Attendee(name: "花子")]
         let share = ShareRouter.assemblePresenter()
-        let presenter = SimpleShufflePresenter(
-            interactor: SimpleShuffleInteractor(attendees: attendees),
-            share: share
-        )
+        let presenter = makePresenter(attendees: attendees, share: share)
 
         presenter.didTapShare()
 
@@ -164,10 +177,7 @@ final class SimpleShufflePresenterTests: XCTestCase {
     func test_シャッフル後の共有は現在の並びの名前配列をShareへ渡す() {
         let attendees = (1...8).map { Attendee(name: "N\($0)") }
         let share = ShareRouter.assemblePresenter()
-        let presenter = SimpleShufflePresenter(
-            interactor: SimpleShuffleInteractor(attendees: attendees),
-            share: share
-        )
+        let presenter = makePresenter(attendees: attendees, share: share)
         let originalNames = attendees.map(\.name)
 
         var currentNames = originalNames

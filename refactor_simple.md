@@ -16,7 +16,7 @@ SimpleShuffle の **5 層の箱と ViewData** は AttendeeList Phase 5 で既に
 | Phase | 内容 | 状態 |
 | --- | --- | --- |
 | 0 | 準備と回帰テスト | ✅ 完了（2026-09-11） |
-| 1 | 規約穴埋め（Router DI / Protocol / Entity 純化） | 未着手 |
+| 1 | 規約穴埋め（Router DI / Protocol / Entity 純化） | ✅ 完了（2026-09-11） |
 | 2 | Share / Snapshot を ViewData 駆動にする | 未着手 |
 | 3 | 再利用・一貫性・i18n / A11y | 未着手 |
 | 4 | 性能・初期表示仕様・空状態 | 未着手 |
@@ -470,6 +470,15 @@ QA 9.1 と「番号札で決める」CTA の期待に揃う。登録順を見た
 
 完了条件: ビルド成功、Phase 0 green、差分が DI・let 化・戻り値利用に限定。
 リスク: 低。Preview / テストのイニシャライザ呼び出し漏れに注意。
+
+実装時の決定（2026-09-11）:
+
+- `SimpleShuffleRouter.assembleModule` が `ShareRouter.assemblePresenter()` を生成して注入する。
+- Presenter の `share` デフォルト引数を廃止。テストは `ShareRouter.assemblePresenter()` を明示注入。
+- `SimpleShufflePresenterProtocol` に `var share: SharePresenter { get }` を追加（SeatingChart と同じ）。
+- `NumberedSeat.name` を `let` に。`number` はシャッフル後の付け替えのため `var` のまま。
+- `didTapShuffle` は `interactor.shuffle()` の戻りで ViewData を更新。初期表示は `allSeats()`。
+- 空の `SimpleShuffleRouterProtocol` は作っていない。Router ファイルに Builder 責務をコメントした。
 
 ### Phase 2: Share / Snapshot を ViewData 駆動にする（1 日）— **本計画の中核**
 

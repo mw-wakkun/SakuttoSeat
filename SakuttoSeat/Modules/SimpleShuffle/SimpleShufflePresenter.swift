@@ -3,7 +3,7 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/07.
-//  refactor_AttendeeList.md Phase 5（ViewData 公開。withAnimation は View 側）
+//  refactor_simple.md Phase 1（Share は Router から注入。shuffle の戻りで ViewData を更新）
 //
 
 import Combine
@@ -19,15 +19,14 @@ final class SimpleShufflePresenter: ObservableObject, SimpleShufflePresenterProt
     /// protocol existential を MainActor クラスが保持すると deinit で malloc abort するため具象型で保持する。
     private let interactor: SimpleShuffleInteractor
 
-    init(interactor: SimpleShuffleInteractor, share: SharePresenter? = nil) {
+    init(interactor: SimpleShuffleInteractor, share: SharePresenter) {
         self.interactor = interactor
-        self.share = share ?? ShareRouter.assemblePresenter()
-        publishState()
+        self.share = share
+        publishState(seats: interactor.allSeats())
     }
 
     func didTapShuffle() {
-        _ = interactor.shuffle()
-        publishState()
+        publishState(seats: interactor.shuffle())
     }
 
     /// 共有はタップ時点の並び順を Share モジュールへ渡すだけ
@@ -35,7 +34,7 @@ final class SimpleShufflePresenter: ObservableObject, SimpleShufflePresenterProt
         share.didTapShare(subject: .numberedList(attendees: viewData.rows.map(\.name)))
     }
 
-    private func publishState() {
-        viewData = SimpleShuffleViewDataBuilder.build(seats: interactor.allSeats())
+    private func publishState(seats: [NumberedSeat]) {
+        viewData = SimpleShuffleViewDataBuilder.build(seats: seats)
     }
 }

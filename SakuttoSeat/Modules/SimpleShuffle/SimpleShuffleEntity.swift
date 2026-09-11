@@ -2,7 +2,7 @@
 //  SimpleShuffleEntity.swift
 //  SakuttoSeat
 //
-//  refactor_AttendeeList.md Phase 5
+//  refactor_simple.md Phase 1（name は不変。number だけシャッフル後に付け替える）
 //
 
 import Foundation
@@ -12,6 +12,6 @@ import Foundation
 /// `nonisolated`: 既定の MainActor 隔離だと `nonisolated` な Interactor から生成できないため。
 nonisolated struct NumberedSeat: Identifiable, Equatable {
     let id: UUID
-    var name: String
+    let name: String
     var number: Int
 }

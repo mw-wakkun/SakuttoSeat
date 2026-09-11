@@ -3,7 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_AttendeeList.md Phase 5
-//  シャッフルは集合不変・順序変更。番号は並び順の 1-based。
+//  refactor_simple.md Phase 1（シャッフルは集合不変・順序変更。番号は並び順の 1-based）
 //
 
 import Foundation
