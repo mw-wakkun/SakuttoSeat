@@ -130,29 +130,6 @@ final class AttendeeListInteractorTests: XCTestCase {
         XCTAssertTrue(interactor.allAttendees().isEmpty)
     }
 
-    // MARK: - シャッフル
-
-    func test_シャッフルしても要素の集合と件数は変わらない() {
-        let interactor = AttendeeListInteractor()
-        _ = interactor.add(fromText: "A,B,C,D,E")
-        let original = interactor.allAttendees()
-
-        let shuffled = interactor.shuffle()
-
-        XCTAssertEqual(shuffled.count, original.count)
-        XCTAssertEqual(Set(names(of: shuffled)), Set(names(of: original)))
-        XCTAssertEqual(names(of: interactor.allAttendees()), names(of: shuffled))
-    }
-
-    func test_1人以下ではシャッフルしても順序は変わらない() {
-        let empty = AttendeeListInteractor()
-        XCTAssertTrue(empty.shuffle().isEmpty)
-
-        let single = AttendeeListInteractor()
-        _ = single.add(name: "A")
-        XCTAssertEqual(names(of: single.shuffle()), ["A"])
-    }
-
     // MARK: - 一括置換
 
     func test_replaceAllは参加者を完全置換する() {

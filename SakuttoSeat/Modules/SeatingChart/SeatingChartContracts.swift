@@ -94,10 +94,6 @@ protocol SeatingChartRouterProtocol: AnyObject {
         output: (any SeatingTemplateModuleOutput)?
     ) -> SeatingTemplatePresenter
     @MainActor func makeTemplateListSheet(presenter: SeatingTemplatePresenter) -> AnyView
-    @MainActor func makeTemplateListModule(
-        gatewayHolder: SeatingChartInteractor,
-        output: (any SeatingTemplateModuleOutput)?
-    ) -> AnyView
 }
 
 // MARK: - 子モジュール Output

@@ -102,22 +102,6 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
         setRoute(.favoriteList)
     }
 
-    func didSelectFavoriteGroup(id: FavoriteGroupID) {
-        do {
-            _ = try interactor.loadFavorite(id: id)
-            setRoute(nil)
-            publishState()
-        } catch FavoriteSaveError.notFound {
-            return
-        } catch let error as FavoriteSaveError {
-            if case .persistenceFailed(let message) = error {
-                setRoute(.alert(.saveFailed(message: message)))
-            }
-        } catch {
-            setRoute(.alert(.saveFailed(message: error.localizedDescription)))
-        }
-    }
-
     func didTapBulkAddEntry() {
         setRoute(.bulkAdd)
     }
@@ -195,6 +179,22 @@ extension AttendeeListPresenter: FavoriteGroupModuleOutput {
 
     func favoriteGroupDidCancel() {
         dismissRoute()
+    }
+
+    private func didSelectFavoriteGroup(id: FavoriteGroupID) {
+        do {
+            _ = try interactor.loadFavorite(id: id)
+            setRoute(nil)
+            publishState()
+        } catch FavoriteSaveError.notFound {
+            return
+        } catch let error as FavoriteSaveError {
+            if case .persistenceFailed(let message) = error {
+                setRoute(.alert(.saveFailed(message: message)))
+            }
+        } catch {
+            setRoute(.alert(.saveFailed(message: error.localizedDescription)))
+        }
     }
 }
 

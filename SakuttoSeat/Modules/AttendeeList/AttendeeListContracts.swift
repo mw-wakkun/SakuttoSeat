@@ -31,7 +31,6 @@ protocol AttendeeListPresenterProtocol: AnyObject {
     func didTapSaveFavorite()
     func didConfirmSaveFavorite(name: String)
     func didTapShowFavorites()
-    func didSelectFavoriteGroup(id: FavoriteGroupID)
     func didTapBulkAddEntry()
     func didTapSeatingChart()
     func didTapSimpleShuffle()
@@ -47,7 +46,6 @@ nonisolated protocol AttendeeListInteractorProtocol: AnyObject {
     func replaceAll(names: [String]) -> [Attendee]
     func remove(atOffsets offsets: IndexSet) -> [Attendee]
     func removeAll() -> [Attendee]
-    func shuffle() -> [Attendee]
 
     func favoriteSaveAvailability() -> FavoriteSaveAvailability
     func saveCurrentAsFavorite(named name: String) throws

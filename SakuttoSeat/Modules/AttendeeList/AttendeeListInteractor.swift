@@ -44,18 +44,6 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
         return attendees
     }
 
-    func shuffle() -> [Attendee] {
-        guard attendees.count > 1 else { return attendees }
-
-        let previous = attendees
-        // 最大3回試行して同じ順序を避ける
-        for _ in 0..<3 {
-            attendees.shuffle()
-            if attendees != previous { break }
-        }
-        return attendees
-    }
-
     func remove(atOffsets offsets: IndexSet) -> [Attendee] {
         // `RangeReplaceableCollection.remove(atOffsets:)` は SwiftUI の拡張のため使わない
         for index in offsets.sorted(by: >) where attendees.indices.contains(index) {

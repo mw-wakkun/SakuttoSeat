@@ -198,7 +198,7 @@ final class AttendeeListPresenterTests: XCTestCase {
         try gateway.insert(name: "新メンバ", members: ["新1", "新2", "新3"])
         let presenter = makePresenter(names: ["旧1", "旧2"], gateway: gateway)
 
-        presenter.didSelectFavoriteGroup(id: try XCTUnwrap(gateway.fetchSummaries().first?.id))
+        presenter.favoriteGroupDidSelect(id: try XCTUnwrap(gateway.fetchSummaries().first?.id))
 
         XCTAssertEqual(names(of: presenter), ["新1", "新2", "新3"])
         XCTAssertNil(presenter.route)
@@ -209,7 +209,7 @@ final class AttendeeListPresenterTests: XCTestCase {
         try gateway.insert(name: "空", members: [])
         let presenter = makePresenter(names: ["残したくない"], gateway: gateway)
 
-        presenter.didSelectFavoriteGroup(id: try XCTUnwrap(gateway.fetchSummaries().first?.id))
+        presenter.favoriteGroupDidSelect(id: try XCTUnwrap(gateway.fetchSummaries().first?.id))
 
         XCTAssertTrue(presenter.viewData.isEmpty)
     }
@@ -242,7 +242,7 @@ final class AttendeeListPresenterTests: XCTestCase {
         presenter.didTapShowFavorites()
 
         let child = presenter.favoriteGroupPresenter
-        presenter.didSelectFavoriteGroup(id: UUID())
+        presenter.favoriteGroupDidSelect(id: UUID())
 
         XCTAssertEqual(names(of: presenter), ["A"])
         XCTAssertEqual(presenter.route, .favoriteList)

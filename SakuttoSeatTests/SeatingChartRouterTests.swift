@@ -22,14 +22,15 @@ final class SeatingChartRouterTests: XCTestCase {
         )
     }
 
-    func test_makeTemplateListModuleはSeatingTemplateViewを組み立てる() {
+    func test_テンプレート一覧はPresenterとSheetの2段でSeatingTemplateViewを組み立てる() {
         let router = SeatingChartRouter()
         let output = TemplateListOutputSpy()
 
-        let sheet = router.makeTemplateListModule(
+        let presenter = router.makeTemplateListPresenter(
             gatewayHolder: SeatingChartInteractor(),
             output: output
         )
+        let sheet = router.makeTemplateListSheet(presenter: presenter)
 
         XCTAssertTrue(
             viewTreeContainsTypeName(sheet, "SeatingTemplateView"),
@@ -41,10 +42,11 @@ final class SeatingChartRouterTests: XCTestCase {
         let router: any SeatingChartRouterProtocol = SeatingChartRouter()
         let gatewayHolder = SeatingChartInteractor()
 
-        let sheet = router.makeTemplateListModule(
+        let presenter = router.makeTemplateListPresenter(
             gatewayHolder: gatewayHolder,
             output: TemplateListOutputSpy()
         )
+        let sheet = router.makeTemplateListSheet(presenter: presenter)
 
         XCTAssertTrue(viewTreeContainsTypeName(sheet, "SeatingTemplateView"))
         _ = router.makeTemplateListPresenter(
@@ -61,10 +63,10 @@ final class SeatingChartRouterTests: XCTestCase {
         let gatewayHolder = SeatingChartInteractor()
         let output = TemplateListOutputSpy()
 
-        _ = router.makeTemplateListModule(gatewayHolder: gatewayHolder, output: output)
-        _ = router.makeTemplateListModule(gatewayHolder: gatewayHolder, output: output)
-        _ = router.makeTemplateListPresenter(gatewayHolder: gatewayHolder, output: output)
-        _ = router.makeTemplateListPresenter(gatewayHolder: gatewayHolder, output: output)
+        let first = router.makeTemplateListPresenter(gatewayHolder: gatewayHolder, output: output)
+        _ = router.makeTemplateListSheet(presenter: first)
+        let second = router.makeTemplateListPresenter(gatewayHolder: gatewayHolder, output: output)
+        _ = router.makeTemplateListSheet(presenter: second)
     }
 
     func test_一覧組み立ては渡したGatewayインスタンスから一覧を読む() throws {
@@ -73,10 +75,11 @@ final class SeatingChartRouterTests: XCTestCase {
         XCTAssertEqual(gateway.fetchSummariesCallCount, 0)
         let gatewayHolder = SeatingChartInteractor(templateGateway: gateway)
 
-        _ = SeatingChartRouter().makeTemplateListModule(
+        let presenter = SeatingChartRouter().makeTemplateListPresenter(
             gatewayHolder: gatewayHolder,
             output: TemplateListOutputSpy()
         )
+        _ = SeatingChartRouter().makeTemplateListSheet(presenter: presenter)
         _ = SeatingChartRouter().makeTemplateListPresenter(
             gatewayHolder: gatewayHolder,
             output: TemplateListOutputSpy()

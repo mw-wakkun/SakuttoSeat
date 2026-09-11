@@ -64,15 +64,4 @@ final class SeatingChartRouter: SeatingChartRouterProtocol {
     func makeTemplateListSheet(presenter: SeatingTemplatePresenter) -> AnyView {
         SeatingTemplateRouter.assembleView(presenter: presenter)
     }
-
-    @MainActor
-    func makeTemplateListModule(
-        gatewayHolder: SeatingChartInteractor,
-        output: (any SeatingTemplateModuleOutput)?
-    ) -> AnyView {
-        SeatingTemplateRouter.assembleModule(
-            gateway: gatewayHolder.currentTemplateGateway(),
-            output: output
-        )
-    }
 }
