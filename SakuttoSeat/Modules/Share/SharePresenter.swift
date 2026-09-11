@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_seating.md Phase 5（共有フローの仲介）
+//  refactor_Ad.md Phase 4（リワード分岐を await 可能なメソッドに切り出し、テストから駆動する）
 //
 
 import Combine
@@ -56,14 +57,19 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
         guard let subject else { return }
 
         Task { @MainActor in
-            do {
-                try await router.presentRewardedAd()
-                await exportAndShareImage(for: subject)
-            } catch RewardedAdError.notReady {
-                route = .alert(.adNotReady)
-            } catch {
-                // notEarned / failed: 共有は行わない
-            }
+            await confirmImageShare(for: subject)
+        }
+    }
+
+    /// 広告提示の結果を Route / 画像出力へ写す。View は `didConfirmImageShare` 経由。テストはここを await する。
+    func confirmImageShare(for subject: ShareSubject) async {
+        do {
+            try await router.presentRewardedAd()
+            await exportAndShareImage(for: subject)
+        } catch RewardedAdError.notReady {
+            route = .alert(.adNotReady)
+        } catch {
+            // notEarned / failed: 共有は行わない
         }
     }
 

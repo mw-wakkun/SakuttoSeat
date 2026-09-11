@@ -5,12 +5,14 @@
 //  refactor_seating.md Phase 5（シェアシート提示・広告提示・画像出力）
 //  refactor_simple.md Phase 2（番号札画像も ViewData 駆動）
 //  refactor_Ad.md Phase 2（リワードは Gateway 具象を assemble 時に注入）
+//  refactor_Ad.md Phase 4（テストがシェアシート呼び出しを記録できるよう具象のまま継承可能にする）
 //
 
 import SwiftUI
 import UIKit
 
-final class ShareRouter: ShareRouterProtocol {
+/// テストがシェアシート提示を記録するため `final` にしない。Presenter は具象型のまま保持する。
+class ShareRouter: ShareRouterProtocol {
 
     /// Protocol existential は保持しない（deinit の malloc abort 回避）
     private let rewardedAd: RewardedAdGatewayBase

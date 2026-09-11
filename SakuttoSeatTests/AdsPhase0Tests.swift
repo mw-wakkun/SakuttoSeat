@@ -4,10 +4,10 @@
 //
 //  refactor_Ad.md Phase 0
 //  バナー再 load 判断・リワード契約・エラー型を現行挙動のまま固定する。
-//  Share / VenueSettings の Presenter 分岐は Phase 4 まで XCTSkip。
 //  refactor_Ad.md Phase 1（AdConfiguration / UnlockRequirement の移設を固定）
 //  refactor_Ad.md Phase 2（Router が Fake を注入できることを固定）
 //  refactor_Ad.md Phase 3（報酬フラグの順序・バナー幅の pt 丸め）
+//  refactor_Ad.md Phase 4（未準備アラート文言の単一化。Presenter 分岐は Share / VenueSettings テスト）
 //
 
 import XCTest
@@ -96,6 +96,19 @@ final class RewardedAdErrorTests: XCTestCase {
         XCTAssertEqual(RewardedAdError.failed("x"), .failed("x"))
         XCTAssertNotEqual(RewardedAdError.failed("x"), .failed("y"))
         XCTAssertNotEqual(RewardedAdError.notReady, .notEarned)
+    }
+}
+
+// MARK: - 未準備アラート文言（Phase 4。Share / VenueSettings で同一）
+
+final class RewardedAdCopyTests: XCTestCase {
+
+    func test_未準備のタイトルと本文は計画どおり() {
+        XCTAssertEqual(RewardedAdCopy.notReadyTitle, "広告の準備ができていません")
+        XCTAssertEqual(
+            RewardedAdCopy.notReadyMessage,
+            "広告の準備ができていません。しばらく待ってからもう一度お試しください。"
+        )
     }
 }
 

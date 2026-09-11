@@ -19,6 +19,17 @@
     "%lld列以上はアンロックが必要です" : {
 
     },
+    "2名以上で席順をシャッフルできます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2名以上で席順をシャッフルできます"
+          }
+        }
+      }
+    },
     "OK" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -85,17 +96,6 @@
         }
       }
     },
-    "グループ名（例: 同期、〇〇課）" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "グループ名（例: 同期、〇〇課）"
-          }
-        }
-      }
-    },
     "グループを削除できるようにします" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -103,6 +103,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "グループを削除できるようにします"
+          }
+        }
+      }
+    },
+    "グループ名（例: 同期、〇〇課）" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "グループ名（例: 同期、〇〇課）"
           }
         }
       }
@@ -363,17 +374,6 @@
         }
       }
     },
-    "完了" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完了"
-          }
-        }
-      }
-    },
     "削除" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -401,6 +401,17 @@
     },
     "動画広告を視聴して画像を出力しますか？" : {
 
+    },
+    "参加者がいません" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参加者がいません"
+          }
+        }
+      }
     },
     "参加者のリセット" : {
       "extractionState" : "manual",
@@ -501,19 +512,19 @@
         }
       }
     },
-    "参加者がいません" : {
+    "基本設定" : {
+
+    },
+    "完了" : {
       "extractionState" : "manual",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "参加者がいません"
+            "value" : "完了"
           }
         }
       }
-    },
-    "基本設定" : {
-
     },
     "定員: %lld人" : {
 
@@ -539,23 +550,6 @@
           }
         }
       }
-    },
-    "2名以上で席順をシャッフルできます" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "2名以上で席順をシャッフルできます"
-          }
-        }
-      }
-    },
-    "広告の準備ができていません。" : {
-
-    },
-    "広告の準備ができていません。しばらく待ってからもう一度お試しください。" : {
-
     },
     "座席表" : {
 
@@ -671,17 +665,6 @@
         }
       }
     },
-    "読み込みに失敗しました" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "読み込みに失敗しました"
-          }
-        }
-      }
-    },
     "結果を共有します" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -739,6 +722,17 @@
     },
     "設定" : {
 
+    },
+    "読み込みに失敗しました" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "読み込みに失敗しました"
+          }
+        }
+      }
     },
     "追加" : {
       "extractionState" : "manual",

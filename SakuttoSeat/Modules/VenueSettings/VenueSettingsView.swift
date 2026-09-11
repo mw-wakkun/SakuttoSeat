@@ -4,6 +4,7 @@
 //
 //  refactor_seating.md Phase 5（旧 SettingsSheetView の子 VIPER モジュール化）
 //  列数の課金ルールは VenueSettingsInteractor、広告提示は VenueSettingsRouter が持つ。
+//  refactor_Ad.md Phase 4（未準備アラート文言を RewardedAdCopy に単一化）
 //
 
 import SwiftUI
@@ -50,10 +51,10 @@ struct VenueSettingsView: View {
                     Button("キャンセル") { dismiss() }
                 }
             }
-            .alert("広告の準備ができていません。", isPresented: adNotReadyBinding) {
+            .alert(RewardedAdCopy.notReadyTitle, isPresented: adNotReadyBinding) {
                 Button("OK", role: .cancel) { }
             } message: {
-                Text("広告の準備ができていません。しばらく待ってからもう一度お試しください。")
+                Text(RewardedAdCopy.notReadyMessage)
             }
             .alert(
                 "\(FeatureLimit.freeColumnCount + 1)列以上はアンロックが必要です",

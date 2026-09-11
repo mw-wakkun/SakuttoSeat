@@ -6,6 +6,7 @@
 //
 //  もとは SeatingChartView / SimpleShuffleView に重複していた
 //  「選択シート + 広告確認アラート + 広告未準備アラート」の宣言。
+//  refactor_Ad.md Phase 4（未準備アラート文言を RewardedAdCopy に単一化）
 //
 
 import SwiftUI
@@ -75,7 +76,7 @@ struct ShareFlowModifier: ViewModifier {
         case .confirmImageShareWithAd:
             return "画像で共有"
         case .adNotReady:
-            return "広告を読み込み中"
+            return RewardedAdCopy.notReadyTitle
         case .imageExportFailed:
             return "画像出力に失敗しました"
         case .none:
@@ -99,7 +100,7 @@ struct ShareFlowModifier: ViewModifier {
         case .confirmImageShareWithAd:
             Text("動画広告を視聴して画像を出力しますか？")
         case .adNotReady:
-            Text("広告の準備ができていません。しばらく待ってからもう一度お試しください。")
+            Text(RewardedAdCopy.notReadyMessage)
         case .imageExportFailed:
             Text("画像の出力に失敗しました。もう一度お試しください。")
         }

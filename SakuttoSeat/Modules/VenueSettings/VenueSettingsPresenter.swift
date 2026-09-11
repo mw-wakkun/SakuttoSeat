@@ -5,6 +5,7 @@
 //  refactor_seating.md Phase 5
 //  広告視聴後の列数適用を Presenter + Router の連携に整理し、
 //  結果は Output で親（SeatingChartPresenter）へ通知する。
+//  refactor_Ad.md Phase 4（リワード分岐を await 可能なメソッドに切り出し、テストから駆動する）
 //
 
 import Combine
@@ -51,16 +52,21 @@ final class VenueSettingsPresenter: ObservableObject, VenueSettingsPresenterProt
         let requested = interactor.selectedColumnCount
 
         Task { @MainActor in
-            do {
-                try await router.presentRewardedAd()
-                interactor.grantSessionUnlock()
-                publishState()
-                output?.venueSettingsDidApply(columnCount: requested)
-            } catch RewardedAdError.notReady {
-                route = .adNotReady
-            } catch {
-                // notEarned / failed: 解放しない
-            }
+            await confirmWatchAd(requestedColumnCount: requested)
+        }
+    }
+
+    /// 広告提示の結果を解放 / Output / Route へ写す。View は `didConfirmWatchAd` 経由。テストはここを await する。
+    func confirmWatchAd(requestedColumnCount: Int) async {
+        do {
+            try await router.presentRewardedAd()
+            interactor.grantSessionUnlock()
+            publishState()
+            output?.venueSettingsDidApply(columnCount: requestedColumnCount)
+        } catch RewardedAdError.notReady {
+            route = .adNotReady
+        } catch {
+            // notEarned / failed: 解放しない
         }
     }
 

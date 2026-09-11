@@ -7,6 +7,7 @@
 //  Phase 4 まで SettingsSheetView.applySelection() が持っていた列数の課金ルールを
 //  Interactor へ移送したため、規則はここで固定する。
 //  refactor_Ad.md Phase 2（Router へ Gateway を注入。Presenter 分岐のケース追加は Phase 4）
+//  refactor_Ad.md Phase 4（Fake Gateway で成功 / 未準備 / 未獲得・失敗を固定）
 //
 
 import XCTest
@@ -138,23 +139,57 @@ final class VenueSettingsPresenterTests: XCTestCase {
         XCTAssertFalse(presenter.viewData.requiresUnlock)
     }
 
-    // MARK: - リワード提示（Presenter 分岐のケース追加は Phase 4）
-    //
-    // 期待（現行 VenueSettingsPresenter.didConfirmWatchAd）:
-    // - Fake.success → grantSessionUnlock + Output に列数が渡る
-    // - Fake.notReady → route == .adNotReady。Output なし、未解放
-    // - Fake.notEarned / failed → 未解放のまま Output なし
+    // MARK: - リワード提示（Phase 4）
 
-    func test_視聴確認_成功ならセッション解放して適用する() throws {
-        throw XCTSkip("Phase 4 で VenueSettingsPresenter のリワード分岐を有効化する")
+    func test_視聴確認_成功ならセッション解放して適用する() async {
+        let output = OutputSpy()
+        let unlock = FeatureUnlockState()
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let presenter = makePresenter(featureUnlock: unlock, rewardedAd: fake, output: output)
+        let requested = FeatureLimit.freeColumnCount + 1
+        presenter.didChangeSelection(requested)
+
+        await presenter.confirmWatchAd(requestedColumnCount: requested)
+
+        XCTAssertTrue(unlock.isSessionUnlocked)
+        XCTAssertEqual(output.applied, [requested])
+        XCTAssertNil(presenter.route)
+        XCTAssertFalse(presenter.viewData.requiresUnlock)
+        XCTAssertEqual(fake.presentCallCount, 1)
     }
 
-    func test_視聴確認_未準備ならアラートになり適用しない() throws {
-        throw XCTSkip("Phase 4 で VenueSettingsPresenter のリワード分岐を有効化する")
+    func test_視聴確認_未準備ならアラートになり適用しない() async {
+        let output = OutputSpy()
+        let unlock = FeatureUnlockState()
+        let fake = RewardedAdGatewayFake(outcome: .notReady)
+        let presenter = makePresenter(featureUnlock: unlock, rewardedAd: fake, output: output)
+        presenter.didChangeSelection(FeatureLimit.freeColumnCount + 1)
+
+        await presenter.confirmWatchAd(requestedColumnCount: presenter.viewData.selectedColumnCount)
+
+        XCTAssertEqual(presenter.route, .adNotReady)
+        XCTAssertTrue(output.applied.isEmpty)
+        XCTAssertFalse(unlock.isSessionUnlocked)
+        XCTAssertTrue(presenter.viewData.requiresUnlock)
+        XCTAssertEqual(fake.presentCallCount, 1)
     }
 
-    func test_視聴確認_未獲得と失敗では解放しない() throws {
-        throw XCTSkip("Phase 4 で VenueSettingsPresenter のリワード分岐を有効化する")
+    func test_視聴確認_未獲得と失敗では解放しない() async {
+        for outcome in [RewardedAdGatewayFake.Outcome.notEarned, .failed("network")] {
+            let output = OutputSpy()
+            let unlock = FeatureUnlockState()
+            let fake = RewardedAdGatewayFake(outcome: outcome)
+            let presenter = makePresenter(featureUnlock: unlock, rewardedAd: fake, output: output)
+            presenter.didChangeSelection(FeatureLimit.freeColumnCount + 1)
+
+            await presenter.confirmWatchAd(requestedColumnCount: presenter.viewData.selectedColumnCount)
+
+            XCTAssertNil(presenter.route, "outcome: \(outcome)")
+            XCTAssertTrue(output.applied.isEmpty, "outcome: \(outcome)")
+            XCTAssertFalse(unlock.isSessionUnlocked, "outcome: \(outcome)")
+            XCTAssertTrue(presenter.viewData.requiresUnlock, "outcome: \(outcome)")
+            XCTAssertEqual(fake.presentCallCount, 1, "outcome: \(outcome)")
+        }
     }
 }
 
@@ -170,5 +205,19 @@ final class VenueSettingsRouterTests: XCTestCase {
         try await router.presentRewardedAd()
 
         XCTAssertEqual(fake.presentCallCount, 1)
+    }
+
+    func test_presentRewardedAdはFakeのnotReadyを再throwする() async {
+        let fake = RewardedAdGatewayFake(outcome: .notReady)
+        let router = VenueSettingsRouter(rewardedAd: fake)
+
+        do {
+            try await router.presentRewardedAd()
+            XCTFail("expected notReady")
+        } catch RewardedAdError.notReady {
+            XCTAssertEqual(fake.presentCallCount, 1)
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
     }
 }

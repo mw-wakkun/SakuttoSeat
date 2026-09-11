@@ -8,8 +8,10 @@
 //  Phase 4 まで `SeatingChartInteractor` / `SimpleShuffleView` が持っていた
 //  共有テキストの整形を Share モジュールへ移送したため、検証もここへ移した。
 //  refactor_Ad.md Phase 2（Router へ Gateway を注入。Presenter 分岐のケース追加は Phase 4）
+//  refactor_Ad.md Phase 4（Fake Gateway で未準備 / 成功 / 未獲得・失敗を固定）
 //
 
+import UIKit
 import XCTest
 @testable import SakuttoSeat
 
@@ -130,8 +132,8 @@ final class ShareInteractorTests: XCTestCase {
 
 // MARK: - Presenter
 //
-// 提示を伴う経路（シェアシート・広告）は実機/シミュレータの提示状態に依存するため、
-// ここでは route と保持した subject だけを検証する。
+// シェアシートの実提示はシミュレータ状態に依存するため、Spy で呼び出し有無だけを見る。
+// リワード分岐は Fake Gateway の outcome で固定する（Phase 4）。
 
 @MainActor
 final class SharePresenterTests: XCTestCase {
@@ -143,6 +145,30 @@ final class SharePresenterTests: XCTestCase {
             interactor: ShareInteractor(),
             router: ShareRouter(rewardedAd: rewardedAd)
         )
+    }
+
+    private func makeImageShareSUT(
+        outcome: RewardedAdGatewayFake.Outcome
+    ) -> (presenter: SharePresenter, router: ShareRouterSpy, fake: RewardedAdGatewayFake) {
+        let fake = RewardedAdGatewayFake(outcome: outcome)
+        let router = ShareRouterSpy(rewardedAd: fake)
+        let presenter = SharePresenter(interactor: ShareInteractor(), router: router)
+        presenter.didTapShare(
+            subject: .numberedList(
+                SimpleShuffleViewDataBuilder.build(
+                    seats: [NumberedSeat(id: UUID(), name: "A", number: 1)]
+                )
+            )
+        )
+        return (presenter, router, fake)
+    }
+
+    @discardableResult
+    private func confirmImageShare(_ presenter: SharePresenter) async throws -> ShareSubject {
+        let subject = try XCTUnwrap(presenter.subject)
+        presenter.dismissRoute()
+        await presenter.confirmImageShare(for: subject)
+        return subject
     }
 
     func test_共有ボタンで選択シートが開き対象が保持される() {
@@ -180,23 +206,55 @@ final class SharePresenterTests: XCTestCase {
         XCTAssertNil(presenter.route)
     }
 
-    // MARK: - リワード提示（Presenter 分岐のケース追加は Phase 4）
-    //
-    // 期待（現行 SharePresenter.didConfirmImageShare）:
-    // - Fake.notReady → route == .alert(.adNotReady)。画像シェアは呼ばない
-    // - Fake.success → 画像出力経路へ進む
-    // - Fake.notEarned / failed → route なし、共有なし
+    // MARK: - リワード提示（Phase 4）
 
-    func test_画像共有確認_広告未準備ならアラート() throws {
-        throw XCTSkip("Phase 4 で SharePresenter のリワード分岐を有効化する")
+    func test_画像共有確認_広告未準備ならアラート() async throws {
+        let sut = makeImageShareSUT(outcome: .notReady)
+
+        try await confirmImageShare(sut.presenter)
+
+        XCTAssertEqual(sut.presenter.route, .alert(.adNotReady))
+        XCTAssertEqual(sut.fake.presentCallCount, 1)
+        XCTAssertEqual(sut.router.makeShareImageCallCount, 0)
+        XCTAssertEqual(sut.router.presentedImageCount, 0)
     }
 
-    func test_画像共有確認_視聴完了なら画像出力へ進む() throws {
-        throw XCTSkip("Phase 4 で SharePresenter のリワード分岐を有効化する")
+    func test_画像共有確認_視聴完了なら画像出力へ進む() async throws {
+        let sut = makeImageShareSUT(outcome: .success)
+
+        try await confirmImageShare(sut.presenter)
+
+        XCTAssertNil(sut.presenter.route)
+        XCTAssertEqual(sut.fake.presentCallCount, 1)
+        XCTAssertEqual(sut.router.makeShareImageCallCount, 1)
+        XCTAssertEqual(sut.router.presentedImageCount, 1)
     }
 
-    func test_画像共有確認_未獲得と失敗では共有しない() throws {
-        throw XCTSkip("Phase 4 で SharePresenter のリワード分岐を有効化する")
+    func test_画像共有確認_未獲得と失敗では共有しない() async throws {
+        for outcome in [RewardedAdGatewayFake.Outcome.notEarned, .failed("network")] {
+            let sut = makeImageShareSUT(outcome: outcome)
+
+            try await confirmImageShare(sut.presenter)
+
+            XCTAssertNil(sut.presenter.route, "outcome: \(outcome)")
+            XCTAssertEqual(sut.fake.presentCallCount, 1, "outcome: \(outcome)")
+            XCTAssertEqual(sut.router.makeShareImageCallCount, 0, "outcome: \(outcome)")
+            XCTAssertEqual(sut.router.presentedImageCount, 0, "outcome: \(outcome)")
+        }
+    }
+}
+
+private final class ShareRouterSpy: ShareRouter {
+    private(set) var makeShareImageCallCount = 0
+    private(set) var presentedImageCount = 0
+
+    override func makeShareImage(for subject: ShareSubject) -> UIImage? {
+        makeShareImageCallCount += 1
+        return UIImage()
+    }
+
+    override func presentShareSheet(image: UIImage) async {
+        presentedImageCount += 1
     }
 }
 

@@ -22,7 +22,7 @@
 | 1 | 配置・命名・設定の単一化（挙動は変えない） | ✅ 完了（2026-09-11） |
 | 2 | Gateway 契約と Router 注入口 | ✅ 完了（2026-09-11） |
 | 3 | SDK 寿命・報酬判定・バナー Coordinator の是正 | ✅ 完了（2026-09-11） |
-| 4 | Share / VenueSettings の提示経路をテスト可能にする | 未着手 |
+| 4 | Share / VenueSettings の提示経路をテスト可能にする | ✅ 完了（2026-09-11） |
 | 5 | バナー UI の単一窓口化・余白規約 | 未着手 |
 | 6 | パフォーマンス・A11y・収益まわりの仕上げ | 未着手 |
 
@@ -512,6 +512,18 @@ enum SessionRewardedAd {
   手動 QA はフィルと実 SDK の確認に縮小できる。
 - リスク: 低。
 
+実施済み（2026-09-11）:
+- `SharePresenterTests`: Fake `notReady` → `.alert(.adNotReady)` かつシェアシートなし。
+  成功 → `makeShareImage` / `presentShareSheet` を 1 回。`notEarned` / `failed` → route なし・共有なし
+- `VenueSettingsPresenterTests`: Fake 成功 → `grantSessionUnlock` + Output に列数。
+  `notReady` → `.adNotReady` で未解放。`notEarned` / `failed` → 未解放のまま Output なし
+- Presenter は View 向けの `didConfirm*` を維持し、分岐本体を `confirmImageShare` /
+  `confirmWatchAd` としてテストから await する。シェアシートは `ShareRouterSpy` で記録
+  （実 `ShareSheetPresenter` は呼ばない）
+- 未準備アラートを `RewardedAdCopy` に単一化。タイトルは「広告の準備ができていません」
+  （Share の「広告を読み込み中」と VenueSettings タイトル末尾の句点を廃止）
+- QA §9.4 / §10.5 / §20.4 を統一後の文言に更新
+
 ### Phase 5: バナー UI の単一窓口化・余白規約（0.5 日）
 
 - `AdBannerContainer` がパディング込みの完成形を出すか、
@@ -600,6 +612,7 @@ enum SessionRewardedAd {
 8. **未準備アラート文言** — 推奨: タイトル・本文を VenueSettings 側に揃え、
    Share の「広告を読み込み中」をやめる（実際は読み込み開始を投げているだけで
    プログレスでは無いため）。
+   → **Phase 4 で実施。** `RewardedAdCopy` に「広告の準備ができていません」を集約。
 
 ---
 
