@@ -4,6 +4,7 @@
 //
 //  Created by masafumi wakugawa on 2026/05/07.
 //  refactor_simple.md Phase 3（既定 tint / Copy 一系統 / canShuffle / A11y）
+//  refactor_simple.md Phase 4（空状態 / insetGrouped。大量行の spring 抑制は未計測のため入れない）
 //
 
 import SwiftUI
@@ -14,19 +15,11 @@ struct SimpleShuffleView: View {
     @StateObject var presenter: SimpleShufflePresenter
 
     var body: some View {
-        List {
-            Section {
-                ForEach(presenter.viewData.rows) { row in
-                    NumberedPersonRow(
-                        number: row.number,
-                        name: row.name,
-                        accessory: SimpleShuffleCopy.accessory
-                    )
-                }
-            } header: {
-                Text(SimpleShuffleCopy.listHeader)
-            } footer: {
-                Text(SimpleShuffleCopy.listFooter)
+        Group {
+            if presenter.viewData.isEmpty {
+                emptyContent
+            } else {
+                numberedList
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -67,5 +60,38 @@ struct SimpleShuffleView: View {
             }
         }
         .shareFlow(presenter.share)
+    }
+}
+
+private extension SimpleShuffleView {
+    var emptyContent: some View {
+        EmptyStateView(
+            systemImage: "person.3",
+            message: SimpleShuffleCopy.emptyMessage,
+            imageFont: .system(size: 80),
+            imageColor: .sakuttoBlueStart.opacity(0.3),
+            spacing: AppSpacing.emptyStateSpacing
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemGroupedBackground))
+    }
+
+    var numberedList: some View {
+        List {
+            Section {
+                ForEach(presenter.viewData.rows) { row in
+                    NumberedPersonRow(
+                        number: row.number,
+                        name: row.name,
+                        accessory: SimpleShuffleCopy.accessory
+                    )
+                }
+            } header: {
+                Text(SimpleShuffleCopy.listHeader)
+            } footer: {
+                Text(SimpleShuffleCopy.listFooter)
+            }
+        }
+        .listStyle(.insetGrouped)
     }
 }

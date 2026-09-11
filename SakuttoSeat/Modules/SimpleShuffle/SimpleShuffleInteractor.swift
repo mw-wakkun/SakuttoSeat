@@ -4,6 +4,7 @@
 //
 //  refactor_AttendeeList.md Phase 5
 //  refactor_simple.md Phase 1（シャッフルは集合不変・順序変更。番号は並び順の 1-based）
+//  refactor_simple.md Phase 4（init で 1 回抽選。QA 9.1）
 //
 
 import Foundation
@@ -15,6 +16,9 @@ nonisolated final class SimpleShuffleInteractor: SimpleShuffleInteractorProtocol
         seats = attendees.enumerated().map { index, attendee in
             NumberedSeat(id: attendee.id, name: attendee.name, number: index + 1)
         }
+        // QA 9.1: 画面に出た時点で抽選済み。登録順の確認は参加者一覧の責務。
+        // 1 名以下は shuffle が no-op。番号札の順は親一覧へ書き戻さない（QA 11.2）。
+        _ = shuffle()
     }
 
     func allSeats() -> [NumberedSeat] {

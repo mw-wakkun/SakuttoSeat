@@ -435,6 +435,17 @@
         }
       }
     },
+    "参加者がいません" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参加者がいません"
+          }
+        }
+      }
+    },
     "基本設定" : {
 
     },

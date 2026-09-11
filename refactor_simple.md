@@ -19,7 +19,7 @@ SimpleShuffle の **5 層の箱と ViewData** は AttendeeList Phase 5 で既に
 | 1 | 規約穴埋め（Router DI / Protocol / Entity 純化） | ✅ 完了（2026-09-11） |
 | 2 | Share / Snapshot を ViewData 駆動にする | ✅ 完了（2026-09-11） |
 | 3 | 再利用・一貫性・i18n / A11y | ✅ 完了（2026-09-11） |
-| 4 | 性能・初期表示仕様・空状態 | 未着手 |
+| 4 | 性能・初期表示仕様・空状態 | ✅ 完了（2026-09-11） |
 
 回帰基準: 既存 `SimpleShuffleTests` + `ShareTests` の番号札ケース +
 `AttendeeListRouterTests` の番号札組み立て。Phase 0 で拡充した characterization を
@@ -554,6 +554,17 @@ VoiceOver で共有・シャッフル・各行を辿れる（既存行ラベル�
 完了条件: 仕様判断がコードと QA とテストで一致。空状態が破綻しない。
 Phase 0〜3 のテスト green。
 リスク: 中（初期シャッフルはユーザーから見える挙動変更。判断なしでは実装しない）。
+
+実装時の決定（2026-09-11）:
+
+- §8.1 は推奨を採用。`SimpleShuffleInteractor.init` 末尾で `shuffle()` を 1 回呼ぶ。
+  Presenter / 親 `AttendeeListInteractor` には寄せない（QA 11.2）。
+- 初期表示テストを「集合不変・番号 1-based・2 名以上なら登録順と異なることがある」に更新。
+  1 名以下は init / shuffle とも順序固定のまま。
+- 空配列は `ViewData.isEmpty` で `EmptyStateView`（「参加者がいません」）。List ヘッダは出さない。
+- `List` に `.listStyle(.insetGrouped)` を明示（AttendeeList と揃える）。
+- 大量行の spring 抑制は未計測のため入れない（計画どおり任意・先に入れない）。
+- 親 `AttendeeListInteractor.shuffle()` は本計画の範囲外として未変更。
 
 ---
 

@@ -4,6 +4,7 @@
 //
 //  refactor_AttendeeList.md Phase 5（表示専用モデル）
 //  refactor_simple.md Phase 3（canShuffle / Copy。title は View 側 Catalog）
+//  refactor_simple.md Phase 4（空状態 Copy）
 //
 
 import Foundation
@@ -25,6 +26,7 @@ enum SimpleShuffleCopy {
     static var shuffleAccessibilityHint: String { String(localized: "席順をシャッフルします") }
     static var shuffleDisabledHint: String { String(localized: "2名以上で席順をシャッフルできます") }
     static var shuffleAnnouncement: String { String(localized: "席順を更新しました") }
+    static var emptyMessage: String { String(localized: "参加者がいません") }
 }
 
 // MARK: - ViewData
