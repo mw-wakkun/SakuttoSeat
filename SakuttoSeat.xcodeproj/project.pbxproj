@@ -46,8 +46,6 @@
 		};
 		7FBFFD472FAA1C6600797766 /* SakuttoSeatTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = SakuttoSeatTests;
 			sourceTree = "<group>";
 		};

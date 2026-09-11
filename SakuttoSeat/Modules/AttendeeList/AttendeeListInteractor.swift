@@ -3,12 +3,12 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/05.
+//  refactor_AttendeeList.md Phase 1（規約統一・API 対称化）
 //
 
 import Foundation
-import SwiftUI
 
-protocol AttendeeListInteractorProtocol {
+nonisolated protocol AttendeeListInteractorProtocol: AnyObject {
     /// 現在の参加者リストを返す
     func allAttendees() -> [Attendee]
 
@@ -26,11 +26,11 @@ protocol AttendeeListInteractorProtocol {
     func removeAll() -> [Attendee]
 
     /// テキストからパースして複数の参加者を追加する。改行・カンマ（半角/全角）で分割され、
-    /// 各エントリに対して add(name:) ロジックが適用される。
-    func add(fromText text: String)
+    /// 各エントリに対して add(name:) ロジックが適用される。更新後のリストを返す。
+    func add(fromText text: String) -> [Attendee]
 }
 
-class AttendeeListInteractor: AttendeeListInteractorProtocol {
+nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
     // このモジュール用のメモリ内参加者ストレージ
     private var attendees: [Attendee] = []
 
@@ -61,7 +61,10 @@ class AttendeeListInteractor: AttendeeListInteractorProtocol {
     }
 
     func remove(atOffsets offsets: IndexSet) -> [Attendee] {
-        attendees.remove(atOffsets: offsets)
+        // `RangeReplaceableCollection.remove(atOffsets:)` は SwiftUI の拡張のため使わない
+        for index in offsets.sorted(by: >) where attendees.indices.contains(index) {
+            attendees.remove(at: index)
+        }
         return attendees
     }
 
@@ -70,11 +73,12 @@ class AttendeeListInteractor: AttendeeListInteractorProtocol {
         return attendees
     }
 
-    func add(fromText text: String) {
+    func add(fromText text: String) -> [Attendee] {
         let names = splitRawNames(from: text)
         for name in names {
             _ = add(name: name)
         }
+        return attendees
     }
 
     // MARK: - プライベートヘルパー

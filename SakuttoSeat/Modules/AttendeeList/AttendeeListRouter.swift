@@ -3,11 +3,12 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/05.
+//  refactor_AttendeeList.md Phase 1（final 化）
 //
 
 import SwiftUI
 
-class AttendeeListRouter {
+final class AttendeeListRouter {
     
     /// モジュールの初期組み立て（アプリ起動時などに使用）
     @MainActor

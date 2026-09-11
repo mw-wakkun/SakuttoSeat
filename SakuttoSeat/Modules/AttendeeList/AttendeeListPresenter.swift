@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/05.
+//  refactor_AttendeeList.md Phase 1（final 化・デッドコード削除・複数削除の修正）
 //
 
 import SwiftUI
@@ -16,7 +17,7 @@ enum AttendeeListDestination: String, Identifiable, Hashable {
 }
 
 @MainActor
-class AttendeeListPresenter: ObservableObject {
+final class AttendeeListPresenter: ObservableObject {
     @Published private(set) var attendees: [Attendee] = []
     @Published var destination: AttendeeListDestination?
 
@@ -45,14 +46,8 @@ class AttendeeListPresenter: ObservableObject {
         attendees = interactor.add(name: name)
     }
 
-    func didTapShuffleButton() {
-        attendees = interactor.shuffle()
-    }
-
     func didDeleteAttendee(at offsets: IndexSet) {
-        offsets.forEach { _ in
-            attendees = interactor.remove(atOffsets: offsets)
-        }
+        attendees = interactor.remove(atOffsets: offsets)
     }
 
     func didTapResetButton() {
@@ -93,21 +88,12 @@ class AttendeeListPresenter: ObservableObject {
         attendees = updatedAttendees
     }
 
-    func didDeleteFavoriteGroup(_ group: GroupFavorite) {
-        do {
-            try favoriteGateway.delete(group)
-            print("お気に入りグループを削除しました: \(group.name)")
-        } catch {
-            print("お気に入りグループの削除に失敗しました: \(error)")
-        }
-    }
-
     func didDeleteFavoriteGroups(at offsets: IndexSet) {
         guard let currentList = try? favoriteGateway.fetchAll() else { return }
         do {
             try favoriteGateway.delete(atOffsets: offsets, in: currentList)
         } catch {
-            print("Failed to save context after deleting favorite groups: \(error)")
+            print("お気に入りグループの削除に失敗しました: \(error)")
         }
     }
 
@@ -123,7 +109,6 @@ class AttendeeListPresenter: ObservableObject {
     }
 
     func didTapBulkAddButton(text: String) {
-        interactor.add(fromText: text)
-        attendees = interactor.allAttendees()
+        attendees = interactor.add(fromText: text)
     }
 }
