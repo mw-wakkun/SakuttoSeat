@@ -28,7 +28,7 @@ struct SimpleShuffleSnapshotView: View {
                     NumberedPersonRow(
                         number: index + 1,
                         name: name,
-                        accessory: "番席",
+                        accessory: String(localized: "番席"),
                         tint: .blue,
                         rowVerticalPadding: 0
                     )

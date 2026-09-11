@@ -14,6 +14,7 @@ struct ActionButtonsView: View {
         let color: Color
         let action: () -> Void
         var isDisabled: Bool = false
+        var accessibilityHint: String? = nil
     }
     
     let button1: ButtonConfig
@@ -50,5 +51,20 @@ struct SingleActionButton: View {
         }
         .disabled(config.isDisabled)
         .opacity(config.isDisabled ? 0.3 : 1.0)
+        .accessibilityLabel(config.title)
+        .modifier(OptionalAccessibilityHint(hint: config.accessibilityHint))
+    }
+}
+
+private struct OptionalAccessibilityHint: ViewModifier {
+    let hint: String?
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let hint, !hint.isEmpty {
+            content.accessibilityHint(hint)
+        } else {
+            content
+        }
     }
 }

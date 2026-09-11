@@ -1,0 +1,641 @@
+{
+  "sourceLanguage" : "ja",
+  "strings" : {
+    "" : {
+
+    },
+    "【サクッと席決め】" : {
+
+    },
+    "%lld" : {
+
+    },
+    "%lld列" : {
+
+    },
+    "%lld列以上のレイアウトを利用するには動画広告の視聴が必要です。" : {
+
+    },
+    "%lld列以上はアンロックが必要です" : {
+
+    },
+    "OK" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
+    "お気に入り" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "お気に入り"
+          }
+        }
+      }
+    },
+    "お気に入りグループ" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "お気に入りグループ"
+          }
+        }
+      }
+    },
+    "お気に入り上限" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "お気に入り上限"
+          }
+        }
+      }
+    },
+    "お気に入り登録" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "お気に入り登録"
+          }
+        }
+      }
+    },
+    "キャンセル" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キャンセル"
+          }
+        }
+      }
+    },
+    "グループ名（例: 同期、〇〇課）" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "グループ名（例: 同期、〇〇課）"
+          }
+        }
+      }
+    },
+    "このグループを参加者リストに読み込みます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このグループを参加者リストに読み込みます"
+          }
+        }
+      }
+    },
+    "このテーブルを削除" : {
+
+    },
+    "この番号の席に座ってもらいましょう。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この番号の席に座ってもらいましょう。"
+          }
+        }
+      }
+    },
+    "サクッと席決め" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サクッと席決め"
+          }
+        }
+      }
+    },
+    "シャッフル" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "シャッフル"
+          }
+        }
+      }
+    },
+    "シャッフル結果" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "シャッフル結果"
+          }
+        }
+      }
+    },
+    "シャッフル結果（番号札）" : {
+
+    },
+    "すべてのテーブルに適用" : {
+
+    },
+    "テーブルの並び列数" : {
+
+    },
+    "テーブル名（例: テーブルA・最大%lld文字）" : {
+
+    },
+    "テーブル数: %lld" : {
+
+    },
+    "テーブル編集" : {
+
+    },
+    "テーブル追加" : {
+
+    },
+    "テンプレート名 (例: デフォルト設定)" : {
+
+    },
+    "テンプレート読込" : {
+
+    },
+    "よく使う語" : {
+
+    },
+    "ラベル（例：窓際／ステージ側）" : {
+
+    },
+    "レイアウトを保存" : {
+
+    },
+    "一括入力" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一括入力"
+          }
+        }
+      }
+    },
+    "会場レイアウト（向き）" : {
+
+    },
+    "例: 窓際（%lld文字まで）" : {
+
+    },
+    "保存" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存"
+          }
+        }
+      }
+    },
+    "保存されたテンプレートはありません" : {
+
+    },
+    "保存できるグループは最大%lld個までとなっています（現在%lld個）。新しいグループを保存するには、お気に入り一覧から既存のグループを削除してください。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存できるグループは最大%lld個までとなっています（現在%lld個）。新しいグループを保存するには、お気に入り一覧から既存のグループを削除してください。"
+          }
+        }
+      }
+    },
+    "保存できるテンプレートは最大%lld個までとなっています（現在%lld個）。新しいテンプレートを保存するには、テンプレート読込一覧から既存のテンプレートを削除してください。" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "保存できるテンプレートは最大%1$lld個までとなっています（現在%2$lld個）。新しいテンプレートを保存するには、テンプレート読込一覧から既存のテンプレートを削除してください。"
+          }
+        }
+      }
+    },
+    "保存に失敗しました" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存に失敗しました"
+          }
+        }
+      }
+    },
+    "保存済みグループの一覧を開きます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存済みグループの一覧を開きます"
+          }
+        }
+      }
+    },
+    "入力した参加者をリストに追加します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "入力した参加者をリストに追加します"
+          }
+        }
+      }
+    },
+    "入力した名前をリストに追加します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "入力した名前をリストに追加します"
+          }
+        }
+      }
+    },
+    "全員削除" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全員削除"
+          }
+        }
+      }
+    },
+    "共有" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "共有"
+          }
+        }
+      }
+    },
+    "削除" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "削除"
+          }
+        }
+      }
+    },
+    "削除に失敗しました" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "削除に失敗しました"
+          }
+        }
+      }
+    },
+    "動画を視聴して解放" : {
+
+    },
+    "動画広告を視聴して画像を出力しますか？" : {
+
+    },
+    "参加者のリセット" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参加者のリセット"
+          }
+        }
+      }
+    },
+    "参加者の一括追加" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参加者の一括追加"
+          }
+        }
+      }
+    },
+    "参加者の名前" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参加者の名前"
+          }
+        }
+      }
+    },
+    "参加者の名前を入力" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参加者の名前を入力"
+          }
+        }
+      }
+    },
+    "参加者の座席表を開きます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参加者の座席表を開きます"
+          }
+        }
+      }
+    },
+    "参加者リストを全員削除してもよろしいですか？" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参加者リストを全員削除してもよろしいですか？"
+          }
+        }
+      }
+    },
+    "参加者を全員削除します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参加者を全員削除します"
+          }
+        }
+      }
+    },
+    "参加者を追加" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参加者を追加"
+          }
+        }
+      }
+    },
+    "参加者を追加してください" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参加者を追加してください"
+          }
+        }
+      }
+    },
+    "基本設定" : {
+
+    },
+    "定員: %lld人" : {
+
+    },
+    "席順をシャッフルします" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "席順をシャッフルします"
+          }
+        }
+      }
+    },
+    "広告の準備ができていません。" : {
+
+    },
+    "広告の準備ができていません。しばらく待ってからもう一度お試しください。" : {
+
+    },
+    "座席表" : {
+
+    },
+    "座席表で決める" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "座席表で決める"
+          }
+        }
+      }
+    },
+    "指定なし" : {
+
+    },
+    "改行またはカンマ（, または 、）区切りで参加者名を入力・ペーストしてください。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "改行またはカンマ（, または 、）区切りで参加者名を入力・ペーストしてください。"
+          }
+        }
+      }
+    },
+    "横の列数: %lld列" : {
+
+    },
+    "現在のテーブル構成をテンプレートとして保存します。" : {
+
+    },
+    "現在のメンバーをグループとして保存します。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在のメンバーをグループとして保存します。"
+          }
+        }
+      }
+    },
+    "現在の参加者をお気に入りに保存します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在の参加者をお気に入りに保存します"
+          }
+        }
+      }
+    },
+    "画像の出力に失敗しました。もう一度お試しください。" : {
+
+    },
+    "番号札" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "番号札"
+          }
+        }
+      }
+    },
+    "番号札で決める（シンプル）" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "番号札で決める（シンプル）"
+          }
+        }
+      }
+    },
+    "番号札画面を開きます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "番号札画面を開きます"
+          }
+        }
+      }
+    },
+    "番席" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "番席"
+          }
+        }
+      }
+    },
+    "登録されているグループはありません" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登録されているグループはありません"
+          }
+        }
+      }
+    },
+    "結果を共有します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "結果を共有します"
+          }
+        }
+      }
+    },
+    "編集" : {
+
+    },
+    "複数の参加者をまとめて追加します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "複数の参加者をまとめて追加します"
+          }
+        }
+      }
+    },
+    "設定" : {
+
+    },
+    "追加" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "追加"
+          }
+        }
+      }
+    },
+    "追加する参加者の名前を入力します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "追加する参加者の名前を入力します"
+          }
+        }
+      }
+    },
+    "適用" : {
+
+    },
+    "閉じる" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "閉じる"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

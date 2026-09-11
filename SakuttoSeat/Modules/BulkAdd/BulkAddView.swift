@@ -41,6 +41,7 @@ struct BulkAddView: View {
                         presenter.didTapConfirm()
                     }
                     .disabled(!presenter.viewData.canConfirm)
+                    .accessibilityHint(String(localized: "入力した参加者をリストに追加します"))
                 }
             }
         }

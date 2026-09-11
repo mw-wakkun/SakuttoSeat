@@ -19,7 +19,7 @@ struct FavoriteGroupView: View {
                     Section {
                         EmptyStateView(
                             systemImage: "star.slash",
-                            message: "登録されているグループはありません"
+                            message: String(localized: "登録されているグループはありません")
                         )
                         .frame(maxWidth: .infinity, minHeight: 120)
                         .listRowInsets(EdgeInsets())
@@ -40,6 +40,9 @@ struct FavoriteGroupView: View {
                                         .lineLimit(1)
                                 }
                             }
+                            .accessibilityLabel(group.name)
+                            .accessibilityValue(group.memberSummary)
+                            .accessibilityHint(String(localized: "このグループを参加者リストに読み込みます"))
                         }
                         .onDelete { offsets in
                             presenter.didDeleteGroups(at: offsets)

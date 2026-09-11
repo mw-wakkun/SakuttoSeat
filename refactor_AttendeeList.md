@@ -19,7 +19,7 @@
 | 3 | Presenter → Interactor へのロジック移送・Gateway の正しい配置 | ✅ 完了（2026-09-11） |
 | 4 | Router の実体化・遷移の Presenter 主導化 | ✅ 完了（2026-09-11） |
 | 5 | 子モジュール切り出し（FavoriteGroup / BulkAdd）と SimpleShuffle の VIPER 化 | ✅ 完了（2026-09-11） |
-| 6 | 再利用部品・パフォーマンス・A11y・i18n | 未着手 |
+| 6 | 再利用部品・パフォーマンス・A11y・i18n | ✅ 完了（2026-09-11） |
 
 回帰基準: `SakuttoSeatTests` の既存スイート
 （SeatingChart / Share / TableEdit / VenueSettings を含む）に加え、
@@ -629,21 +629,17 @@ SeatingChart の `safeAreaInset` に合わせ、固定 `Spacer(height: 200/240)`
 SimpleShuffle に Contracts がある。共有フローは引き続き Share モジュールのみ。
 リスク: 中（シート UX の変化）。お気に入り読込・削除・上限の手動 QA を必須にする。
 
-### Phase 6: 再利用部品・パフォーマンス・A11y・i18n（1.5 日）
+### Phase 6: 再利用部品・パフォーマンス・A11y・i18n（1.5 日）— ✅ 完了（2026-09-11）
 
-`refactor_seating.md` Phase 6 と**同一バックログを共有**する。重複実装しない。
+実装時の決定（計画からの差分）:
 
-AttendeeList 側で必ず拾う項目:
-
-- `Core/DesignSystem` へ色・余白・ボタンスタイルを移設
-- `NumberedPersonRow` / `EmptyStateView` で重複行を削減
-- ボトムバーを `safeAreaInset` 化
-- `AdBannerView` のアダプティブ化と、親再描画での再 `load` 防止
-  （`Coordinator` で 1 度だけ load、または表示中コンテナで保持）
-- ルート `onTapGesture` をやめ、スクロール開始 / 追加確定時にフォーカスを外す
-- 一括追加・お気に入り読込のユニーク名を O(n) に
-- 座席・追加・CTA に `accessibilityLabel` / `accessibilityHint`
-- String Catalog（SeatingChart と同時が望ましい）
+- `Core/DesignSystem` に `AppSpacing` / `AppButtonStyles` を追加。色トークンは Phase 1 の `AppColor` を継続。
+- `AttendeeRow` を削除し、参加者リストも `NumberedPersonRow` に統一。空状態は `EmptyStateView`。
+- ボトムバーは `safeAreaInset`。`AdBannerContainer` が幅追従の large anchored adaptive banner を出し、
+  Coordinator は同じサイズなら再 `load` しない。320×50 は AttendeeList / SimpleShuffle / SeatingChart から撤去。
+- ルート `onTapGesture` を廃止。リストは `scrollDismissesKeyboard`、CTA / 追加は明示的にフォーカス制御。
+- ユニーク名はベース名ごとの次番号を保持して O(n)。String Catalog は AttendeeList 系（一括追加・お気に入り・番号札）を先行。
+  座席表本体の文言移設は `refactor_seating.md` Phase 6 に残す。
 
 完了条件: AttendeeList 系の重複行が目視で半減。バナーが再描画で点滅しない。
 VoiceOver で追加〜席決めまで辿れる。

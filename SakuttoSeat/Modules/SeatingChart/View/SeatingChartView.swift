@@ -232,9 +232,8 @@ extension SeatingChartView {
             )
             .padding(.horizontal, 16)
 
-            AdBannerView()
-                .frame(width: 320, height: 50)
-                .padding(.bottom, 4)
+            AdBannerContainer()
+                .padding(.bottom, AppSpacing.bannerVerticalPadding)
         }
         .padding(.top, 12)
         .frame(maxWidth: .infinity)

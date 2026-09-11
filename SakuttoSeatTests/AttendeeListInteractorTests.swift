@@ -72,6 +72,28 @@ final class AttendeeListInteractorTests: XCTestCase {
         XCTAssertEqual(names(of: attendees), ["A", "A(2)", "B"])
     }
 
+    func test_大量の同名一括追加は連番でユニーク化する() {
+        let interactor = AttendeeListInteractor()
+        let raw = Array(repeating: "太郎", count: 50).joined(separator: ",")
+
+        let attendees = interactor.add(fromText: raw)
+
+        XCTAssertEqual(attendees.count, 50)
+        XCTAssertEqual(attendees.first?.name, "太郎")
+        XCTAssertEqual(attendees[1].name, "太郎(2)")
+        XCTAssertEqual(attendees.last?.name, "太郎(50)")
+        XCTAssertEqual(Set(names(of: attendees)).count, 50)
+    }
+
+    func test_既存の連番を避けてユニーク名を付ける() {
+        let interactor = AttendeeListInteractor()
+        _ = interactor.add(fromText: "A,A")
+
+        let attendees = interactor.add(fromText: "A,A")
+
+        XCTAssertEqual(names(of: attendees), ["A", "A(2)", "A(3)", "A(4)"])
+    }
+
     // MARK: - 削除
 
     func test_単一のインデックスを削除する() {

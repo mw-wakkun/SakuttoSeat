@@ -2,10 +2,19 @@
 //  NumberedPersonRow.swift
 //  SakuttoSeat
 //
-//  refactor_AttendeeList.md Phase 5（番号札の行 UI を 1 実装に統合）
+//  refactor_AttendeeList.md Phase 5 / Phase 6（番号付き行を 1 実装に統合。A11y ラベル）
 //
 
 import SwiftUI
+
+enum NumberedPersonCopy {
+    static func accessibilityLabel(number: Int, name: String, accessory: String?) -> String {
+        if let accessory, !accessory.isEmpty {
+            return "\(number)\(accessory)、\(name)"
+        }
+        return "\(number)番、\(name)"
+    }
+}
 
 struct NumberedPersonRow: View {
     let number: Int
@@ -40,5 +49,7 @@ struct NumberedPersonRow: View {
             }
         }
         .padding(.vertical, rowVerticalPadding)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(NumberedPersonCopy.accessibilityLabel(number: number, name: name, accessory: accessory))
     }
 }

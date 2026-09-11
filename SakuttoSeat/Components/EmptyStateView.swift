@@ -12,9 +12,10 @@ struct EmptyStateView: View {
     let message: String
     var imageFont: Font = .system(size: 50)
     var imageColor: Color = .gray.opacity(0.5)
+    var spacing: CGFloat = 16
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: spacing) {
             Image(systemName: systemImage)
                 .font(imageFont)
                 .foregroundColor(imageColor)
@@ -22,5 +23,6 @@ struct EmptyStateView: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
+        .accessibilityElement(children: .combine)
     }
 }

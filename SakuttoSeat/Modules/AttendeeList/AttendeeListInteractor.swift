@@ -3,7 +3,7 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/05.
-//  refactor_AttendeeList.md Phase 3（お気に入り永続化・一括置換を Interactor へ）
+//  refactor_AttendeeList.md Phase 3 / Phase 6（お気に入り永続化・一括置換。ユニーク名は O(n)）
 //
 
 import Foundation
@@ -144,27 +144,36 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// 一括追加・置換で名前集合を一度だけ作り、ユニーク名を O(n) に近づける
+    /// 一括追加・置換で名前集合を一度だけ作り、連番探索をベース名ごとに継続して O(n) にする
     private func appendUniqueNames(_ names: [String]) {
         var usedNames = Set(attendees.map(\.name))
+        var nextIndexByBase: [String: Int] = [:]
         for name in names {
             let trimmedName = trimmed(name)
             guard !trimmedName.isEmpty else { continue }
-            let unique = generateUniqueName(from: trimmedName, usedNames: &usedNames)
+            let unique = uniquedName(trimmedName, usedNames: &usedNames, nextIndexByBase: &nextIndexByBase)
             attendees.append(Attendee(name: unique))
         }
     }
 
     /// 必要に応じて末尾に (2), (3), ... を付与してユニーク名を生成する
-    private func generateUniqueName(from base: String, usedNames: inout Set<String>) -> String {
-        var finalName = base
-        var count = 2
-        while usedNames.contains(finalName) {
-            finalName = "\(base)(\(count))"
-            count += 1
+    private func uniquedName(
+        _ base: String,
+        usedNames: inout Set<String>,
+        nextIndexByBase: inout [String: Int]
+    ) -> String {
+        if usedNames.insert(base).inserted {
+            nextIndexByBase[base] = 2
+            return base
         }
-        usedNames.insert(finalName)
-        return finalName
+        var index = nextIndexByBase[base, default: 2]
+        var candidate = "\(base)(\(index))"
+        while !usedNames.insert(candidate).inserted {
+            index += 1
+            candidate = "\(base)(\(index))"
+        }
+        nextIndexByBase[base] = index + 1
+        return candidate
     }
 
     /// テキストを改行とカンマ（半角/全角）で分割し、トリム済みの空でない名前のみを返す

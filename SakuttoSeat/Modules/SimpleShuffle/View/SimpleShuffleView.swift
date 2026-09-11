@@ -3,7 +3,7 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/07.
-//  refactor_AttendeeList.md Phase 5（ViewData の number + 安定 id。アニメーションはここ）
+//  refactor_AttendeeList.md Phase 6（アダプティブバナー / A11y）
 //
 
 import SwiftUI
@@ -14,27 +14,25 @@ struct SimpleShuffleView: View {
     @StateObject var presenter: SimpleShufflePresenter
 
     var body: some View {
-        VStack(spacing: 0) {
-            List {
-                Section {
-                    ForEach(presenter.viewData.rows) { row in
-                        NumberedPersonRow(
-                            number: row.number,
-                            name: row.name,
-                            accessory: "番席",
-                            tint: .blue
-                        )
-                    }
-                } header: {
-                    Text("シャッフル結果")
-                } footer: {
-                    Text("この番号の席に座ってもらいましょう。")
+        List {
+            Section {
+                ForEach(presenter.viewData.rows) { row in
+                    NumberedPersonRow(
+                        number: row.number,
+                        name: row.name,
+                        accessory: String(localized: "番席"),
+                        tint: .blue
+                    )
                 }
+            } header: {
+                Text("シャッフル結果")
+            } footer: {
+                Text("この番号の席に座ってもらいましょう。")
             }
-
-            AdBannerView()
-                .frame(width: 320, height: 50)
-                .padding(.vertical, 4)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            AdBannerContainer()
+                .padding(.vertical, AppSpacing.bannerVerticalPadding)
                 .frame(maxWidth: .infinity)
                 .background(Color(.systemGroupedBackground))
         }
@@ -48,6 +46,8 @@ struct SimpleShuffleView: View {
                     Image(systemName: "square.and.arrow.up")
                         .font(.body)
                 }
+                .accessibilityLabel(String(localized: "共有"))
+                .accessibilityHint(String(localized: "結果を共有します"))
 
                 Button {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
@@ -57,6 +57,8 @@ struct SimpleShuffleView: View {
                     Image(systemName: "shuffle")
                         .font(.body).bold()
                 }
+                .accessibilityLabel(String(localized: "シャッフル"))
+                .accessibilityHint(String(localized: "席順をシャッフルします"))
             }
         }
         .shareFlow(presenter.share)

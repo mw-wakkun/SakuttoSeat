@@ -3,7 +3,7 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/05.
-//  refactor_AttendeeList.md Phase 2 / Phase 4 / Phase 5（route / viewData 集約。シートは子モジュール）
+//  refactor_AttendeeList.md Phase 6（DesignSystem / safeAreaInset / A11y / キーボード）
 //
 
 import SwiftUI
@@ -23,41 +23,20 @@ struct AttendeeListView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottom) {
-                Color(.systemBackground)
-                    .ignoresSafeArea()
-
-                VStack(spacing: 0) {
-                    if presenter.viewData.isEmpty {
-                        Spacer()
-                        VStack(spacing: 24) {
-                            inputSection
-                            emptyStateView
-                                .padding(.horizontal, 24)
-                        }
-                        Spacer()
-                    } else {
+            Group {
+                if presenter.viewData.isEmpty {
+                    emptyContent
+                } else {
+                    VStack(spacing: 0) {
                         inputSection
                         attendeeList
                     }
-                    Spacer()
-                        .frame(height: presenter.viewData.isEmpty ? 200 : 240)
-                }
-
-                VStack(spacing: 0) {
-                    shuffleButton
-                        .padding(.horizontal, 24)
-                        .padding(.top, 16)
-                        .padding(.bottom, 8)
-                        .background(Color(.systemBackground).opacity(0.9))
-
-                    AdBannerView()
-                        .frame(width: 320, height: 50)
-                        .padding(.vertical, 4)
-                        .frame(maxWidth: .infinity)
-                        .background(Color(.systemBackground).opacity(0.9))
                 }
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                bottomChromeBar
+            }
+            .background(Color(.systemBackground))
             .navigationTitle("サクッと席決め")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Color.sakuttoBlueStart, for: .navigationBar)
@@ -91,9 +70,6 @@ struct AttendeeListView: View {
                 presenter.attachFavoriteGateway(SwiftDataGroupFavoriteGateway(context: modelContext))
                 presenter.onAppear()
                 isTextFieldFocused = true
-            }
-            .onTapGesture {
-                isTextFieldFocused = false
             }
             .navigationDestination(item: navigationRouteBinding) { route in
                 presenter.makeRouteView(route)
@@ -155,11 +131,11 @@ private extension AttendeeListView {
     var alertTitle: String {
         switch presentedAlert {
         case .confirmReset:
-            return "参加者のリセット"
+            return String(localized: "参加者のリセット")
         case .favoriteLimitReached:
-            return "お気に入り上限"
+            return String(localized: "お気に入り上限")
         case .saveFailed:
-            return "保存に失敗しました"
+            return String(localized: "保存に失敗しました")
         case .none:
             return ""
         }
@@ -202,6 +178,21 @@ private extension AttendeeListView {
 }
 
 private extension AttendeeListView {
+    var emptyContent: some View {
+        VStack(spacing: 24) {
+            inputSection
+            EmptyStateView(
+                systemImage: "person.3.fill",
+                message: String(localized: "参加者を追加してください"),
+                imageFont: .system(size: 80),
+                imageColor: .sakuttoBlueStart.opacity(0.3),
+                spacing: AppSpacing.emptyStateSpacing
+            )
+            .padding(.horizontal, AppSpacing.screenHorizontal)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     var inputSection: some View {
         HStack {
             TextField("参加者の名前を入力", text: $newName)
@@ -209,6 +200,8 @@ private extension AttendeeListView {
                 .focused($isTextFieldFocused)
                 .onSubmit { addAttendeeProcess() }
                 .submitLabel(.done)
+                .accessibilityLabel(String(localized: "参加者の名前"))
+                .accessibilityHint(String(localized: "追加する参加者の名前を入力します"))
 
             Button(action: addAttendeeProcess) {
                 Image(systemName: "plus.circle.fill")
@@ -216,58 +209,77 @@ private extension AttendeeListView {
                     .foregroundColor(newName.isEmpty ? .gray.opacity(0.4) : .sakuttoBlueStart)
             }
             .disabled(newName.isEmpty)
+            .accessibilityLabel(String(localized: "参加者を追加"))
+            .accessibilityHint(String(localized: "入力した名前をリストに追加します"))
         }
         .padding()
-    }
-
-    var emptyStateView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "person.3.fill")
-                .font(.system(size: 80))
-                .foregroundColor(.sakuttoBlueStart.opacity(0.3))
-
-            Text("参加者を追加してください")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
     }
 
     var attendeeList: some View {
         List {
             ForEach(presenter.viewData.rows) { row in
-                AttendeeRow(number: row.number, name: row.name)
+                NumberedPersonRow(number: row.number, name: row.name)
             }
             .onDelete { offsets in
                 presenter.didDeleteAttendees(at: offsets)
             }
         }
         .listStyle(.insetGrouped)
+        .scrollDismissesKeyboard(.immediately)
     }
 
     var seatingDisabled: Bool {
         !presenter.viewData.canStartSeating || !newName.isEmpty
     }
 
+    var bottomChromeBar: some View {
+        VStack(spacing: 0) {
+            shuffleButton
+                .padding(.horizontal, AppSpacing.screenHorizontal)
+                .padding(.top, AppSpacing.bottomChromeTop)
+                .padding(.bottom, 8)
+
+            AdBannerContainer()
+                .padding(.vertical, AppSpacing.bannerVerticalPadding)
+        }
+        .frame(maxWidth: .infinity)
+        .background(
+            Color(.systemBackground)
+                .shadow(color: .black.opacity(0.05), radius: 3, y: -3)
+                .ignoresSafeArea(edges: .bottom)
+        )
+    }
+
     var shuffleButton: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: AppSpacing.ctaStackSpacing) {
             actionButtons
 
-            VStack(spacing: 12) {
-                Button(action: {
+            VStack(spacing: AppSpacing.ctaStackSpacing) {
+                Button {
                     isTextFieldFocused = false
                     presenter.didTapSeatingChart()
-                }) {
-                    buttonLabel(text: "座席表で決める", icon: "square.grid.2x2.fill", isPrimary: true)
+                } label: {
+                    HStack {
+                        Image(systemName: "square.grid.2x2.fill")
+                        Text("座席表で決める")
+                    }
                 }
+                .buttonStyle(SakuttoPrimaryButtonStyle())
                 .disabled(seatingDisabled)
+                .accessibilityHint(String(localized: "参加者の座席表を開きます"))
 
-                Button(action: {
+                Button {
                     isTextFieldFocused = false
                     presenter.didTapSimpleShuffle()
-                }) {
-                    buttonLabel(text: "番号札で決める（シンプル）", icon: "list.number", isPrimary: false)
+                } label: {
+                    HStack {
+                        Image(systemName: "list.number")
+                        Text("番号札で決める（シンプル）")
+                    }
                 }
+                .buttonStyle(SakuttoSecondaryButtonStyle())
                 .disabled(seatingDisabled)
+                .accessibilityHint(String(localized: "番号札画面を開きます"))
             }
             .opacity(seatingDisabled ? 0.5 : 1.0)
         }
@@ -275,45 +287,48 @@ private extension AttendeeListView {
 
     var actionButtons: some View {
         ActionButtonsView(
-            button1: .init(title: "お気に入り", icon: "star.fill", color: .orange, action: {
-                isTextFieldFocused = false
-                presenter.didTapShowFavorites()
-            }),
-            button2: .init(title: "一括入力", icon: "list.star", color: .blue, action: {
-                isTextFieldFocused = false
-                presenter.didTapBulkAddEntry()
-            }),
-            button3: .init(title: "保存", icon: "square.and.arrow.down", color: .green, action: {
-                isTextFieldFocused = false
-                groupName = ""
-                presenter.didTapSaveFavorite()
-            }, isDisabled: !presenter.viewData.canSaveFavorite),
-            button4: .init(title: "削除", icon: "trash", color: .red, action: {
-                presenter.didTapReset()
-            }, isDisabled: !presenter.viewData.canReset)
-        )
-    }
-
-    private func buttonLabel(text: String, icon: String, isPrimary: Bool) -> some View {
-        HStack {
-            Image(systemName: icon)
-            Text(text)
-        }
-        .font(.headline).bold()
-        .foregroundColor(isPrimary ? .white : .blue)
-        .frame(maxWidth: .infinity)
-        .frame(height: 56)
-        .background {
-            if isPrimary {
-                Color.sakuttoGradient
-            } else {
-                Color.blue.opacity(0.1)
-            }
-        }
-        .cornerRadius(15)
-        .shadow(
-            color: (isPrimary ? Color.sakuttoBlueStart : Color.blue).opacity(0.3),
-            radius: 8, x: 0, y: 4
+            button1: .init(
+                title: String(localized: "お気に入り"),
+                icon: "star.fill",
+                color: .orange,
+                action: {
+                    isTextFieldFocused = false
+                    presenter.didTapShowFavorites()
+                },
+                accessibilityHint: String(localized: "保存済みグループの一覧を開きます")
+            ),
+            button2: .init(
+                title: String(localized: "一括入力"),
+                icon: "list.star",
+                color: .blue,
+                action: {
+                    isTextFieldFocused = false
+                    presenter.didTapBulkAddEntry()
+                },
+                accessibilityHint: String(localized: "複数の参加者をまとめて追加します")
+            ),
+            button3: .init(
+                title: String(localized: "保存"),
+                icon: "square.and.arrow.down",
+                color: .green,
+                action: {
+                    isTextFieldFocused = false
+                    groupName = ""
+                    presenter.didTapSaveFavorite()
+                },
+                isDisabled: !presenter.viewData.canSaveFavorite,
+                accessibilityHint: String(localized: "現在の参加者をお気に入りに保存します")
+            ),
+            button4: .init(
+                title: String(localized: "削除"),
+                icon: "trash",
+                color: .red,
+                action: {
+                    presenter.didTapReset()
+                },
+                isDisabled: !presenter.viewData.canReset,
+                accessibilityHint: String(localized: "参加者を全員削除します")
+            )
         )
     }
 

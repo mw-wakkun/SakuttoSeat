@@ -11,7 +11,9 @@ import Foundation
 
 enum BulkAddCopy {
     /// 親 Interactor の分割文字（改行 / 半角カンマ / 読点）と一致させる
-    static let delimiterHint = "改行またはカンマ（, または 、）区切りで参加者名を入力・ペーストしてください。"
+    static var delimiterHint: String {
+        String(localized: "改行またはカンマ（, または 、）区切りで参加者名を入力・ペーストしてください。")
+    }
 }
 
 struct BulkAddViewData: Equatable {

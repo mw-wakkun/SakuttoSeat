@@ -2,7 +2,7 @@
 //  AppColor.swift
 //  SakuttoSeat
 //
-//  refactor_AttendeeList.md Phase 1（AttendeeListView 末尾からのファイル分離）
+//  refactor_AttendeeList.md Phase 1 / Phase 6（Core/DesignSystem へ移設）
 //
 
 import SwiftUI
