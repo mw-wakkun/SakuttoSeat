@@ -50,7 +50,7 @@ final class AttendeeListRouterTests: XCTestCase {
     func test_お気に入りモジュールは渡したGatewayインスタンスから一覧を読む() throws {
         let gateway = FetchCountingGroupFavoriteGateway()
         try gateway.insert(name: "共有", members: ["A"])
-        XCTAssertEqual(gateway.fetchAllCallCount, 0)
+        XCTAssertEqual(gateway.fetchSummariesCallCount, 0)
 
         _ = AttendeeListRouter().makeFavoriteGroupModule(
             gatewayHolder: AttendeeListInteractor(favoriteGateway: gateway),
@@ -61,7 +61,7 @@ final class AttendeeListRouterTests: XCTestCase {
             output: FavoriteGroupOutputSpy()
         )
 
-        XCTAssertGreaterThanOrEqual(gateway.fetchAllCallCount, 2)
+        XCTAssertGreaterThanOrEqual(gateway.fetchSummariesCallCount, 2)
     }
 
     func test_一括追加モジュールはBulkAddRouterへ委譲する() {
@@ -122,13 +122,19 @@ final class AttendeeListRouterTests: XCTestCase {
 
 private final class FetchCountingGroupFavoriteGateway: GroupFavoriteGatewayBase {
     private var snapshots: [FavoriteGroupSnapshot] = []
-    private(set) var fetchAllCallCount = 0
+    private(set) var fetchSummariesCallCount = 0
 
     override func fetchCount() throws -> Int { snapshots.count }
 
-    override func fetchAll() throws -> [FavoriteGroupSnapshot] {
-        fetchAllCallCount += 1
-        return snapshots
+    override func fetchSummaries() throws -> [FavoriteGroupSummary] {
+        fetchSummariesCallCount += 1
+        return snapshots.map {
+            FavoriteGroupSummary(
+                id: $0.id,
+                name: $0.name,
+                memberSummary: $0.memberNames.joined(separator: ", ")
+            )
+        }
     }
 
     override func insert(name: String, members: [String]) throws {

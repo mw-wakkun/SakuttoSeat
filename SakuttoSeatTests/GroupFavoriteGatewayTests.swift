@@ -3,7 +3,8 @@
 //  SakuttoSeatTests
 //
 //  refactor_groupFavorite.md Phase 0（Gateway / Snapshot の characterization）
-//  refactor_groupFavorite.md Phase 2（memberSummary 断言は ViewData へ。init は id / createdAt 可）
+//  refactor_groupFavorite.md Phase 2（Snapshot は id / name / memberNames。init は id / createdAt 可）
+//  refactor_groupFavorite.md Phase 3（fetchSummaries / fetch(id:)。fetchAll は削除）
 //  画面テストは FavoriteGroupTests / AttendeeList* に残し、永続化実装を直接固定する。
 //
 
@@ -52,6 +53,10 @@ final class GroupFavoriteGatewayTests: XCTestCase {
             InMemoryGroupFavoriteGateway()
         )
     }
+
+    func test_一覧のmemberSummaryはカンマ空白結合である() throws {
+        try GroupFavoriteGatewayCases.assertSummaryJoinsMemberNames(InMemoryGroupFavoriteGateway())
+    }
 }
 
 // MARK: - Gateway（SwiftData In-Memory）
@@ -82,11 +87,11 @@ final class SwiftDataGroupFavoriteGatewayTests: XCTestCase {
         _ = container
         try gateway.insert(name: "同期", members: ["太郎"])
 
-        let inserted = try XCTUnwrap(gateway.fetchAll().first)
+        let inserted = try XCTUnwrap(gateway.fetchSummaries().first)
         let fetched = try XCTUnwrap(gateway.fetch(id: inserted.id))
 
         XCTAssertEqual(fetched.id, inserted.id)
-        XCTAssertEqual(try gateway.fetchAll().map(\.id), [inserted.id])
+        XCTAssertEqual(try gateway.fetchSummaries().map(\.id), [inserted.id])
     }
 
     func test_存在しないIDの取得はnil() throws {
@@ -123,6 +128,12 @@ final class SwiftDataGroupFavoriteGatewayTests: XCTestCase {
         let (gateway, container) = try makeSwiftDataGateway()
         _ = container
         try GroupFavoriteGatewayCases.assertConsecutiveInsertsKeepNewestFirst(gateway)
+    }
+
+    func test_一覧のmemberSummaryはカンマ空白結合である() throws {
+        let (gateway, container) = try makeSwiftDataGateway()
+        _ = container
+        try GroupFavoriteGatewayCases.assertSummaryJoinsMemberNames(gateway)
     }
 
     func test_initはidとcreatedAtを受け取ってpersistできる() throws {
@@ -165,12 +176,12 @@ final class GroupFavoriteGatewayBaseTests: XCTestCase {
         let gateway = GroupFavoriteGatewayBase()
 
         XCTAssertEqual(try gateway.fetchCount(), 0)
-        XCTAssertTrue(try gateway.fetchAll().isEmpty)
+        XCTAssertTrue(try gateway.fetchSummaries().isEmpty)
         XCTAssertNil(try gateway.fetch(id: UUID()))
 
         try gateway.insert(name: "無視される", members: ["A"])
         XCTAssertEqual(try gateway.fetchCount(), 0)
-        XCTAssertTrue(try gateway.fetchAll().isEmpty)
+        XCTAssertTrue(try gateway.fetchSummaries().isEmpty)
 
         try gateway.delete(ids: [UUID()])
         XCTAssertEqual(try gateway.fetchCount(), 0)
@@ -209,9 +220,9 @@ private enum GroupFavoriteGatewayCases {
         try gateway.insert(name: "古い", members: ["A"])
         try gateway.insert(name: "新しい", members: ["B", "C"])
 
-        let groups = try gateway.fetchAll()
+        let groups = try gateway.fetchSummaries()
         XCTAssertEqual(groups.map(\.name), ["新しい", "古い"])
-        XCTAssertEqual(groups.first?.memberNames, ["B", "C"])
+        XCTAssertEqual(groups.first?.memberSummary, "B, C")
     }
 
     static func assertInsertIncrementsCount(_ gateway: GroupFavoriteGateway) throws {
@@ -220,12 +231,12 @@ private enum GroupFavoriteGatewayCases {
         try gateway.insert(name: "1件目", members: ["A"])
 
         XCTAssertEqual(try gateway.fetchCount(), 1)
-        XCTAssertEqual(try gateway.fetchAll().map(\.name), ["1件目"])
+        XCTAssertEqual(try gateway.fetchSummaries().map(\.name), ["1件目"])
     }
 
     static func assertFetchByPersistedID(_ gateway: GroupFavoriteGateway) throws {
         try gateway.insert(name: "同期", members: ["太郎", "花子"])
-        let inserted = try XCTUnwrap(gateway.fetchAll().first)
+        let inserted = try XCTUnwrap(gateway.fetchSummaries().first)
 
         let fetched = try XCTUnwrap(gateway.fetch(id: inserted.id))
 
@@ -238,17 +249,17 @@ private enum GroupFavoriteGatewayCases {
         try gateway.insert(name: "残る", members: ["A"])
 
         XCTAssertNil(try gateway.fetch(id: UUID()))
-        XCTAssertEqual(try gateway.fetchAll().map(\.name), ["残る"])
+        XCTAssertEqual(try gateway.fetchSummaries().map(\.name), ["残る"])
     }
 
     static func assertDeleteByID(_ gateway: GroupFavoriteGateway) throws {
         try gateway.insert(name: "古い", members: ["A"])
         try gateway.insert(name: "新しい", members: ["B"])
-        let newerID = try XCTUnwrap(gateway.fetchAll().first?.id)
+        let newerID = try XCTUnwrap(gateway.fetchSummaries().first?.id)
 
         try gateway.delete(ids: [newerID])
 
-        XCTAssertEqual(try gateway.fetchAll().map(\.name), ["古い"])
+        XCTAssertEqual(try gateway.fetchSummaries().map(\.name), ["古い"])
         XCTAssertEqual(try gateway.fetchCount(), 1)
     }
 
@@ -256,11 +267,11 @@ private enum GroupFavoriteGatewayCases {
         try gateway.insert(name: "古い", members: ["A"])
         try gateway.insert(name: "真ん中", members: ["B"])
         try gateway.insert(name: "新しい", members: ["C"])
-        let groups = try gateway.fetchAll()
+        let groups = try gateway.fetchSummaries()
 
         try gateway.delete(ids: [groups[0].id, groups[2].id])
 
-        XCTAssertEqual(try gateway.fetchAll().map(\.name), ["真ん中"])
+        XCTAssertEqual(try gateway.fetchSummaries().map(\.name), ["真ん中"])
         XCTAssertEqual(try gateway.fetchCount(), 1)
     }
 
@@ -269,7 +280,7 @@ private enum GroupFavoriteGatewayCases {
 
         try gateway.delete(ids: [UUID()])
 
-        XCTAssertEqual(try gateway.fetchAll().map(\.name), ["残る"])
+        XCTAssertEqual(try gateway.fetchSummaries().map(\.name), ["残る"])
         XCTAssertEqual(try gateway.fetchCount(), 1)
     }
 
@@ -278,7 +289,7 @@ private enum GroupFavoriteGatewayCases {
 
         try gateway.delete(ids: [])
 
-        XCTAssertEqual(try gateway.fetchAll().map(\.name), ["残る"])
+        XCTAssertEqual(try gateway.fetchSummaries().map(\.name), ["残る"])
         XCTAssertEqual(try gateway.fetchCount(), 1)
     }
 
@@ -287,6 +298,19 @@ private enum GroupFavoriteGatewayCases {
         try gateway.insert(name: "2", members: ["B"])
         try gateway.insert(name: "3", members: ["C"])
 
-        XCTAssertEqual(try gateway.fetchAll().map(\.name), ["3", "2", "1"])
+        XCTAssertEqual(try gateway.fetchSummaries().map(\.name), ["3", "2", "1"])
+    }
+
+    static func assertSummaryJoinsMemberNames(_ gateway: GroupFavoriteGateway) throws {
+        try gateway.insert(name: "空", members: [])
+        try gateway.insert(name: "1人", members: ["太郎"])
+        try gateway.insert(name: "複数", members: ["太郎", "花子", "次郎"])
+
+        let summaries = try gateway.fetchSummaries()
+        XCTAssertEqual(summaries.map(\.name), ["複数", "1人", "空"])
+        XCTAssertEqual(summaries.map(\.memberSummary), ["太郎, 花子, 次郎", "太郎", ""])
+
+        let manyID = try XCTUnwrap(summaries.first?.id)
+        XCTAssertEqual(try gateway.fetch(id: manyID)?.memberNames, ["太郎", "花子", "次郎"])
     }
 }

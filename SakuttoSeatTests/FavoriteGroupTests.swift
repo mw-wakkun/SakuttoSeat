@@ -8,6 +8,7 @@
 //  refactor_favorite.md Phase 5（Copy.edit。行 UI は View の SavedListRow）
 //  refactor_favorite.md Phase 6（閉じる / 編集 / 空状態の A11y Copy）
 //  refactor_groupFavorite.md Phase 2（memberSummary 断言は ViewData Builder）
+//  refactor_groupFavorite.md Phase 3（一覧は Summary。Gateway 直読みは fetchSummaries）
 //
 
 import XCTest
@@ -17,7 +18,7 @@ import XCTest
 
 final class FavoriteGroupInteractorTests: XCTestCase {
 
-    func test_一覧は新しい順のスナップショットを返す() throws {
+    func test_一覧は新しい順のSummaryを返す() throws {
         let gateway = InMemoryGroupFavoriteGateway()
         try gateway.insert(name: "古い", members: ["A"])
         try gateway.insert(name: "新しい", members: ["B", "C"])
@@ -26,7 +27,7 @@ final class FavoriteGroupInteractorTests: XCTestCase {
         let groups = try interactor.allFavorites()
 
         XCTAssertEqual(groups.map(\.name), ["新しい", "古い"])
-        XCTAssertEqual(groups.first?.memberNames, ["B", "C"])
+        XCTAssertEqual(groups.first?.memberSummary, "B, C")
     }
 
     func test_ID指定で削除する() throws {
@@ -151,7 +152,7 @@ final class FavoriteGroupPresenterTests: XCTestCase {
         try gateway.insert(name: "同期", members: ["太郎"])
         let output = OutputSpy()
         let presenter = makePresenter(gateway: gateway, output: output)
-        let id = try XCTUnwrap(gateway.fetchAll().first?.id)
+        let id = try XCTUnwrap(gateway.fetchSummaries().first?.id)
 
         presenter.didSelectGroup(id: id)
 
@@ -163,14 +164,14 @@ final class FavoriteGroupPresenterTests: XCTestCase {
         try gateway.insert(name: "同期", members: ["太郎"])
         let output = OutputSpy()
         let presenter = makePresenter(gateway: gateway, output: output)
-        let id = try XCTUnwrap(gateway.fetchAll().first?.id)
+        let id = try XCTUnwrap(gateway.fetchSummaries().first?.id)
 
         presenter.didSelectGroup(id: id)
 
         XCTAssertEqual(output.selectedID, id)
         XCTAssertEqual(output.cancelCount, 0)
         XCTAssertEqual(presenter.viewData.rows.map(\.name), ["同期"])
-        XCTAssertEqual(try gateway.fetchAll().map(\.name), ["同期"])
+        XCTAssertEqual(try gateway.fetchSummaries().map(\.name), ["同期"])
         XCTAssertNil(presenter.route)
     }
 
@@ -302,23 +303,24 @@ final class FavoriteGroupCopyTests: XCTestCase {
 // MARK: - ViewData
 
 final class FavoriteGroupViewDataTests: XCTestCase {
-    func test_BuilderのmemberSummaryはカンマ空白結合である() {
+    func test_BuilderはSummaryのmemberSummaryをRowへ写す() {
         XCTAssertEqual(FavoriteGroupViewDataBuilder.build(groups: []), .empty)
 
-        let emptyMembers = FavoriteGroupSnapshot.persisted(name: "空", memberNames: [])
+        let emptyMembers = FavoriteGroupSummary(id: UUID(), name: "空", memberSummary: "")
         let emptyData = FavoriteGroupViewDataBuilder.build(groups: [emptyMembers])
         XCTAssertEqual(emptyData.rows.map(\.name), ["空"])
         XCTAssertEqual(emptyData.rows.map(\.memberSummary), [""])
         XCTAssertFalse(emptyData.isEmpty)
 
-        let one = FavoriteGroupSnapshot.persisted(name: "同期", memberNames: ["太郎"])
+        let one = FavoriteGroupSummary(id: UUID(), name: "同期", memberSummary: "太郎")
         let oneData = FavoriteGroupViewDataBuilder.build(groups: [one])
         XCTAssertEqual(oneData.rows.map(\.id), [one.id])
         XCTAssertEqual(oneData.rows.map(\.memberSummary), ["太郎"])
 
-        let many = FavoriteGroupSnapshot.persisted(
+        let many = FavoriteGroupSummary(
+            id: UUID(),
             name: "同期",
-            memberNames: ["太郎", "花子", "次郎"]
+            memberSummary: "太郎, 花子, 次郎"
         )
         let manyData = FavoriteGroupViewDataBuilder.build(groups: [many])
         XCTAssertEqual(manyData.rows.map(\.memberSummary), ["太郎, 花子, 次郎"])
@@ -326,7 +328,7 @@ final class FavoriteGroupViewDataTests: XCTestCase {
 }
 
 private final class FailingFetchGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    override func fetchAll() throws -> [FavoriteGroupSnapshot] {
+    override func fetchSummaries() throws -> [FavoriteGroupSummary] {
         throw NSError(
             domain: "FavoriteGroupTests",
             code: 2,
@@ -336,8 +338,8 @@ private final class FailingFetchGroupFavoriteGateway: GroupFavoriteGatewayBase {
 }
 
 private final class FailingDeleteGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    override func fetchAll() throws -> [FavoriteGroupSnapshot] {
-        [FavoriteGroupSnapshot.persisted(name: "同期", memberNames: ["A"])]
+    override func fetchSummaries() throws -> [FavoriteGroupSummary] {
+        [FavoriteGroupSummary(id: UUID(), name: "同期", memberSummary: "A")]
     }
 
     override func delete(ids: [FavoriteGroupID]) throws {

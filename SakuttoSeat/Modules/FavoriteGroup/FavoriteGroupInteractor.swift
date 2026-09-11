@@ -6,6 +6,7 @@
 //  一覧の取得・削除は子 Interactor が Gateway を持つ（保存・読込置換は親）。
 //  refactor_favorite.md Phase 1（本番の Gateway は親が assemble 時に渡す。attach はテスト用）
 //  refactor_favorite.md Phase 3（削除は ID 配列。@Model は Gateway 内に閉じる）
+//  refactor_groupFavorite.md Phase 3（一覧は fetchSummaries。Snapshot 相当へは写さない）
 //
 
 import Foundation
@@ -23,9 +24,9 @@ nonisolated final class FavoriteGroupInteractor: FavoriteGroupInteractorProtocol
         favoriteGateway = gateway
     }
 
-    func allFavorites() throws -> [FavoriteGroupSnapshot] {
+    func allFavorites() throws -> [FavoriteGroupSummary] {
         do {
-            return try favoriteGateway.fetchAll()
+            return try favoriteGateway.fetchSummaries()
         } catch {
             throw FavoriteSaveError.persistenceFailed(message: error.localizedDescription)
         }

@@ -7,6 +7,7 @@
 //  refactor_favorite.md Phase 5（編集トグル文言を Copy に追加。キーは既存 Catalog）
 //  refactor_favorite.md Phase 6（閉じる / 編集 / 空状態の A11y。Catalog は ja のみ）
 //  refactor_groupFavorite.md Phase 2（memberSummary 結合は Builder のみ）
+//  refactor_groupFavorite.md Phase 3（Builder は Summary を写す。結合は Gateway）
 //
 
 import Foundation
@@ -46,7 +47,7 @@ enum FavoriteGroupCopy {
 // MARK: - ViewData
 
 /// Presenter が生成し、View が消費する表示専用モデル。
-/// Entity（`FavoriteGroupSnapshot` / `GroupFavorite`）はここに現れない。
+/// `@Model`（`GroupFavorite`）と詳細 Snapshot はここに現れない。一覧は Summary を写す。
 nonisolated struct FavoriteGroupViewData: Equatable {
     struct Row: Identifiable, Equatable {
         let id: FavoriteGroupID
@@ -60,15 +61,15 @@ nonisolated struct FavoriteGroupViewData: Equatable {
     static let empty = FavoriteGroupViewData(rows: [])
 }
 
-/// Snapshot の `memberNames` を一覧行へ写す。表示用結合（カンマ区切り）はここだけが担う。
+/// Summary を一覧行へ写す。字幕結合は Gateway が一覧 DTO に載せ済み。
 nonisolated enum FavoriteGroupViewDataBuilder {
-    static func build(groups: [FavoriteGroupSnapshot]) -> FavoriteGroupViewData {
+    static func build(groups: [FavoriteGroupSummary]) -> FavoriteGroupViewData {
         FavoriteGroupViewData(
             rows: groups.map { group in
                 FavoriteGroupViewData.Row(
                     id: group.id,
                     name: group.name,
-                    memberSummary: group.memberNames.joined(separator: ", ")
+                    memberSummary: group.memberSummary
                 )
             }
         )

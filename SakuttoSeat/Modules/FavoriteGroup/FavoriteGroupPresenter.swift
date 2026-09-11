@@ -6,6 +6,7 @@
 //  refactor_favorite.md Phase 1（attach は Interactor のみ。deinit を親と揃える）
 //  refactor_favorite.md Phase 2 / Phase 3（ViewData.Row / route。削除は IndexSet → ID）
 //  refactor_groupFavorite.md Phase 2（FavoriteSaveError の非 persistenceFailed は明示 default）
+//  refactor_groupFavorite.md Phase 3（Builder は Summary を受ける）
 //
 
 import Combine

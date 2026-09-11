@@ -24,7 +24,7 @@
 | 0 | 準備と回帰テスト（Gateway / スキーマのギャップ埋め） | ✅ 完了（2026-09-11） |
 | 1 | 配置・命名の固定（偽モジュール解消。型名は変えない） | ✅ 完了（2026-09-11） |
 | 2 | Entity / `@Model` の純化（Snapshot・init・表示結合） | ✅ 完了（2026-09-11） |
-| 3 | Gateway の性能と API 分割（一括削除・一覧/詳細） | 未着手 |
+| 3 | Gateway の性能と API 分割（一括削除・一覧/詳細） | ✅ 完了（2026-09-11） |
 | 4 | App 注入で View から SwiftData を排除 | 未着手 |
 | 5 | テストダブル共通化・デッド API・仕上げ | 未着手 |
 
@@ -553,6 +553,21 @@ Gateway 専用 DTO を Core に増やすと型がまた分裂する。
 
 一覧 Summary にメンバー配列を残すなら、性能効果は削除の一括化が主になる。
 その場合でも `fetchAll` という「詳細の配列」名を消す意味がある。
+
+実装時の決定（2026-09-11）:
+
+- `fetchAll()` を protocol / Base / SwiftData / InMemory / 本番呼び出しから削除。
+  一覧は `fetchSummaries()`、詳細・読込置換は `fetch(id:)`。
+- `FavoriteGroupSummary` は FavoriteGroupEntity 所有。`id` / `name` / `memberSummary`。
+  `memberNames` は Snapshot（`fetch(id:)`）だけ。§9.3 の推奨に従う。
+- 字幕の `", "` 結合は Gateway ファイル内の写像だけ。Builder は Summary を Row へ写す。
+  二重結合はしない。
+- 子 `allFavorites()` は `[FavoriteGroupSummary]`。Interactor 内で Snapshot 相当へは写さない。
+- SwiftData `delete(ids:)` は全件 1 fetch + Set 判定 + まとめて `context.delete` + `save` 1 回。
+  `#Predicate { ids.contains($0.id) }` は使わない（無料枠 3 件の前提をコメント）。
+- InMemory の delete は現状の Set 判定のまま。
+- 親の保存確認テストは `fetchSummaries` で名前、`fetch(id:)` で `memberNames`。
+- 結合の characterization は Gateway テストへ移した。ViewData テストは写しを断言する。
 
 ### Phase 4: App 注入で View から SwiftData を排除（1.0 日）
 

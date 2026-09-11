@@ -4,9 +4,10 @@
 //
 //  refactor_AttendeeList.md Phase 0 / Phase 3
 //  追加規則・一括パース・置換・お気に入り上限 / 保存 / 読込を固定する。
-//  一覧・削除は FavoriteGroupTests 側。保存結果は gateway.fetchAll() で断言する。
+//  一覧・削除は FavoriteGroupTests 側。保存結果は fetchSummaries / fetch(id:) で断言する。
 //  refactor_groupFavorite.md Phase 0（空メンバー保存は拒まない現状を固定）
 //  refactor_groupFavorite.md Phase 2（保存結果の断言は name / memberNames。結合は ViewData）
+//  refactor_groupFavorite.md Phase 3（fetchAll は削除。詳細は fetch(id:)）
 //
 
 import XCTest
@@ -217,10 +218,11 @@ final class AttendeeListInteractorTests: XCTestCase {
 
         try interactor.saveCurrentAsFavorite(named: "  同期  ")
 
-        let saved = try gateway.fetchAll()
-        XCTAssertEqual(saved.count, 1)
-        XCTAssertEqual(saved.first?.name, "同期")
-        XCTAssertEqual(saved.first?.memberNames, ["太郎", "花子"])
+        let summaries = try gateway.fetchSummaries()
+        XCTAssertEqual(summaries.count, 1)
+        let saved = try XCTUnwrap(summaries.first)
+        XCTAssertEqual(saved.name, "同期")
+        XCTAssertEqual(try gateway.fetch(id: saved.id)?.memberNames, ["太郎", "花子"])
     }
 
     func test_参加者空でもお気に入り保存は拒まない() throws {
@@ -230,10 +232,11 @@ final class AttendeeListInteractorTests: XCTestCase {
 
         try interactor.saveCurrentAsFavorite(named: "空グループ")
 
-        let saved = try gateway.fetchAll()
-        XCTAssertEqual(saved.count, 1)
-        XCTAssertEqual(saved.first?.name, "空グループ")
-        XCTAssertEqual(saved.first?.memberNames, [])
+        let summaries = try gateway.fetchSummaries()
+        XCTAssertEqual(summaries.count, 1)
+        let saved = try XCTUnwrap(summaries.first)
+        XCTAssertEqual(saved.name, "空グループ")
+        XCTAssertEqual(try gateway.fetch(id: saved.id)?.memberNames, [])
     }
 
     func test_空白のみのグループ名はinvalidNameになる() throws {
@@ -244,7 +247,7 @@ final class AttendeeListInteractorTests: XCTestCase {
         XCTAssertThrowsError(try interactor.saveCurrentAsFavorite(named: "   ")) { error in
             XCTAssertEqual(error as? FavoriteSaveError, .invalidName)
         }
-        XCTAssertTrue(try gateway.fetchAll().isEmpty)
+        XCTAssertTrue(try gateway.fetchSummaries().isEmpty)
     }
 
     func test_保存失敗はpersistenceFailedになる() {
@@ -264,7 +267,7 @@ final class AttendeeListInteractorTests: XCTestCase {
         try gateway.insert(name: "新メンバ", members: ["新1", "新2", "新3"])
         let interactor = AttendeeListInteractor(favoriteGateway: gateway)
         _ = interactor.add(fromText: "旧1,旧2")
-        let id = try XCTUnwrap(gateway.fetchAll().first?.id)
+        let id = try XCTUnwrap(gateway.fetchSummaries().first?.id)
 
         let loaded = try interactor.loadFavorite(id: id)
 
@@ -277,7 +280,7 @@ final class AttendeeListInteractorTests: XCTestCase {
         try gateway.insert(name: "空", members: [])
         let interactor = AttendeeListInteractor(favoriteGateway: gateway)
         _ = interactor.add(name: "残したくない")
-        let id = try XCTUnwrap(gateway.fetchAll().first?.id)
+        let id = try XCTUnwrap(gateway.fetchSummaries().first?.id)
 
         let loaded = try interactor.loadFavorite(id: id)
 
@@ -313,8 +316,8 @@ final class AttendeeListInteractorTests: XCTestCase {
         interactor.attachFavoriteGateway(second)
         try interactor.saveCurrentAsFavorite(named: "差し替え後")
 
-        XCTAssertEqual(try first.fetchAll().map(\.name), ["最初"])
-        XCTAssertEqual(try second.fetchAll().map(\.name), ["差し替え後"])
+        XCTAssertEqual(try first.fetchSummaries().map(\.name), ["最初"])
+        XCTAssertEqual(try second.fetchSummaries().map(\.name), ["差し替え後"])
     }
 
     func test_currentFavoriteGatewayはattachしたインスタンスを返す() {

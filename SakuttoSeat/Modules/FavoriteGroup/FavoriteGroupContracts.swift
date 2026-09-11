@@ -6,6 +6,7 @@
 //  refactor_favorite.md Phase 1（Presenter から attach を外す。Gateway は assemble 時注入）
 //  refactor_favorite.md Phase 2 / Phase 3（ViewData / Route。Interactor 削除は ID 配列）
 //  refactor_groupFavorite.md Phase 2（子 Interactor の throws は persistenceFailed に限定）
+//  refactor_groupFavorite.md Phase 3（一覧は Summary。fetchAll は使わない）
 //
 
 import Foundation
@@ -30,7 +31,7 @@ protocol FavoriteGroupPresenterProtocol: AnyObject {
 /// 子 Interactor の throws は `FavoriteSaveError.persistenceFailed` に限定する。
 /// 保存上限・不正名・未検出は親 AttendeeList の責務。エラー型の分割はしない。
 nonisolated protocol FavoriteGroupInteractorProtocol: AnyObject {
-    func allFavorites() throws -> [FavoriteGroupSnapshot]
+    func allFavorites() throws -> [FavoriteGroupSummary]
     func deleteFavorites(ids: [FavoriteGroupID]) throws
 }
 

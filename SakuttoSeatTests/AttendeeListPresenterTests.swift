@@ -175,10 +175,11 @@ final class AttendeeListPresenterTests: XCTestCase {
 
         presenter.didConfirmSaveFavorite(name: "同期")
 
-        let saved = try gateway.fetchAll()
-        XCTAssertEqual(saved.count, 1)
-        XCTAssertEqual(saved.first?.name, "同期")
-        XCTAssertEqual(saved.first?.memberNames, ["太郎", "花子"])
+        let summaries = try gateway.fetchSummaries()
+        XCTAssertEqual(summaries.count, 1)
+        let saved = try XCTUnwrap(summaries.first)
+        XCTAssertEqual(saved.name, "同期")
+        XCTAssertEqual(try gateway.fetch(id: saved.id)?.memberNames, ["太郎", "花子"])
         XCTAssertNil(presenter.route)
     }
 
@@ -187,7 +188,7 @@ final class AttendeeListPresenterTests: XCTestCase {
         try gateway.insert(name: "新メンバ", members: ["新1", "新2", "新3"])
         let presenter = makePresenter(names: ["旧1", "旧2"], gateway: gateway)
 
-        presenter.didSelectFavoriteGroup(id: try XCTUnwrap(gateway.fetchAll().first?.id))
+        presenter.didSelectFavoriteGroup(id: try XCTUnwrap(gateway.fetchSummaries().first?.id))
 
         XCTAssertEqual(names(of: presenter), ["新1", "新2", "新3"])
         XCTAssertNil(presenter.route)
@@ -198,7 +199,7 @@ final class AttendeeListPresenterTests: XCTestCase {
         try gateway.insert(name: "空", members: [])
         let presenter = makePresenter(names: ["残したくない"], gateway: gateway)
 
-        presenter.didSelectFavoriteGroup(id: try XCTUnwrap(gateway.fetchAll().first?.id))
+        presenter.didSelectFavoriteGroup(id: try XCTUnwrap(gateway.fetchSummaries().first?.id))
 
         XCTAssertTrue(presenter.viewData.isEmpty)
     }
@@ -210,7 +211,7 @@ final class AttendeeListPresenterTests: XCTestCase {
 
         presenter.didConfirmSaveFavorite(name: "   ")
 
-        XCTAssertTrue(try gateway.fetchAll().isEmpty)
+        XCTAssertTrue(try gateway.fetchSummaries().isEmpty)
         XCTAssertNil(presenter.route)
     }
 
@@ -246,7 +247,7 @@ final class AttendeeListPresenterTests: XCTestCase {
         let presenter = makePresenter(names: ["旧"], gateway: gateway)
         presenter.didTapShowFavorites()
 
-        presenter.favoriteGroupDidSelect(id: try XCTUnwrap(gateway.fetchAll().first?.id))
+        presenter.favoriteGroupDidSelect(id: try XCTUnwrap(gateway.fetchSummaries().first?.id))
 
         XCTAssertEqual(names(of: presenter), ["新1", "新2"])
         XCTAssertNil(presenter.route)
@@ -267,13 +268,13 @@ final class AttendeeListPresenterTests: XCTestCase {
         let gateway = FetchCountingGroupFavoriteGateway()
         try gateway.insert(name: "共有", members: ["A"])
         let presenter = makePresenter(gateway: gateway)
-        let fetchCountBeforeSheet = gateway.fetchAllCallCount
+        let fetchCountBeforeSheet = gateway.fetchSummariesCallCount
 
         presenter.didTapShowFavorites()
         _ = presenter.makeRouteSheet(.favoriteList)
 
         XCTAssertEqual(presenter.route, .favoriteList)
-        XCTAssertGreaterThan(gateway.fetchAllCallCount, fetchCountBeforeSheet)
+        XCTAssertGreaterThan(gateway.fetchSummariesCallCount, fetchCountBeforeSheet)
     }
 
     func test_BulkAddOutputの確定は一括追加してシートを閉じる() {
@@ -385,9 +386,9 @@ private final class FailingInsertGroupFavoriteGateway: GroupFavoriteGatewayBase 
     }
 }
 
-/// fetchAll だけ失敗させるテスト用 Gateway（子の loadFailed route を残す）
+/// fetchSummaries だけ失敗させるテスト用 Gateway（子の loadFailed route を残す）
 private final class FailingFetchGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    override func fetchAll() throws -> [FavoriteGroupSnapshot] {
+    override func fetchSummaries() throws -> [FavoriteGroupSummary] {
         throw NSError(
             domain: "AttendeeListTests",
             code: 2,
@@ -399,13 +400,19 @@ private final class FailingFetchGroupFavoriteGateway: GroupFavoriteGatewayBase {
 /// 親シート組み立てが同じ Gateway インスタンスを子へ渡すことを数える
 private final class FetchCountingGroupFavoriteGateway: GroupFavoriteGatewayBase {
     private var snapshots: [FavoriteGroupSnapshot] = []
-    private(set) var fetchAllCallCount = 0
+    private(set) var fetchSummariesCallCount = 0
 
     override func fetchCount() throws -> Int { snapshots.count }
 
-    override func fetchAll() throws -> [FavoriteGroupSnapshot] {
-        fetchAllCallCount += 1
-        return snapshots
+    override func fetchSummaries() throws -> [FavoriteGroupSummary] {
+        fetchSummariesCallCount += 1
+        return snapshots.map {
+            FavoriteGroupSummary(
+                id: $0.id,
+                name: $0.name,
+                memberSummary: $0.memberNames.joined(separator: ", ")
+            )
+        }
     }
 
     override func insert(name: String, members: [String]) throws {
