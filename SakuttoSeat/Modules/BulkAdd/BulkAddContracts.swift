@@ -9,11 +9,11 @@ import Foundation
 
 // MARK: - 表示専用モデル
 
-enum BulkAddCopy {
-    /// 親 Interactor の分割文字（改行 / 半角カンマ / 読点）と一致させる
-    static var delimiterHint: String {
-        String(localized: "改行またはカンマ（, または 、）区切りで参加者名を入力・ペーストしてください。")
-    }
+nonisolated enum BulkAddCopy {
+    /// 親 Interactor の分割文字（改行 / 半角カンマ / 読点）と一致させる。
+    /// `String(localized:)` は MainActor 隔離のため、nonisolated Interactor からは使わない。
+    static let delimiterHint =
+        "改行またはカンマ（, または 、）区切りで参加者名を入力・ペーストしてください。"
 }
 
 struct BulkAddViewData: Equatable {

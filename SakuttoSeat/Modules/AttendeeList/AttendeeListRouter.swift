@@ -14,14 +14,22 @@ import SwiftUI
 
 final class AttendeeListRouter: AttendeeListRouterProtocol {
 
+    /// 座席表子モジュールへ渡す。Presenter の公開面には出さない。
+    private let templateGateway: SeatingTemplateGatewayBase
+
+    init(templateGateway: SeatingTemplateGatewayBase = InMemorySeatingTemplateGateway()) {
+        self.templateGateway = templateGateway
+    }
+
     /// モジュールの初期組み立て（アプリ起動時などに使用）。
     /// 本番は App が SwiftData Gateway を渡す。Preview / テストはデフォルトの InMemory。
     @MainActor
     static func assembleModule(
-        favoriteGateway: GroupFavoriteGatewayBase = InMemoryGroupFavoriteGateway()
+        favoriteGateway: GroupFavoriteGatewayBase = InMemoryGroupFavoriteGateway(),
+        templateGateway: SeatingTemplateGatewayBase = InMemorySeatingTemplateGateway()
     ) -> some View {
         let interactor = AttendeeListInteractor(favoriteGateway: favoriteGateway)
-        let router = AttendeeListRouter()
+        let router = AttendeeListRouter(templateGateway: templateGateway)
         let presenter = AttendeeListPresenter(
             interactor: interactor,
             router: router
@@ -33,7 +41,10 @@ final class AttendeeListRouter: AttendeeListRouterProtocol {
 
     @MainActor
     func makeSeatingChartModule(attendees: [Attendee]) -> AnyView {
-        SeatingChartRouter.assembleModule(attendees: attendees)
+        SeatingChartRouter.assembleModule(
+            attendees: attendees,
+            templateGateway: templateGateway
+        )
     }
 
     @MainActor

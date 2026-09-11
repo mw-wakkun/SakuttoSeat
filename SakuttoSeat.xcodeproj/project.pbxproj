@@ -30,6 +30,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				"SakuttoSeat-Bridging-Header.h",
 			);
 			target = 7F68159E2FA9A76800E0386C /* SakuttoSeat */;
 		};
@@ -377,12 +378,15 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.7.1;
+				OTHER_CFLAGS = "$(inherited) -Wno-incomplete-umbrella";
 				PRODUCT_BUNDLE_IDENTIFIER = "io.github.mw-wakkun.SakuttoSeat";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "SakuttoSeat/SakuttoSeat-Bridging-Header.h";
+				OTHER_SWIFT_FLAGS = "$(inherited) -Xcc -Wno-incomplete-umbrella";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -412,12 +416,15 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.7.1;
+				OTHER_CFLAGS = "$(inherited) -Wno-incomplete-umbrella";
 				PRODUCT_BUNDLE_IDENTIFIER = "io.github.mw-wakkun.SakuttoSeat";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "SakuttoSeat/SakuttoSeat-Bridging-Header.h";
+				OTHER_SWIFT_FLAGS = "$(inherited) -Xcc -Wno-incomplete-umbrella";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -433,6 +440,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.7.1;
+				OTHER_CFLAGS = "$(inherited) -Wno-incomplete-umbrella";
+				OTHER_SWIFT_FLAGS = "$(inherited) -Xcc -Wno-incomplete-umbrella";
 				PRODUCT_BUNDLE_IDENTIFIER = "io.github.mw-wakkun.SakuttoSeatTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -454,6 +463,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.7.1;
+				OTHER_CFLAGS = "$(inherited) -Wno-incomplete-umbrella";
+				OTHER_SWIFT_FLAGS = "$(inherited) -Xcc -Wno-incomplete-umbrella";
 				PRODUCT_BUNDLE_IDENTIFIER = "io.github.mw-wakkun.SakuttoSeatTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;

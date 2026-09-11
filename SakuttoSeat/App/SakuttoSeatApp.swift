@@ -14,6 +14,7 @@ import SwiftData
 struct SakuttoSeatApp: App {
     private let modelContainer: ModelContainer
     private let favoriteGateway: GroupFavoriteGatewayBase
+    private let templateGateway: SeatingTemplateGatewayBase
 
     init() {
         let appearance = UINavigationBarAppearance()
@@ -29,9 +30,8 @@ struct SakuttoSeatApp: App {
         
         UINavigationBar.appearance().tintColor = .white
 
-        // GroupFavorite は Core/Persistence。画面モジュール（FavoriteGroup）ではない。
-        // お気に入り Gateway は assemble 時点で注入する（View onAppear の後差しはしない）。
-        // 座席表テンプレの attach は本計画の範囲外。Environment 用に同一コンテナを付ける。
+        // GroupFavorite / SeatingLayoutTemplate は Core/Persistence。画面モジュールではない。
+        // Gateway は assemble 時点で注入する（View onAppear の後差しはしない）。
         let container = try! ModelContainer(
             for: GroupFavorite.self, SeatingLayoutTemplate.self
         )
@@ -39,11 +39,17 @@ struct SakuttoSeatApp: App {
         self.favoriteGateway = SwiftDataGroupFavoriteGateway(
             context: container.mainContext
         )
+        self.templateGateway = SwiftDataSeatingTemplateGateway(
+            context: container.mainContext
+        )
     }
     
     var body: some Scene {
         WindowGroup {
-            AttendeeListRouter.assembleModule(favoriteGateway: favoriteGateway)
+            AttendeeListRouter.assembleModule(
+                favoriteGateway: favoriteGateway,
+                templateGateway: templateGateway
+            )
                 .task {
                     // start 完了後にだけリワードを preload。バナーは Representable 側でも start を待つ。
                     await MobileAds.shared.start()

@@ -334,14 +334,18 @@ final class SeatingChartPresenterTests: XCTestCase {
     func test_テンプレートシートを閉じたあとGateway差し替えで新しい子が読む() throws {
         let firstGateway = InMemorySeatingTemplateGateway()
         try firstGateway.insert(name: "最初", tables: [], globalColumnCount: 2)
-        let presenter = makePresenter(names: ["A"], templateGateway: firstGateway)
+        let interactor = SeatingChartInteractor(
+            attendees: [Attendee(name: "A")],
+            templateGateway: firstGateway
+        )
+        let presenter = SeatingChartPresenter(interactor: interactor, router: SeatingChartRouter())
         presenter.didTapLoadTemplate()
         XCTAssertEqual(presenter.templateListPresenter?.viewData.rows.map(\.name), ["最初"])
         presenter.dismissRoute()
 
         let secondGateway = InMemorySeatingTemplateGateway()
         try secondGateway.insert(name: "差し替え後", tables: [], globalColumnCount: 2)
-        presenter.attachTemplateGateway(secondGateway)
+        interactor.attachTemplateGateway(secondGateway)
         presenter.didTapLoadTemplate()
 
         XCTAssertEqual(presenter.templateListPresenter?.viewData.rows.map(\.name), ["差し替え後"])

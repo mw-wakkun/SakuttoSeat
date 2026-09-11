@@ -22,7 +22,8 @@ final class AttendeeListRouterTests: XCTestCase {
 
     func test_assembleModuleは渡したGatewayでエントリ画面を返す() {
         _ = AttendeeListRouter.assembleModule(
-            favoriteGateway: InMemoryGroupFavoriteGateway()
+            favoriteGateway: InMemoryGroupFavoriteGateway(),
+            templateGateway: InMemorySeatingTemplateGateway()
         )
     }
 

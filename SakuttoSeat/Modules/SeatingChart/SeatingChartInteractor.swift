@@ -30,6 +30,7 @@ nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
         _ = buildInitialTables()
     }
 
+    /// テスト用の差し替え。本番は assemble 時に注入済み。View 経路からは呼ばない。
     func attachTemplateGateway(_ gateway: SeatingTemplateGatewayBase) {
         templateGateway = gateway
     }

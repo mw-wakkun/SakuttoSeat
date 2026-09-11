@@ -12,12 +12,17 @@ import SwiftUI
 
 final class SeatingChartRouter: SeatingChartRouterProtocol {
 
-    /// モジュールの組み立て（Builder 相当）
+    /// モジュールの組み立て（Builder 相当）。
+    /// 本番は App が SwiftData Gateway を渡す。Preview / テストはデフォルトの InMemory。
     @MainActor
-    static func assembleModule(attendees: [Attendee]) -> AnyView {
+    static func assembleModule(
+        attendees: [Attendee],
+        templateGateway: SeatingTemplateGatewayBase = InMemorySeatingTemplateGateway()
+    ) -> AnyView {
         let interactor = SeatingChartInteractor(
             attendees: attendees,
-            featureUnlock: SessionFeatureUnlock.shared
+            featureUnlock: SessionFeatureUnlock.shared,
+            templateGateway: templateGateway
         )
         let router = SeatingChartRouter()
         let presenter = SeatingChartPresenter(interactor: interactor, router: router)

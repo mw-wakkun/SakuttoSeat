@@ -10,7 +10,8 @@ import Foundation
 import GoogleMobileAds
 import UIKit
 
-nonisolated final class RewardedAdGatewayImpl: RewardedAdGatewayBase, FullScreenContentDelegate {
+/// SDK の load / Delegate 完了は Sendable クロージャ。共有状態は `presentationLock` で守る。
+nonisolated final class RewardedAdGatewayImpl: RewardedAdGatewayBase, FullScreenContentDelegate, @unchecked Sendable {
     private var rewardedAd: RewardedAd?
     private var isLoadInFlight = false
 

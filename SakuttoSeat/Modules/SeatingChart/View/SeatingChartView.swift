@@ -4,14 +4,13 @@
 //
 //  Created by masafumi wakugawa on 2026/05/06.
 //  refactor_Ad.md Phase 5（バナー余白は AdBannerContainer 内。上下とも同じトークン）
+//  View は ModelContext / Gateway を知らない。assemble 時点で注入済み。
 //
 
 import SwiftUI
-import SwiftData
 
 struct SeatingChartView: View {
     @StateObject var presenter: SeatingChartPresenter
-    @Environment(\.modelContext) private var modelContext
     /// 保存アラートの TextField 用（route が `.saveTemplatePrompt` のときだけ使う）
     @State private var templateName = ""
 
@@ -114,10 +113,6 @@ struct SeatingChartView: View {
                     Image(systemName: "gearshape")
                 }
             }
-        }
-        .onAppear {
-            presenter.attachTemplateGateway(SwiftDataSeatingTemplateGateway(context: modelContext))
-            presenter.onAppear()
         }
         .sheet(item: sheetRouteBinding) { route in
             presenter.makeRouteSheet(route)

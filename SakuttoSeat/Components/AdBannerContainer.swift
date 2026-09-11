@@ -75,8 +75,8 @@ enum AdBannerMetrics {
 
     fileprivate static func anchoredAdaptiveAdSize(width: CGFloat) -> AdSize {
         // large（50〜150pt）だとボトムクロムが高すぎる。
-        // 標準アンカーは旧 320×50 相当（高さ 50〜90pt）。GMA 13 では deprecated だが残っている。
-        currentOrientationAnchoredAdaptiveBanner(width: max(width, 1))
+        // 標準アンカーは旧 320×50 相当（高さ 50〜90pt）。GMA 13 は C API を deprecated にした。
+        SakuttoSeatAnchoredAdaptiveBannerAdSize(max(width, 1))
     }
 
     private static func roundedPointSize(_ size: CGSize) -> CGSize {

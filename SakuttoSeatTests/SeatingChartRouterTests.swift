@@ -14,6 +14,14 @@ import XCTest
 @MainActor
 final class SeatingChartRouterTests: XCTestCase {
 
+    func test_assembleModuleは参加者を受け取って画面を返す() {
+        _ = SeatingChartRouter.assembleModule(attendees: [Attendee(name: "A")])
+        _ = SeatingChartRouter.assembleModule(
+            attendees: [],
+            templateGateway: InMemorySeatingTemplateGateway()
+        )
+    }
+
     func test_makeTemplateListModuleはSeatingTemplateViewを組み立てる() {
         let router = SeatingChartRouter()
         let output = TemplateListOutputSpy()

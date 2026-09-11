@@ -60,12 +60,6 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
     /// （子 Presenter が Output の protocol existential を弱参照するため。AttendeeListPresenter と同じ）
     nonisolated deinit {}
 
-    func attachTemplateGateway(_ gateway: SeatingTemplateGatewayBase) {
-        interactor.attachTemplateGateway(gateway)
-    }
-
-    func onAppear() {}
-
     func didTapAddTable() {
         _ = interactor.addTable()
         publishState()

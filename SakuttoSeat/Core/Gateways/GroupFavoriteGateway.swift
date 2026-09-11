@@ -125,7 +125,7 @@ nonisolated final class InMemoryGroupFavoriteGateway: GroupFavoriteGatewayBase {
     }
 }
 
-extension GroupFavorite {
+nonisolated extension GroupFavorite {
     fileprivate func makeSnapshot() -> FavoriteGroupSnapshot {
         FavoriteGroupSnapshot.persisted(id: id, name: name, memberNames: members)
     }
@@ -135,14 +135,14 @@ extension GroupFavorite {
     }
 }
 
-extension FavoriteGroupSnapshot {
+nonisolated extension FavoriteGroupSnapshot {
     fileprivate func makeSummary() -> FavoriteGroupSummary {
         FavoriteGroupMemberSummary.listing(id: id, name: name, memberNames: memberNames)
     }
 }
 
 /// 字幕結合は Gateway ファイル内だけが担う（Builder は写すだけ）。
-private enum FavoriteGroupMemberSummary {
+nonisolated private enum FavoriteGroupMemberSummary {
     static func listing(
         id: FavoriteGroupID,
         name: String,

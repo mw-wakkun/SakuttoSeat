@@ -26,7 +26,6 @@ protocol SeatingChartPresenterProtocol: AnyObject {
 
     // MARK: View -> Presenter（ユーザー意図）
 
-    func onAppear()
     func didTapAddTable()
     func didTapTable(id: TableID)
     func didTapSeat(tableID: TableID, memberID: MemberID)
@@ -37,8 +36,6 @@ protocol SeatingChartPresenterProtocol: AnyObject {
     func didTapShare()
     func didTapSettings()
     func dismissRoute()
-
-    func attachTemplateGateway(_ gateway: SeatingTemplateGatewayBase)
 }
 
 // MARK: - Presenter -> Interactor
@@ -71,6 +68,8 @@ nonisolated protocol SeatingChartInteractorProtocol: AnyObject {
     func makeLayoutTemplate(named name: String) -> LayoutTemplateSnapshot?
     func applyTemplate(_ snapshot: LayoutTemplateSnapshot) -> [SeatingTable]
     func loadAndApplyTemplate(id: SeatingTemplateID) throws -> [SeatingTable]
+
+    /// テスト用の差し替え。本番は assemble 時に注入済み。View / PresenterProtocol からは呼ばない。
     func attachTemplateGateway(_ gateway: SeatingTemplateGatewayBase)
 }
 
