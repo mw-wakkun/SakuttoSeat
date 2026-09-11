@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/06.
+//  refactor_Ad.md Phase 5（バナー余白は AdBannerContainer 内。上下とも同じトークン）
 //
 
 import SwiftUI
@@ -245,7 +246,6 @@ extension SeatingChartView {
             .padding(.horizontal, 16)
 
             AdBannerContainer()
-                .padding(.bottom, AppSpacing.bannerVerticalPadding)
         }
         .padding(.top, 12)
         .frame(maxWidth: .infinity)

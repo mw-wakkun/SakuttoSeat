@@ -23,7 +23,7 @@
 | 2 | Gateway 契約と Router 注入口 | ✅ 完了（2026-09-11） |
 | 3 | SDK 寿命・報酬判定・バナー Coordinator の是正 | ✅ 完了（2026-09-11） |
 | 4 | Share / VenueSettings の提示経路をテスト可能にする | ✅ 完了（2026-09-11） |
-| 5 | バナー UI の単一窓口化・余白規約 | 未着手 |
+| 5 | バナー UI の単一窓口化・余白規約 | ✅ 完了（2026-09-11） |
 | 6 | パフォーマンス・A11y・収益まわりの仕上げ | 未着手 |
 
 回帰基準: `SakuttoSeatTests` の既存スイート
@@ -541,6 +541,19 @@ enum SessionRewardedAd {
   `@testable import` で Metrics または `shouldReloadBanner` を見る
 - 完了条件: 3 画面のバナー呼び出しが同一。PreferenceKey 型が消える。
 - リスク: 低〜中（高さジャンプ・回転時の再計測）。スクリーンショット比較を推奨。
+
+実施済み（2026-09-11）:
+- `AppSpacing.bannerVerticalPadding` を `AdBannerContainer` 内部に閉じた。
+  3 画面は `AdBannerContainer()` を置くだけ（座席表の `.padding(.bottom)` のみも解消）
+- 番号札の inset 背景は画面クロムとして残す。外側の重複 `containerRelativeFrame` は外した
+  （幅確定は Container 側。hotfix の `containerRelativeFrame` は維持）
+- `AdBannerView` を Container ファイルへ統合し `fileprivate` 化。`AdBannerView.swift` を削除
+- `AdBannerMetrics` は `@testable import` 用に internal のまま。SDK 型を返す
+  `anchoredAdaptiveAdSize` は fileprivate
+- `onGeometryChange` + `containerRelativeFrame` を維持。overlay には戻さない。
+  サイズ API は `currentOrientationAnchoredAdaptiveBanner`（50〜90pt）。
+  `bannerFallbackHeight` も維持
+- QA §10.1 / §10.6 に 3 画面の余白統一を追記
 
 ### Phase 6: パフォーマンス・A11y・収益まわりの仕上げ（0.5〜1 日）
 

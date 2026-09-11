@@ -8,6 +8,7 @@
 //  refactor_Ad.md Phase 2（Router が Fake を注入できることを固定）
 //  refactor_Ad.md Phase 3（報酬フラグの順序・バナー幅の pt 丸め）
 //  refactor_Ad.md Phase 4（未準備アラート文言の単一化。Presenter 分岐は Share / VenueSettings テスト）
+//  refactor_Ad.md Phase 5（バナー余白トークンとプレースホルダ高さ。Representable は fileprivate）
 //
 
 import XCTest
@@ -57,6 +58,19 @@ final class AdBannerReloadPolicyTests: XCTestCase {
                 next: CGSize(width: 320.6, height: 50)
             )
         )
+    }
+}
+
+// MARK: - バナー余白・プレースホルダ（Phase 5。Container 内に閉じる）
+
+final class AdBannerChromeTests: XCTestCase {
+
+    func test_幅未確定時のプレースホルダ高さはジャンプを避ける() {
+        XCTAssertEqual(AppSpacing.bannerFallbackHeight, 50)
+    }
+
+    func test_上下余白は同一トークン() {
+        XCTAssertEqual(AppSpacing.bannerVerticalPadding, 4)
     }
 }
 

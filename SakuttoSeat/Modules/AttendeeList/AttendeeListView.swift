@@ -4,6 +4,7 @@
 //
 //  Created by masafumi wakugawa on 2026/05/05.
 //  refactor_AttendeeList.md Phase 6（DesignSystem / safeAreaInset / A11y / キーボード）
+//  refactor_Ad.md Phase 5（バナー余白は AdBannerContainer 内）
 //
 
 import SwiftUI
@@ -240,7 +241,6 @@ private extension AttendeeListView {
                 .padding(.bottom, 8)
 
             AdBannerContainer()
-                .padding(.vertical, AppSpacing.bannerVerticalPadding)
         }
         .frame(maxWidth: .infinity)
         .background(

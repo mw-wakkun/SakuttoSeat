@@ -4,6 +4,7 @@
 //
 //  refactor_AttendeeList.md Phase 6（番号行 A11y・アダプティブバナー寸法）
 //  refactor_Ad.md Phase 0（寸法テストは維持。再 load 判断は AdsPhase0Tests）
+//  refactor_Ad.md Phase 5（Metrics は @testable。Representable は fileprivate）
 //
 
 import XCTest

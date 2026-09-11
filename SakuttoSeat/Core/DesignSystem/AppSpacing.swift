@@ -19,7 +19,7 @@ enum AppSpacing {
     static let ctaCornerRadius: CGFloat = 15
     static let ctaShadowRadius: CGFloat = 8
     static let ctaShadowY: CGFloat = 4
-    /// バナー上下のパディング
+    /// バナー上下のパディング。`AdBannerContainer` が内部で使う（呼び出し側では付けない）
     static let bannerVerticalPadding: CGFloat = 4
     /// 幅未確定時のバナー高さの初期値（実サイズはアダプティブ）
     static let bannerFallbackHeight: CGFloat = 50
