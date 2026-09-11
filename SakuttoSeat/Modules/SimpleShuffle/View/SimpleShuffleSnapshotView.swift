@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_simple.md Phase 2（共有画像用。入力は ViewData。番号は再計算しない）
+//  refactor_simple.md Phase 3（Copy / 既定 tint。行クロムはこの View 内に閉じる）
 //
 
 import SwiftUI
@@ -16,11 +17,11 @@ struct SimpleShuffleSnapshotView: View {
     var body: some View {
         VStack(spacing: 16) {
             VStack(spacing: 4) {
-                Text("【サクッと席決め】")
+                Text(SimpleShuffleCopy.snapshotBrand)
                     .font(.caption)
                     .bold()
                     .foregroundColor(.secondary)
-                Text("シャッフル結果（番号札）")
+                Text(SimpleShuffleCopy.snapshotTitle)
                     .font(.headline)
                     .foregroundColor(.primary)
             }
@@ -28,19 +29,23 @@ struct SimpleShuffleSnapshotView: View {
 
             VStack(spacing: 8) {
                 ForEach(viewData.rows) { row in
-                    NumberedPersonRow(
-                        number: row.number,
-                        name: row.name,
-                        accessory: String(localized: "番席"),
-                        tint: .blue,
-                        rowVerticalPadding: 0
-                    )
-                    .padding(12)
-                    .background(Color(.secondarySystemGroupedBackground))
-                    .cornerRadius(8)
+                    snapshotRow(row)
                 }
             }
         }
         .padding(20)
+    }
+
+    /// 共有画像専用の行クロム。画面 List や他モジュールには広げない。
+    private func snapshotRow(_ row: SimpleShuffleViewData.Row) -> some View {
+        NumberedPersonRow(
+            number: row.number,
+            name: row.name,
+            accessory: SimpleShuffleCopy.accessory,
+            rowVerticalPadding: 0
+        )
+        .padding(12)
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(8)
     }
 }

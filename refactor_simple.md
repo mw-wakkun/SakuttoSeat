@@ -18,7 +18,7 @@ SimpleShuffle の **5 層の箱と ViewData** は AttendeeList Phase 5 で既に
 | 0 | 準備と回帰テスト | ✅ 完了（2026-09-11） |
 | 1 | 規約穴埋め（Router DI / Protocol / Entity 純化） | ✅ 完了（2026-09-11） |
 | 2 | Share / Snapshot を ViewData 駆動にする | ✅ 完了（2026-09-11） |
-| 3 | 再利用・一貫性・i18n / A11y | 未着手 |
+| 3 | 再利用・一貫性・i18n / A11y | ✅ 完了（2026-09-11） |
 | 4 | 性能・初期表示仕様・空状態 | 未着手 |
 
 回帰基準: 既存 `SimpleShuffleTests` + `ShareTests` の番号札ケース +
@@ -528,6 +528,15 @@ Share の番号札経路が座席表と同じく ViewData を受け取る。既�
 完了条件: 番号札と参加者一覧の行の色が目視で同じ。文言 API がモジュール内で一系統。
 VoiceOver で共有・シャッフル・各行を辿れる（既存行ラベルは維持）。
 リスク: 低〜中（色と文言はスクリーンショット比較）。
+
+実装時の決定（2026-09-11）:
+
+- 番号札 View / Snapshot から `tint: .blue` を外し、`NumberedPersonRow` 既定の `.sakuttoBlueStart` に揃えた。
+- 文言は `SimpleShuffleCopy` に集約（BulkAddCopy 同型）。`listHeader` と `snapshotTitle` は §8.8 どおり別文言のまま。
+- Snapshot 行の padding / background は `SimpleShuffleSnapshotView` 内の private に閉じた。`NumberedPersonRow.Style` は他画面へ広げないため足していない。
+- ViewData に `isEmpty` / `canShuffle`（2 名以上）を追加。シャッフルボタンを disable。A11y hint は状態で切り替え。
+- シャッフル後に `AccessibilityNotification.Announcement`（「席順を更新しました」）を View 側で飛ばす。
+- QA §9.2〜9.4 に色・1 名 disable・画像共有（広告確認含む）を追記。
 
 ### Phase 4: 性能・初期表示仕様・空状態（0.5 日）
 

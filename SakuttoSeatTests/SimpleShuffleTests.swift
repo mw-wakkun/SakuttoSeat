@@ -2,7 +2,7 @@
 //  SimpleShuffleTests.swift
 //  SakuttoSeatTests
 //
-//  refactor_simple.md Phase 0〜2（番号札の回帰。Share は ViewData を渡す）
+//  refactor_simple.md Phase 0〜3（番号札の回帰。Share は ViewData を渡す）
 //
 //  `_既知の課題` が付いたテストは是正対象の挙動を意図的に固定している。
 //  初期表示の登録順は Phase 4 で更新する。
@@ -111,6 +111,28 @@ final class SimpleShuffleViewDataTests: XCTestCase {
 
         XCTAssertEqual(viewData, .empty)
         XCTAssertTrue(viewData.rows.isEmpty)
+        XCTAssertTrue(viewData.isEmpty)
+        XCTAssertFalse(viewData.canShuffle)
+    }
+
+    func test_2名以上ならcanShuffle_1名以下はfalse() {
+        XCTAssertFalse(
+            SimpleShuffleViewDataBuilder.build(seats: [
+                NumberedSeat(id: UUID(), name: "A", number: 1)
+            ]).canShuffle
+        )
+
+        let two = SimpleShuffleViewDataBuilder.build(seats: [
+            NumberedSeat(id: UUID(), name: "A", number: 1),
+            NumberedSeat(id: UUID(), name: "B", number: 2)
+        ])
+        XCTAssertTrue(two.canShuffle)
+        XCTAssertFalse(two.isEmpty)
+    }
+
+    func test_画面見出しと共有画像見出しは意図的に別文言() {
+        XCTAssertNotEqual(SimpleShuffleCopy.listHeader, SimpleShuffleCopy.snapshotTitle)
+        XCTAssertTrue(SimpleShuffleCopy.snapshotTitle.contains("番号札"))
     }
 }
 
@@ -136,6 +158,17 @@ final class SimpleShufflePresenterTests: XCTestCase {
         XCTAssertEqual(presenter.viewData.rows.map(\.name), ["太郎", "花子"])
         XCTAssertEqual(presenter.viewData.rows.map(\.number), [1, 2])
         XCTAssertEqual(presenter.viewData.rows.map(\.id), attendees.map(\.id))
+        XCTAssertTrue(presenter.viewData.canShuffle)
+        XCTAssertFalse(presenter.viewData.isEmpty)
+    }
+
+    func test_1名以下ではcanShuffleがfalse() {
+        XCTAssertFalse(makePresenter(attendees: []).viewData.canShuffle)
+        XCTAssertTrue(makePresenter(attendees: []).viewData.isEmpty)
+        XCTAssertFalse(makePresenter(attendees: [Attendee(name: "A")]).viewData.canShuffle)
+        XCTAssertTrue(
+            makePresenter(attendees: [Attendee(name: "A"), Attendee(name: "B")]).viewData.canShuffle
+        )
     }
 
     func test_シャッフル後も集合は不変で番号は1始まり() {

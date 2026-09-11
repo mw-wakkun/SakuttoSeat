@@ -452,6 +452,28 @@
         }
       }
     },
+    "席順を更新しました" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "席順を更新しました"
+          }
+        }
+      }
+    },
+    "2名以上で席順をシャッフルできます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2名以上で席順をシャッフルできます"
+          }
+        }
+      }
+    },
     "広告の準備ができていません。" : {
 
     },

@@ -3,7 +3,7 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/07.
-//  refactor_AttendeeList.md Phase 6（アダプティブバナー / A11y）
+//  refactor_simple.md Phase 3（既定 tint / Copy 一系統 / canShuffle / A11y）
 //
 
 import SwiftUI
@@ -20,14 +20,13 @@ struct SimpleShuffleView: View {
                     NumberedPersonRow(
                         number: row.number,
                         name: row.name,
-                        accessory: String(localized: "番席"),
-                        tint: .blue
+                        accessory: SimpleShuffleCopy.accessory
                     )
                 }
             } header: {
-                Text("シャッフル結果")
+                Text(SimpleShuffleCopy.listHeader)
             } footer: {
-                Text("この番号の席に座ってもらいましょう。")
+                Text(SimpleShuffleCopy.listFooter)
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -36,7 +35,7 @@ struct SimpleShuffleView: View {
                 .frame(maxWidth: .infinity)
                 .background(Color(.systemGroupedBackground))
         }
-        .navigationTitle("番号札")
+        .navigationTitle(SimpleShuffleCopy.navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
@@ -46,19 +45,25 @@ struct SimpleShuffleView: View {
                     Image(systemName: "square.and.arrow.up")
                         .font(.body)
                 }
-                .accessibilityLabel(String(localized: "共有"))
-                .accessibilityHint(String(localized: "結果を共有します"))
+                .accessibilityLabel(SimpleShuffleCopy.shareAccessibilityLabel)
+                .accessibilityHint(SimpleShuffleCopy.shareAccessibilityHint)
 
                 Button {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                         presenter.didTapShuffle()
                     }
+                    AccessibilityNotification.Announcement(SimpleShuffleCopy.shuffleAnnouncement).post()
                 } label: {
                     Image(systemName: "shuffle")
                         .font(.body).bold()
                 }
-                .accessibilityLabel(String(localized: "シャッフル"))
-                .accessibilityHint(String(localized: "席順をシャッフルします"))
+                .disabled(!presenter.viewData.canShuffle)
+                .accessibilityLabel(SimpleShuffleCopy.shuffleAccessibilityLabel)
+                .accessibilityHint(
+                    presenter.viewData.canShuffle
+                        ? SimpleShuffleCopy.shuffleAccessibilityHint
+                        : SimpleShuffleCopy.shuffleDisabledHint
+                )
             }
         }
         .shareFlow(presenter.share)
