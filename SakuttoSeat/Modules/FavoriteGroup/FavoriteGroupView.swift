@@ -6,6 +6,7 @@
 //  refactor_favorite.md Phase 1（文言は FavoriteGroupCopy。Gateway は assemble 時注入）
 //  refactor_favorite.md Phase 2（View は ViewData.Row と route のみ）
 //  refactor_favorite.md Phase 4（presentationDetents は Router 組み立て側）
+//  refactor_favorite.md Phase 5（SavedListRow / SheetChromeToolbar。編集中は選択しない）
 //  一覧・削除は Presenter → Interactor。選択結果は Output のみ。
 //  Gateway は親が assemble 時に同じインスタンスを渡す（子 View は ModelContext を持たない）。
 //
@@ -14,6 +15,7 @@ import SwiftUI
 
 struct FavoriteGroupView: View {
     @StateObject var presenter: FavoriteGroupPresenter
+    @State private var editMode: EditMode = .inactive
 
     var body: some View {
         NavigationStack {
@@ -31,17 +33,11 @@ struct FavoriteGroupView: View {
                     Section {
                         ForEach(presenter.viewData.rows) { row in
                             Button {
+                                // 編集モード中は誤操作を防ぐため読み込みを無効化（テンプレ一覧と同じ）
+                                guard editMode == .inactive else { return }
                                 presenter.didSelectGroup(id: row.id)
                             } label: {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(row.name)
-                                        .font(.headline)
-                                        .foregroundColor(.primary)
-                                    Text(row.memberSummary)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
-                                }
+                                SavedListRow(title: row.name, subtitle: row.memberSummary)
                             }
                             .accessibilityLabel(row.name)
                             .accessibilityValue(row.memberSummary)
@@ -49,20 +45,30 @@ struct FavoriteGroupView: View {
                         }
                         .onDelete { offsets in
                             presenter.didDeleteGroups(at: offsets)
+                            if presenter.viewData.isEmpty {
+                                editMode = .inactive
+                            }
                         }
                     }
                 }
             }
             .listStyle(.plain)
+            .environment(\.editMode, $editMode)
             .navigationTitle(FavoriteGroupCopy.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    EditButton()
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(FavoriteGroupCopy.close) { presenter.didTapClose() }
-                }
+                SheetChromeToolbar(
+                    isEditing: editMode == .active,
+                    showsEditButton: !presenter.viewData.isEmpty,
+                    editTitle: FavoriteGroupCopy.edit,
+                    closeTitle: FavoriteGroupCopy.close,
+                    onToggleEdit: {
+                        withAnimation {
+                            editMode = (editMode == .active) ? .inactive : .active
+                        }
+                    },
+                    onClose: { presenter.didTapClose() }
+                )
             }
             .alert(
                 alertTitle,

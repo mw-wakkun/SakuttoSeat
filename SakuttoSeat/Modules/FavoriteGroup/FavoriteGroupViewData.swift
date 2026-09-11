@@ -4,6 +4,7 @@
 //
 //  refactor_favorite.md Phase 1（Copy。文言自体は変えない）
 //  refactor_favorite.md Phase 2（表示専用モデル。Entity はここに現れない）
+//  refactor_favorite.md Phase 5（編集トグル文言を Copy に追加。キーは既存 Catalog）
 //
 
 import Foundation
@@ -15,6 +16,7 @@ enum FavoriteGroupCopy {
     static var navigationTitle: String { String(localized: "お気に入りグループ") }
     static var emptyMessage: String { String(localized: "登録されているグループはありません") }
     static var selectAccessibilityHint: String { String(localized: "このグループを参加者リストに読み込みます") }
+    static var edit: String { String(localized: "編集") }
     static var close: String { String(localized: "閉じる") }
     static var ok: String { String(localized: "OK") }
     static var deleteFailedTitle: String { String(localized: "削除に失敗しました") }

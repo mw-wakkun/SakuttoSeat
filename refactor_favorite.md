@@ -22,7 +22,7 @@ FavoriteGroup の **5 層の箱** は AttendeeList Phase 5 で既に置いてあ
 | 2 | ViewData.Row / Route / Entity の独立 | ✅ 完了（2026-09-11） |
 | 3 | Gateway API の ID 志向化と親 Interactor の純化 | ✅ 完了（2026-09-11） |
 | 4 | シート identity と Router 境界の安定化 | ✅ 完了（2026-09-11） |
-| 5 | 再利用部品（一覧行・シートクロム） | 未着手 |
+| 5 | 再利用部品（一覧行・シートクロム） | ✅ 完了（2026-09-11） |
 | 6 | 性能・A11y・i18n・編集モード UX | 未着手 |
 
 回帰基準: 既存 `FavoriteGroupTests` + `AttendeeListInteractorTests` のお気に入り系 +

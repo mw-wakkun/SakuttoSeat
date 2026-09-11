@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/08/15.
+//  refactor_favorite.md Phase 5（行 UI とシートクロムを共有部品へ。@Query は触らない）
 //
 
 import SwiftUI
@@ -45,13 +46,10 @@ struct SeatingTemplateListView: View {
                                     dismiss()
                                 }
                             } label: {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(template.name)
-                                        .font(.headline)
-                                    Text("テーブル数: \(template.tables.count)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
+                                SavedListRow(
+                                    title: template.name,
+                                    subtitle: String(localized: "テーブル数: \(template.tables.count)")
+                                )
                                 .padding(.vertical, 4)
                             }
                             .foregroundColor(.primary)
@@ -65,28 +63,18 @@ struct SeatingTemplateListView: View {
             .navigationTitle("テンプレート読込")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // 左側: 編集ボタン（タップでチェックマークに切り替え）
-                ToolbarItem(placement: .navigationBarLeading) {
-                    if !templates.isEmpty {
-                        Button {
-                            withAnimation {
-                                editMode = (editMode == .active) ? .inactive : .active
-                            }
-                        } label: {
-                            if editMode == .active {
-                                Image(systemName: "checkmark")
-                                    .fontWeight(.bold)
-                            } else {
-                                Text("編集")
-                            }
+                SheetChromeToolbar(
+                    isEditing: editMode == .active,
+                    showsEditButton: !templates.isEmpty,
+                    editTitle: String(localized: "編集"),
+                    closeTitle: String(localized: "閉じる"),
+                    onToggleEdit: {
+                        withAnimation {
+                            editMode = (editMode == .active) ? .inactive : .active
                         }
-                    }
-                }
-                
-                // 右側: 閉じるボタン（左から移動）
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("閉じる") { dismiss() }
-                }
+                    },
+                    onClose: { dismiss() }
+                )
             }
         }
     }
