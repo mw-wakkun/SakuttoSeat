@@ -4,6 +4,7 @@
 //
 //  refactor_seating.md Phase 4 / Phase 5
 //  refactor_templateListView.md Phase 3（シート組み立ては gatewayHolder。Presenter は Gateway 型を渡さない）
+//  refactor_templateListView.md Phase 4（`.templateList` 期間中は子 Presenter を 1 度だけ保持）
 //
 
 import Combine
@@ -39,6 +40,11 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
     private let interactor: SeatingChartInteractor
     private let router: SeatingChartRouter
 
+    /// `.templateList` 期間中だけ保持する。
+    /// `.sheet(item:)` の content 再評価で再 assemble すると子の alert / 編集中状態が消えるため。
+    /// `didTapLoadTemplate` のたびに新規 assemble、閉じたら破棄（Gateway 差し替え後の stale を防ぐ）。
+    private(set) var templateListPresenter: SeatingTemplatePresenter?
+
     init(
         interactor: SeatingChartInteractor,
         router: SeatingChartRouter,
@@ -49,6 +55,10 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
         self.share = share ?? ShareRouter.assemblePresenter()
         publishState()
     }
+
+    /// @MainActor クラスの isolated deinit 経路での解放不整合を避ける
+    /// （子 Presenter が Output の protocol existential を弱参照するため。AttendeeListPresenter と同じ）
+    nonisolated deinit {}
 
     func attachTemplateGateway(_ gateway: SeatingTemplateGatewayBase) {
         interactor.attachTemplateGateway(gateway)
@@ -63,7 +73,7 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
 
     func didTapTable(id: TableID) {
         guard interactor.currentTables().contains(where: { $0.id == id }) else { return }
-        route = .tableEdit(id)
+        setRoute(.tableEdit(id))
     }
 
     func didTapSeat(tableID: TableID, memberID: MemberID) {
@@ -79,39 +89,45 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
     func didTapSaveTemplate() {
         switch interactor.templateSaveAvailability() {
         case .available:
-            route = .saveTemplatePrompt
+            setRoute(.saveTemplatePrompt)
         case .limitReached(let currentCount, let limit):
-            route = .alert(.templateLimitReached(currentCount: currentCount, limit: limit))
+            setRoute(.alert(.templateLimitReached(currentCount: currentCount, limit: limit)))
         }
     }
 
     func didConfirmSaveTemplate(name: String) {
         do {
             try interactor.saveCurrentLayoutAsTemplate(named: name)
-            route = nil
+            setRoute(nil)
         } catch let error as TemplateSaveError {
             switch error {
             case .limitReached(let currentCount, let limit):
-                route = .alert(.templateLimitReached(currentCount: currentCount, limit: limit))
+                setRoute(.alert(.templateLimitReached(currentCount: currentCount, limit: limit)))
             case .invalidName, .emptyLayout, .notFound:
-                route = nil
+                setRoute(nil)
             case .persistenceFailed(let message):
-                route = .alert(.saveFailed(message: message))
+                setRoute(.alert(.saveFailed(message: message)))
             }
         } catch {
-            route = .alert(.saveFailed(message: error.localizedDescription))
+            setRoute(.alert(.saveFailed(message: error.localizedDescription)))
         }
     }
 
-    func didTapLoadTemplate() { route = .templateList }
+    func didTapLoadTemplate() {
+        templateListPresenter = router.makeTemplateListPresenter(
+            gatewayHolder: interactor,
+            output: self
+        )
+        setRoute(.templateList)
+    }
 
     /// 共有はタップ時点の表示内容を Share モジュールへ渡すだけ
     func didTapShare() {
         share.didTapShare(subject: .seatingChart(viewData))
     }
 
-    func didTapSettings() { route = .venueSettings }
-    func dismissRoute() { route = nil }
+    func didTapSettings() { setRoute(.venueSettings) }
+    func dismissRoute() { setRoute(nil) }
 
     /// シート内容を Router 経由で組み立てる（View から子モジュールの組立を排除）
     func makeRouteSheet(_ route: SeatingChartRoute) -> AnyView {
@@ -128,10 +144,7 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
                 output: self
             )
         case .templateList:
-            return router.makeTemplateListModule(
-                gatewayHolder: interactor,
-                output: self
-            )
+            return router.makeTemplateListSheet(presenter: templateListSheetPresenter())
         case .saveTemplatePrompt, .alert:
             return AnyView(EmptyView())
         }
@@ -154,6 +167,27 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
             globalColumnCount: interactor.currentVenueSettings().globalColumnCount
         )
     }
+
+    /// `didTapLoadTemplate` で assemble 済みならそれを返す。未セットならここで 1 度だけ作る。
+    private func templateListSheetPresenter() -> SeatingTemplatePresenter {
+        if let templateListPresenter {
+            return templateListPresenter
+        }
+        let assembled = router.makeTemplateListPresenter(
+            gatewayHolder: interactor,
+            output: self
+        )
+        templateListPresenter = assembled
+        return assembled
+    }
+
+    /// `.templateList` 以外へ移るときは子 Presenter を破棄する。
+    private func setRoute(_ newRoute: SeatingChartRoute?) {
+        if newRoute != .templateList {
+            templateListPresenter = nil
+        }
+        route = newRoute
+    }
 }
 
 // MARK: - 子モジュール Output
@@ -161,23 +195,23 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
 extension SeatingChartPresenter: TableEditModuleOutput {
     func tableEditDidCommit(_ request: TableUpdateRequest) {
         didCommitTableEdit(request)
-        route = nil
+        setRoute(nil)
     }
 
     func tableEditDidRequestDelete(tableID: TableID) {
         didRequestDeleteTable(id: tableID)
-        route = nil
+        setRoute(nil)
     }
 
     func tableEditDidCancel() {
-        route = nil
+        setRoute(nil)
     }
 }
 
 extension SeatingChartPresenter: VenueSettingsModuleOutput {
     func venueSettingsDidApply(columnCount: Int) {
         globalColumnCount = columnCount
-        route = nil
+        setRoute(nil)
     }
 }
 
@@ -187,19 +221,19 @@ extension SeatingChartPresenter: SeatingTemplateModuleOutput {
             _ = try interactor.loadAndApplyTemplate(id: id)
             canvasEvent = .scrollToTop()
             publishState()
-            route = nil
+            setRoute(nil)
         } catch TemplateSaveError.notFound {
             return
         } catch let error as TemplateSaveError {
             if case .persistenceFailed(let message) = error {
-                route = .alert(.saveFailed(message: message))
+                setRoute(.alert(.saveFailed(message: message)))
             }
         } catch {
-            route = .alert(.saveFailed(message: error.localizedDescription))
+            setRoute(.alert(.saveFailed(message: error.localizedDescription)))
         }
     }
 
     func templateListDidCancel() {
-        route = nil
+        setRoute(nil)
     }
 }

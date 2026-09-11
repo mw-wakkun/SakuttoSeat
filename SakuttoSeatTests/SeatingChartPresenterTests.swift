@@ -4,6 +4,7 @@
 //
 //  refactor_seating.md Phase 4（Gateway / Router 仲介の回帰）
 //  refactor_templateListView.md Phase 0 / Phase 2 / Phase 3（TemplateList Output は ID。cancel は閉じるから接続）
+//  refactor_templateListView.md Phase 4（シート期間中の子 Presenter identity）
 //
 
 import XCTest
@@ -84,6 +85,7 @@ final class SeatingChartPresenterTests: XCTestCase {
         XCTAssertEqual(presenter.globalColumnCount, 4)
         XCTAssertEqual(presenter.viewData.globalColumnCount, 4)
         XCTAssertNil(presenter.route)
+        XCTAssertNil(presenter.templateListPresenter)
         guard case .scrollToTop = presenter.canvasEvent else {
             return XCTFail("テンプレート適用後は先頭へスクロールする")
         }
@@ -212,6 +214,7 @@ final class SeatingChartPresenterTests: XCTestCase {
         presenter.didTapLoadTemplate()
 
         XCTAssertEqual(presenter.route, .templateList)
+        XCTAssertNotNil(presenter.templateListPresenter)
     }
 
     func test_TemplateListOutputの選択は会場列数を反映してシートを閉じる() throws {
@@ -233,6 +236,7 @@ final class SeatingChartPresenterTests: XCTestCase {
         XCTAssertEqual(presenter.globalColumnCount, 4)
         XCTAssertEqual(presenter.viewData.globalColumnCount, 4)
         XCTAssertNil(presenter.route)
+        XCTAssertNil(presenter.templateListPresenter)
         guard case .scrollToTop = presenter.canvasEvent else {
             return XCTFail("テンプレート適用後は先頭へスクロールする")
         }
@@ -245,15 +249,18 @@ final class SeatingChartPresenterTests: XCTestCase {
         presenter.templateListDidCancel()
 
         XCTAssertNil(presenter.route)
+        XCTAssertNil(presenter.templateListPresenter)
     }
 
     func test_存在しないIDの選択はシートを閉じない() {
         let presenter = makePresenter(names: ["A"])
         presenter.didTapLoadTemplate()
+        let child = presenter.templateListPresenter
 
         presenter.templateListDidSelect(id: UUID())
 
         XCTAssertEqual(presenter.route, .templateList)
+        XCTAssertTrue(presenter.templateListPresenter === child)
     }
 
     func test_makeRouteSheetはテンプレート一覧を組み立てる() {
@@ -261,5 +268,110 @@ final class SeatingChartPresenterTests: XCTestCase {
         presenter.didTapLoadTemplate()
 
         _ = presenter.makeRouteSheet(.templateList)
+    }
+
+    func test_テンプレートシートは親と同じGatewayインスタンスで組み立てる() throws {
+        let gateway = FetchCountingSeatingTemplateGateway()
+        try gateway.insert(name: "共有", tables: [], globalColumnCount: 2)
+        let presenter = makePresenter(names: ["A"], templateGateway: gateway)
+        let fetchCountBeforeSheet = gateway.fetchAllCallCount
+
+        presenter.didTapLoadTemplate()
+        _ = presenter.makeRouteSheet(.templateList)
+
+        XCTAssertEqual(presenter.route, .templateList)
+        XCTAssertGreaterThan(gateway.fetchAllCallCount, fetchCountBeforeSheet)
+    }
+
+    // MARK: - シート identity（Phase 4）
+
+    func test_テンプレートシート期間中は同一の子Presenterを返す() {
+        let presenter = makePresenter(names: ["A"])
+        presenter.didTapLoadTemplate()
+        let first = presenter.templateListPresenter
+        XCTAssertNotNil(first)
+
+        _ = presenter.makeRouteSheet(.templateList)
+        XCTAssertTrue(presenter.templateListPresenter === first)
+        _ = presenter.makeRouteSheet(.templateList)
+        XCTAssertTrue(presenter.templateListPresenter === first)
+    }
+
+    func test_テンプレートシートを閉じたら子Presenterを破棄し再表示で新規assembleする() {
+        let presenter = makePresenter(names: ["A"])
+        presenter.didTapLoadTemplate()
+        let first = presenter.templateListPresenter
+        XCTAssertNotNil(first)
+
+        presenter.dismissRoute()
+        XCTAssertNil(presenter.templateListPresenter)
+
+        presenter.didTapLoadTemplate()
+        let second = presenter.templateListPresenter
+        XCTAssertNotNil(second)
+        XCTAssertFalse(first === second)
+    }
+
+    func test_シート再組み立てでも子のrouteが消えない() throws {
+        let presenter = makePresenter(names: ["A"], templateGateway: FailingFetchSeatingTemplateGateway())
+        presenter.didTapLoadTemplate()
+        let child = try XCTUnwrap(presenter.templateListPresenter)
+        XCTAssertEqual(
+            child.route,
+            .alert(.loadFailed(message: "読み込みに失敗しました"))
+        )
+
+        _ = presenter.makeRouteSheet(.templateList)
+        _ = presenter.makeRouteSheet(.templateList)
+
+        XCTAssertTrue(presenter.templateListPresenter === child)
+        XCTAssertEqual(
+            child.route,
+            .alert(.loadFailed(message: "読み込みに失敗しました"))
+        )
+    }
+
+    func test_テンプレートシートを閉じたあとGateway差し替えで新しい子が読む() throws {
+        let firstGateway = InMemorySeatingTemplateGateway()
+        try firstGateway.insert(name: "最初", tables: [], globalColumnCount: 2)
+        let presenter = makePresenter(names: ["A"], templateGateway: firstGateway)
+        presenter.didTapLoadTemplate()
+        XCTAssertEqual(presenter.templateListPresenter?.viewData.rows.map(\.name), ["最初"])
+        presenter.dismissRoute()
+
+        let secondGateway = InMemorySeatingTemplateGateway()
+        try secondGateway.insert(name: "差し替え後", tables: [], globalColumnCount: 2)
+        presenter.attachTemplateGateway(secondGateway)
+        presenter.didTapLoadTemplate()
+
+        XCTAssertEqual(presenter.templateListPresenter?.viewData.rows.map(\.name), ["差し替え後"])
+    }
+}
+
+/// fetchAll だけ失敗させるテスト用 Gateway（子の loadFailed route を残す）
+private final class FailingFetchSeatingTemplateGateway: SeatingTemplateGatewayBase {
+    override func fetchAll() throws -> [LayoutTemplateSnapshot] {
+        throw NSError(
+            domain: "SeatingChartPresenterTests",
+            code: 2,
+            userInfo: [NSLocalizedDescriptionKey: "読み込みに失敗しました"]
+        )
+    }
+}
+
+/// 親シート組み立てが同じ Gateway インスタンスを子へ渡すことを数える
+private final class FetchCountingSeatingTemplateGateway: SeatingTemplateGatewayBase {
+    private var stored: [LayoutTemplateSnapshot] = []
+    private(set) var fetchAllCallCount = 0
+
+    override func fetchCount() throws -> Int { stored.count }
+
+    override func fetchAll() throws -> [LayoutTemplateSnapshot] {
+        fetchAllCallCount += 1
+        return stored
+    }
+
+    override func insert(name: String, tables: [TableTemplate], globalColumnCount: Int) throws {
+        stored.append(LayoutTemplateSnapshot(name: name, tables: tables, globalColumnCount: globalColumnCount))
     }
 }

@@ -3,8 +3,8 @@
 //  SakuttoSeatTests
 //
 //  refactor_templateListView.md Phase 0 / Phase 2 / Phase 3
+//  refactor_templateListView.md Phase 4（Router はキャッシュしない。シート identity は親 Presenter）
 //  テンプレート一覧は子 VIPER に委譲する。Gateway は gatewayHolder から読む。
-//  シート identity は Phase 4。
 //
 
 import SwiftUI
@@ -87,6 +87,22 @@ final class SeatingChartRouterTests: XCTestCase {
         let sheet = SeatingChartRouter().makeTemplateListSheet(presenter: presenter)
 
         XCTAssertTrue(viewTreeContainsTypeName(sheet, "SeatingTemplateView"))
+    }
+
+    func test_makeTemplateListPresenterはassembleのたびに新しいPresenterを返す() {
+        let gatewayHolder = SeatingChartInteractor()
+        let output = TemplateListOutputSpy()
+
+        let first = SeatingChartRouter().makeTemplateListPresenter(
+            gatewayHolder: gatewayHolder,
+            output: output
+        )
+        let second = SeatingChartRouter().makeTemplateListPresenter(
+            gatewayHolder: gatewayHolder,
+            output: output
+        )
+
+        XCTAssertFalse(first === second)
     }
 }
 

@@ -5,6 +5,7 @@
 //  refactor_seating.md Phase 4（Router 実体化・Gateway 化）
 //  Phase 5（子モジュール切り出し・Share モジュール化）
 //  refactor_templateListView.md Phase 3（テンプレート子は gatewayHolder。Presenter は Gateway 型を渡さない）
+//  refactor_templateListView.md Phase 4（テンプレートシートは Presenter 組み立てと View ラップを分離）
 //
 
 import SwiftUI
@@ -86,8 +87,9 @@ protocol SeatingChartRouterProtocol: AnyObject {
         featureUnlock: FeatureUnlockState,
         output: (any VenueSettingsModuleOutput)?
     ) -> AnyView
-    /// テンプレート一覧は子 VIPER。assemble とシート View を分ける（シート identity は Phase 4）。
+    /// テンプレート一覧は子 VIPER。assemble とシート View を分ける（シート identity は親 Presenter）。
     /// Presenter は Gateway 型を渡さず、具象 Interactor を gatewayHolder として渡す。
+    /// Router はキャッシュしない。`.templateList` 期間中の保持は親 Presenter。
     @MainActor func makeTemplateListPresenter(
         gatewayHolder: SeatingChartInteractor,
         output: (any SeatingTemplateModuleOutput)?

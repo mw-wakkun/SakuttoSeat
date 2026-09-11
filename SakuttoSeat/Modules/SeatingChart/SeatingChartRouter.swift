@@ -5,7 +5,7 @@
 //  refactor_seating.md Phase 4（遷移・提示・子モジュール組み立て）
 //  Phase 5（共有・広告の提示は Share モジュールへ移管し、ここは子モジュール組立に専念）
 //  refactor_templateListView.md Phase 3（テンプレート子は gatewayHolder から現行 Gateway を読む）
-//  シート identity は Phase 4。この時点では毎回 assemble する。
+//  refactor_templateListView.md Phase 4（子 Presenter の組み立てとシート View を分離。キャッシュは親）
 //
 
 import SwiftUI

@@ -21,7 +21,7 @@ Gateway 化 / 子 VIPER 化）を、FavoriteGroup の完成形に揃えて実施
 | 1 | デッド API・コメント偽証・規約穴埋め | ✅ 完了（2026-09-11） |
 | 2 | 子 VIPER 化（ViewData.Row / Route / Entity） | ✅ 完了（2026-09-11） |
 | 3 | Gateway の Snapshot 化と親 Interactor の純化 | ✅ 完了（2026-09-11） |
-| 4 | シート identity と Router 境界の安定化 | 未着手 |
+| 4 | シート identity と Router 境界の安定化 | ✅ 完了（2026-09-11） |
 | 5 | 再利用部品の揃え（空状態・List・Copy） | 未着手 |
 | 6 | 性能・A11y・i18n・編集モード UX | 未着手 |
 
@@ -639,6 +639,18 @@ Phase 2 で先行済みのため、ここでは触らない:
   （手動 QA + Presenter 保持のユニットテスト）。
 - リスク: 中（シート寿命）。保持し続けると Gateway 差し替え後に古い子が残るので、
   `didTapLoadTemplate` のたびに新規 assemble、閉じたら破棄、のルールをテストで固定する。
+
+実装時の決定（2026-09-11）:
+
+- 親 Presenter が `.templateList` 期間中だけ `templateListPresenter` を保持。
+  `didTapLoadTemplate` で 1 度 assemble。`makeRouteSheet` は `makeTemplateListSheet` で同じインスタンスを返す。
+- 全 route 変更は `setRoute` 経由。`.templateList` 以外へ移ったら破棄。
+  見つからない ID はシートを閉じないので子も残す。
+- 空の `SeatingTemplateRouterProtocol` は作っていない。Router はキャッシュしない。
+- テスト: シート期間中の同一インスタンス / 閉じたら破棄して再表示で新規 / 子 route が再組み立てでも残る /
+  親と同じ Gateway / 閉じたあと Gateway 差し替えで新しい子が読む。
+- detent は Router 側のまま。子 View には付けていない。
+- 親 Presenter に `nonisolated deinit {}` を追加（子が Output の protocol existential を弱参照するため。AttendeeList と同じ）。
 
 ### Phase 5: 再利用部品の揃え（0.5 日）
 
