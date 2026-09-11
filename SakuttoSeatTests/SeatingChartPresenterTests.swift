@@ -3,6 +3,7 @@
 //  SakuttoSeatTests
 //
 //  refactor_seating.md Phase 4（Gateway / Router 仲介の回帰）
+//  refactor_templateListView.md Phase 0（TemplateList Output / route の characterization）
 //
 
 import XCTest
@@ -198,5 +199,53 @@ final class SeatingChartPresenterTests: XCTestCase {
                 return nil
             }
         XCTAssertFalse(remainingIDs.contains(tableID))
+    }
+
+    func test_didTapLoadTemplateはテンプレート一覧シートを開く() {
+        let presenter = makePresenter(names: ["A"])
+
+        presenter.didTapLoadTemplate()
+
+        XCTAssertEqual(presenter.route, .templateList)
+    }
+
+    func test_TemplateListOutputの選択は会場列数を反映してシートを閉じる() {
+        let presenter = makePresenter(names: ["A", "B", "C", "D", "E", "F"])
+        presenter.didTapLoadTemplate()
+        let template = SeatingLayoutTemplate(
+            name: "宴会場",
+            tables: [
+                TableTemplate(name: "受付卓", capacity: 3, columnCount: 3, layoutDirection: .left, layoutText: "入り口側"),
+                TableTemplate(name: "奥卓", capacity: 3, columnCount: 3, layoutDirection: .right, layoutText: "窓際")
+            ],
+            globalColumnCount: 4
+        )
+
+        presenter.templateListDidSelect(template: template)
+
+        XCTAssertEqual(presenter.globalColumnCount, 4)
+        XCTAssertEqual(presenter.viewData.globalColumnCount, 4)
+        XCTAssertNil(presenter.route)
+        guard case .scrollToTop = presenter.canvasEvent else {
+            return XCTFail("テンプレート適用後は先頭へスクロールする")
+        }
+    }
+
+    /// `_既知の課題`: 本番の閉じるボタンは `dismiss()` で、Output の cancel は未接続。
+    /// 呼ばれたときの挙動（route を nil にする）だけ固定する。
+    func test_TemplateListOutputのキャンセルはシートを閉じる() {
+        let presenter = makePresenter(names: ["A"])
+        presenter.didTapLoadTemplate()
+
+        presenter.templateListDidCancel()
+
+        XCTAssertNil(presenter.route)
+    }
+
+    func test_makeRouteSheetはテンプレート一覧を組み立てる() {
+        let presenter = makePresenter(names: ["A"])
+        presenter.didTapLoadTemplate()
+
+        _ = presenter.makeRouteSheet(.templateList)
     }
 }

@@ -4,6 +4,8 @@
 //
 //  Created by masafumi wakugawa on 2026/08/15.
 //  refactor_favorite.md Phase 5（行 UI とシートクロムを共有部品へ。@Query は触らない）
+//  refactor_templateListView.md Phase 0
+//  `_既知の課題`: 削除は `modelContext.delete` であり Gateway を通らない。子 VIPER 化は Phase 2。
 //
 
 import SwiftUI

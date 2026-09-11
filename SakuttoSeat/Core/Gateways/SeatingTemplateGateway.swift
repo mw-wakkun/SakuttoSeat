@@ -3,9 +3,13 @@
 //  SakuttoSeat
 //
 //  refactor_seating.md Phase 4
+//  refactor_templateListView.md Phase 0
 //
 //  Protocol existential をクラスが保持すると deinit で malloc abort するため、
 //  Interactor は具象基底クラスだけを保持する。
+//
+//  `_既知の課題`: 本番の一覧削除は `SeatingTemplateListView` の `modelContext.delete`。
+//  この Gateway の `delete(id:)` は保存経路以外から呼ばれない（Phase 2 で子へ移す）。
 //
 
 import Foundation

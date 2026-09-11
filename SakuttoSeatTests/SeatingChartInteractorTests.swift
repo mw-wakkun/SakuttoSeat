@@ -3,6 +3,7 @@
 //  SakuttoSeatTests
 //
 //  refactor_seating.md Phase 3（Presenter から移送したドメインロジックの回帰）
+//  refactor_templateListView.md Phase 0（attachTemplateGateway の差し替えを固定）
 //
 
 import XCTest
@@ -562,6 +563,20 @@ final class SeatingChartInteractorTests: XCTestCase {
                 .limitReached(currentCount: 3, limit: FeatureLimit.freeTemplateCount)
             )
         }
+    }
+
+    func test_attachTemplateGatewayで永続化先を差し替える() throws {
+        let first = InMemorySeatingTemplateGateway()
+        let interactor = makeInteractor(names: ["A"], templateGateway: first)
+        try interactor.saveCurrentLayoutAsTemplate(named: "最初")
+        XCTAssertEqual(first.templates.map(\.name), ["最初"])
+
+        let second = InMemorySeatingTemplateGateway()
+        interactor.attachTemplateGateway(second)
+        try interactor.saveCurrentLayoutAsTemplate(named: "差し替え後")
+
+        XCTAssertEqual(first.templates.map(\.name), ["最初"])
+        XCTAssertEqual(second.templates.map(\.name), ["差し替え後"])
     }
 
     // MARK: - 会場設定とセッション解放
