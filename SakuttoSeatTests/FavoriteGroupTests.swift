@@ -7,6 +7,7 @@
 //  refactor_favorite.md Phase 2 / Phase 3（ID 削除・Snapshot 戻り）
 //  refactor_favorite.md Phase 5（Copy.edit。行 UI は View の SavedListRow）
 //  refactor_favorite.md Phase 6（閉じる / 編集 / 空状態の A11y Copy）
+//  refactor_groupFavorite.md Phase 2（memberSummary 断言は ViewData Builder）
 //
 
 import XCTest
@@ -26,7 +27,6 @@ final class FavoriteGroupInteractorTests: XCTestCase {
 
         XCTAssertEqual(groups.map(\.name), ["新しい", "古い"])
         XCTAssertEqual(groups.first?.memberNames, ["B", "C"])
-        XCTAssertEqual(groups.first?.memberSummary, "B, C")
     }
 
     func test_ID指定で削除する() throws {
@@ -296,6 +296,32 @@ final class FavoriteGroupCopyTests: XCTestCase {
     func test_失敗アラートのタイトルはCatalogにある() {
         XCTAssertEqual(FavoriteGroupCopy.deleteFailedTitle, String(localized: "削除に失敗しました"))
         XCTAssertEqual(FavoriteGroupCopy.loadFailedTitle, String(localized: "読み込みに失敗しました"))
+    }
+}
+
+// MARK: - ViewData
+
+final class FavoriteGroupViewDataTests: XCTestCase {
+    func test_BuilderのmemberSummaryはカンマ空白結合である() {
+        XCTAssertEqual(FavoriteGroupViewDataBuilder.build(groups: []), .empty)
+
+        let emptyMembers = FavoriteGroupSnapshot.persisted(name: "空", memberNames: [])
+        let emptyData = FavoriteGroupViewDataBuilder.build(groups: [emptyMembers])
+        XCTAssertEqual(emptyData.rows.map(\.name), ["空"])
+        XCTAssertEqual(emptyData.rows.map(\.memberSummary), [""])
+        XCTAssertFalse(emptyData.isEmpty)
+
+        let one = FavoriteGroupSnapshot.persisted(name: "同期", memberNames: ["太郎"])
+        let oneData = FavoriteGroupViewDataBuilder.build(groups: [one])
+        XCTAssertEqual(oneData.rows.map(\.id), [one.id])
+        XCTAssertEqual(oneData.rows.map(\.memberSummary), ["太郎"])
+
+        let many = FavoriteGroupSnapshot.persisted(
+            name: "同期",
+            memberNames: ["太郎", "花子", "次郎"]
+        )
+        let manyData = FavoriteGroupViewDataBuilder.build(groups: [many])
+        XCTAssertEqual(manyData.rows.map(\.memberSummary), ["太郎, 花子, 次郎"])
     }
 }
 

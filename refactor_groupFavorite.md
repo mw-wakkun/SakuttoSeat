@@ -23,7 +23,7 @@
 | --- | --- | --- |
 | 0 | 準備と回帰テスト（Gateway / スキーマのギャップ埋め） | ✅ 完了（2026-09-11） |
 | 1 | 配置・命名の固定（偽モジュール解消。型名は変えない） | ✅ 完了（2026-09-11） |
-| 2 | Entity / `@Model` の純化（Snapshot・init・表示結合） | 未着手 |
+| 2 | Entity / `@Model` の純化（Snapshot・init・表示結合） | ✅ 完了（2026-09-11） |
 | 3 | Gateway の性能と API 分割（一括削除・一覧/詳細） | 未着手 |
 | 4 | App 注入で View から SwiftData を排除 | 未着手 |
 | 5 | テストダブル共通化・デッド API・仕上げ | 未着手 |
@@ -522,6 +522,20 @@ Gateway 専用 DTO を Core に増やすと型がまた分裂する。
   `persistenceFailed` に限定するコメントを Contracts に書く。エラー型の分割はしない。
 - 完了条件: Entity に表示用結合が無い。View の字幕は現状と同じ。
 - リスク: 低〜中（テストの断言移動）。
+
+実装時の決定（2026-09-11）:
+
+- `GroupFavorite.init` はテンプレと同じく `id` / `createdAt` をデフォルト付きで受け取る。
+  Gateway の既存呼び出し `GroupFavorite(name:members:)` は無変更。
+- `FavoriteGroupSnapshot` から `memberSummary` を削除。`persisted` 工場は
+  `id` / `name` / `memberNames` のみ。結合は `FavoriteGroupViewDataBuilder` だけ。
+- Gateway / 親 Interactor テストの `snapshot.memberSummary` 断言は削除。
+  空 / 1 人 / 複数名の結合は `FavoriteGroupViewDataTests` へ移した。
+  Presenter の Row 字幕断言は維持（View 経路の回帰）。
+- 子 Interactor の throws は `persistenceFailed` に限定するコメントを Contracts に書いた。
+  Presenter の `FavoriteSaveError` catch は `switch` + `default: break` で握り潰しを明示。
+  エラー型の分割はしない。
+- SwiftData 専用で「明示 id / createdAt が persist する」ことを固定。スキーマは変えていない。
 
 ### Phase 3: Gateway の性能と API 分割（1.0 日）
 

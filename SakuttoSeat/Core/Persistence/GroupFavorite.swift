@@ -17,10 +17,16 @@ final class GroupFavorite {
     var members: [String]
     var createdAt: Date
 
-    init(name: String, members: [String]) {
-        self.id = UUID()
+    /// `SeatingLayoutTemplate` と同じく `id` / `createdAt` を受け取れる。既存呼び出しはデフォルトで足りる。
+    init(
+        id: UUID = UUID(),
+        name: String,
+        members: [String],
+        createdAt: Date = Date()
+    ) {
+        self.id = id
         self.name = name
         self.members = members
-        self.createdAt = Date()
+        self.createdAt = createdAt
     }
 }

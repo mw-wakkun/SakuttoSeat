@@ -4,6 +4,7 @@
 //
 //  refactor_favorite.md Phase 2（共有型の所在。画面 = FavoriteGroup、永続化 = GroupFavorite）
 //  refactor_groupFavorite.md Phase 1（@Model の住所は Core/Persistence。型名は変えない）
+//  refactor_groupFavorite.md Phase 2（Snapshot は表示結合を持たない。memberSummary は Builder）
 //
 
 import Foundation
@@ -12,25 +13,19 @@ import Foundation
 typealias FavoriteGroupID = UUID
 
 /// SwiftData モデル（`GroupFavorite`）を View / Presenter から隔離するスナップショット。
-/// 一覧の表示用結合（`memberSummary`）は ViewData Builder が担う。
+/// 表示用結合は持たない。一覧の字幕は ViewData Builder が `memberNames` から作る。
 nonisolated struct FavoriteGroupSnapshot: Identifiable, Equatable {
     let id: FavoriteGroupID
     let name: String
     let memberNames: [String]
-    let memberSummary: String
 
-    /// Gateway が永続化モデルから写すときの工場。表示用結合は Builder が再計算する。
+    /// Gateway が永続化モデルから写すときの工場。
     static func persisted(
         id: FavoriteGroupID = UUID(),
         name: String,
         memberNames: [String]
     ) -> FavoriteGroupSnapshot {
-        FavoriteGroupSnapshot(
-            id: id,
-            name: name,
-            memberNames: memberNames,
-            memberSummary: memberNames.joined(separator: ", ")
-        )
+        FavoriteGroupSnapshot(id: id, name: name, memberNames: memberNames)
     }
 }
 

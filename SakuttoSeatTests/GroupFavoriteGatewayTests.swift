@@ -3,6 +3,7 @@
 //  SakuttoSeatTests
 //
 //  refactor_groupFavorite.md Phase 0（Gateway / Snapshot の characterization）
+//  refactor_groupFavorite.md Phase 2（memberSummary 断言は ViewData へ。init は id / createdAt 可）
 //  画面テストは FavoriteGroupTests / AttendeeList* に残し、永続化実装を直接固定する。
 //
 
@@ -48,12 +49,6 @@ final class GroupFavoriteGatewayTests: XCTestCase {
 
     func test_同一瞬間の連続insertでも新しい順を保つ() throws {
         try GroupFavoriteGatewayCases.assertConsecutiveInsertsKeepNewestFirst(
-            InMemoryGroupFavoriteGateway()
-        )
-    }
-
-    func test_memberSummaryはカンマ空白結合である() throws {
-        try GroupFavoriteGatewayCases.assertMemberSummaryJoinsWithCommaSpace(
             InMemoryGroupFavoriteGateway()
         )
     }
@@ -130,10 +125,26 @@ final class SwiftDataGroupFavoriteGatewayTests: XCTestCase {
         try GroupFavoriteGatewayCases.assertConsecutiveInsertsKeepNewestFirst(gateway)
     }
 
-    func test_memberSummaryはカンマ空白結合である() throws {
-        let (gateway, container) = try makeSwiftDataGateway()
-        _ = container
-        try GroupFavoriteGatewayCases.assertMemberSummaryJoinsWithCommaSpace(gateway)
+    func test_initはidとcreatedAtを受け取ってpersistできる() throws {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: GroupFavorite.self,
+            configurations: configuration
+        )
+        let context = ModelContext(container)
+        let id = UUID()
+        let createdAt = Date(timeIntervalSince1970: 1_700_000_000)
+
+        context.insert(
+            GroupFavorite(id: id, name: "同期", members: ["太郎"], createdAt: createdAt)
+        )
+        try context.save()
+
+        let fetched = try XCTUnwrap(context.fetch(FetchDescriptor<GroupFavorite>()).first)
+        XCTAssertEqual(fetched.id, id)
+        XCTAssertEqual(fetched.name, "同期")
+        XCTAssertEqual(fetched.members, ["太郎"])
+        XCTAssertEqual(fetched.createdAt, createdAt)
     }
 
     private func makeSwiftDataGateway() throws -> (SwiftDataGroupFavoriteGateway, ModelContainer) {
@@ -166,24 +177,26 @@ final class GroupFavoriteGatewayBaseTests: XCTestCase {
     }
 }
 
-// MARK: - Snapshot（Phase 2 で memberSummary を外すまでの現状固定）
+// MARK: - Snapshot（表示結合は持たない）
 
 final class FavoriteGroupSnapshotCharacterizationTests: XCTestCase {
 
-    func test_persistedのmemberSummaryはカンマ空白結合である() {
+    func test_persistedはidとnameとmemberNamesだけを持つ() {
+        let id = UUID()
         let snapshot = FavoriteGroupSnapshot.persisted(
+            id: id,
             name: "同期",
             memberNames: ["太郎", "花子", "次郎"]
         )
 
-        XCTAssertEqual(snapshot.memberSummary, "太郎, 花子, 次郎")
+        XCTAssertEqual(snapshot.id, id)
+        XCTAssertEqual(snapshot.name, "同期")
         XCTAssertEqual(snapshot.memberNames, ["太郎", "花子", "次郎"])
     }
 
-    func test_空メンバーのmemberSummaryは空文字である() {
+    func test_空メンバーは空配列のまま保持する() {
         let snapshot = FavoriteGroupSnapshot.persisted(name: "空", memberNames: [])
 
-        XCTAssertEqual(snapshot.memberSummary, "")
         XCTAssertTrue(snapshot.memberNames.isEmpty)
     }
 }
@@ -275,11 +288,5 @@ private enum GroupFavoriteGatewayCases {
         try gateway.insert(name: "3", members: ["C"])
 
         XCTAssertEqual(try gateway.fetchAll().map(\.name), ["3", "2", "1"])
-    }
-
-    static func assertMemberSummaryJoinsWithCommaSpace(_ gateway: GroupFavoriteGateway) throws {
-        try gateway.insert(name: "同期", members: ["太郎", "花子"])
-
-        XCTAssertEqual(try gateway.fetchAll().first?.memberSummary, "太郎, 花子")
     }
 }

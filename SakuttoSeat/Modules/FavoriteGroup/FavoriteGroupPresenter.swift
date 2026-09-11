@@ -5,6 +5,7 @@
 //  refactor_AttendeeList.md Phase 5
 //  refactor_favorite.md Phase 1（attach は Interactor のみ。deinit を親と揃える）
 //  refactor_favorite.md Phase 2 / Phase 3（ViewData.Row / route。削除は IndexSet → ID）
+//  refactor_groupFavorite.md Phase 2（FavoriteSaveError の非 persistenceFailed は明示 default）
 //
 
 import Combine
@@ -46,8 +47,11 @@ final class FavoriteGroupPresenter: ObservableObject, FavoriteGroupPresenterProt
             try interactor.deleteFavorites(ids: ids)
             publishState()
         } catch let error as FavoriteSaveError {
-            if case .persistenceFailed(let message) = error {
+            switch error {
+            case .persistenceFailed(let message):
                 route = .alert(.deleteFailed(message: message))
+            default:
+                break
             }
         } catch {
             route = .alert(.deleteFailed(message: error.localizedDescription))
@@ -70,8 +74,11 @@ final class FavoriteGroupPresenter: ObservableObject, FavoriteGroupPresenterProt
             }
         } catch let error as FavoriteSaveError {
             viewData = .empty
-            if case .persistenceFailed(let message) = error {
+            switch error {
+            case .persistenceFailed(let message):
                 route = .alert(.loadFailed(message: message))
+            default:
+                break
             }
         } catch {
             viewData = .empty

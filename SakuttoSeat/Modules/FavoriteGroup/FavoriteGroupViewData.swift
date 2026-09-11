@@ -6,6 +6,7 @@
 //  refactor_favorite.md Phase 2（表示専用モデル。Entity はここに現れない）
 //  refactor_favorite.md Phase 5（編集トグル文言を Copy に追加。キーは既存 Catalog）
 //  refactor_favorite.md Phase 6（閉じる / 編集 / 空状態の A11y。Catalog は ja のみ）
+//  refactor_groupFavorite.md Phase 2（memberSummary 結合は Builder のみ）
 //
 
 import Foundation
@@ -59,6 +60,7 @@ nonisolated struct FavoriteGroupViewData: Equatable {
     static let empty = FavoriteGroupViewData(rows: [])
 }
 
+/// Snapshot の `memberNames` を一覧行へ写す。表示用結合（カンマ区切り）はここだけが担う。
 nonisolated enum FavoriteGroupViewDataBuilder {
     static func build(groups: [FavoriteGroupSnapshot]) -> FavoriteGroupViewData {
         FavoriteGroupViewData(
