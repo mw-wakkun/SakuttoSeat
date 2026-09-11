@@ -30,6 +30,10 @@ final class AttendeeListRouterTests: XCTestCase {
         _ = AttendeeListRouter().makeSimpleShuffleModule(attendees: attendees)
     }
 
+    func test_番号札モジュールは空配列でも組み立てられる() {
+        _ = AttendeeListRouter().makeSimpleShuffleModule(attendees: [])
+    }
+
     func test_お気に入りモジュールはFavoriteGroupRouterへ委譲する() {
         let router = AttendeeListRouter()
         let output = FavoriteGroupOutputSpy()

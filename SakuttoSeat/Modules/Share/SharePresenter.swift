@@ -16,7 +16,8 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
     /// protocol existential を MainActor クラスが保持すると deinit で malloc abort するため具象型で保持する。
     private let interactor: ShareInteractor
     private let router: ShareRouter
-    private var subject: ShareSubject?
+    /// タップ時点の共有対象。本番は内部利用のみ。テストから payload を検証するために読み取り可能。
+    private(set) var subject: ShareSubject?
 
     init(interactor: ShareInteractor, router: ShareRouter) {
         self.interactor = interactor
