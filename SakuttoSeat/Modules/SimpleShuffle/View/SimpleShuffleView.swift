@@ -5,6 +5,7 @@
 //  Created by masafumi wakugawa on 2026/05/07.
 //  refactor_simple.md Phase 3（既定 tint / Copy 一系統 / canShuffle / A11y）
 //  refactor_simple.md Phase 4（空状態 / insetGrouped。大量行の spring 抑制は未計測のため入れない）
+//  番号札は inset がバナーのみなので、幅を containerRelativeFrame で確定する
 //
 
 import SwiftUI
@@ -26,6 +27,7 @@ struct SimpleShuffleView: View {
             AdBannerContainer()
                 .padding(.vertical, AppSpacing.bannerVerticalPadding)
                 .frame(maxWidth: .infinity)
+                .containerRelativeFrame(.horizontal)
                 .background(Color(.systemGroupedBackground))
         }
         .navigationTitle(SimpleShuffleCopy.navigationTitle)

@@ -7,6 +7,7 @@
 //
 //  Phase 4 まで `SeatingChartInteractor` / `SimpleShuffleView` が持っていた
 //  共有テキストの整形を Share モジュールへ移送したため、検証もここへ移した。
+//  refactor_Ad.md Phase 0（リワード提示経路は注入口待ちで XCTSkip）
 //
 
 import XCTest
@@ -172,5 +173,24 @@ final class SharePresenterTests: XCTestCase {
         presenter.dismissRoute()
 
         XCTAssertNil(presenter.route)
+    }
+
+    // MARK: - リワード提示（Phase 2 で Router に Gateway を注入してから有効化）
+    //
+    // 期待（現行 SharePresenter.didConfirmImageShare）:
+    // - Fake.notReady → route == .alert(.adNotReady)。画像シェアは呼ばない
+    // - Fake.success → 画像出力経路へ進む
+    // - Fake.notEarned / failed → route なし、共有なし
+
+    func test_画像共有確認_広告未準備ならアラート() throws {
+        throw XCTSkip("Phase 2 で ShareRouter に RewardedAdGateway を注入できるようになってから有効化する")
+    }
+
+    func test_画像共有確認_視聴完了なら画像出力へ進む() throws {
+        throw XCTSkip("Phase 2 で ShareRouter に RewardedAdGateway を注入できるようになってから有効化する")
+    }
+
+    func test_画像共有確認_未獲得と失敗では共有しない() throws {
+        throw XCTSkip("Phase 2 で ShareRouter に RewardedAdGateway を注入できるようになってから有効化する")
     }
 }

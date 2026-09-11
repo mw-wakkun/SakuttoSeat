@@ -6,6 +6,7 @@
 //
 //  Phase 4 まで SettingsSheetView.applySelection() が持っていた列数の課金ルールを
 //  Interactor へ移送したため、規則はここで固定する。
+//  refactor_Ad.md Phase 0（リワード提示経路は注入口待ちで XCTSkip）
 //
 
 import XCTest
@@ -134,5 +135,24 @@ final class VenueSettingsPresenterTests: XCTestCase {
 
         presenter.didChangeSelection(FeatureLimit.freeColumnCount)
         XCTAssertFalse(presenter.viewData.requiresUnlock)
+    }
+
+    // MARK: - リワード提示（Phase 2 で Router に Gateway を注入してから有効化）
+    //
+    // 期待（現行 VenueSettingsPresenter.didConfirmWatchAd）:
+    // - Fake.success → grantSessionUnlock + Output に列数が渡る
+    // - Fake.notReady → route == .adNotReady。Output なし、未解放
+    // - Fake.notEarned / failed → 未解放のまま Output なし
+
+    func test_視聴確認_成功ならセッション解放して適用する() throws {
+        throw XCTSkip("Phase 2 で VenueSettingsRouter に RewardedAdGateway を注入できるようになってから有効化する")
+    }
+
+    func test_視聴確認_未準備ならアラートになり適用しない() throws {
+        throw XCTSkip("Phase 2 で VenueSettingsRouter に RewardedAdGateway を注入できるようになってから有効化する")
+    }
+
+    func test_視聴確認_未獲得と失敗では解放しない() throws {
+        throw XCTSkip("Phase 2 で VenueSettingsRouter に RewardedAdGateway を注入できるようになってから有効化する")
     }
 }

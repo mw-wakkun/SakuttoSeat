@@ -3,6 +3,7 @@
 //  SakuttoSeatTests
 //
 //  refactor_AttendeeList.md Phase 6（番号行 A11y・アダプティブバナー寸法）
+//  refactor_Ad.md Phase 0（寸法テストは維持。再 load 判断は AdsPhase0Tests）
 //
 
 import XCTest
@@ -35,5 +36,15 @@ final class AdBannerMetricsTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(compact.height, 50)
         XCTAssertGreaterThan(regular.width, 0)
         XCTAssertGreaterThanOrEqual(regular.height, 50)
+    }
+
+    func test_アダプティブバナーは指定幅を超えて親を押し広げない() {
+        let width: CGFloat = 390
+        let size = AdBannerMetrics.size(forWidth: width)
+
+        XCTAssertEqual(size.width, width, accuracy: 0.5)
+        // 標準アンカーは 50〜90pt（large は最大 150pt）。ボトムクロムはこちらを使う。
+        XCTAssertGreaterThanOrEqual(size.height, 50)
+        XCTAssertLessThanOrEqual(size.height, 90)
     }
 }
