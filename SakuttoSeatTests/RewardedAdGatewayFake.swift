@@ -53,3 +53,34 @@ nonisolated final class RewardedAdGatewayFake: RewardedAdGatewayBase {
         }
     }
 }
+
+/// 広告提示中に画面が閉じられたときの破棄を検証するためのハング Fake。
+final class RewardedAdGatewayHangingFake: RewardedAdGatewayBase {
+    private var presentContinuation: CheckedContinuation<Void, Error>?
+    private var startedContinuation: CheckedContinuation<Void, Never>?
+    private var didStartPresenting = false
+
+    @MainActor
+    func waitUntilPresentStarted() async {
+        if didStartPresenting { return }
+        await withCheckedContinuation { continuation in
+            startedContinuation = continuation
+        }
+    }
+
+    @MainActor
+    func finishSuccessfully() {
+        presentContinuation?.resume(returning: ())
+        presentContinuation = nil
+    }
+
+    @MainActor
+    override func present() async throws {
+        didStartPresenting = true
+        startedContinuation?.resume()
+        startedContinuation = nil
+        try await withCheckedThrowingContinuation { continuation in
+            presentContinuation = continuation
+        }
+    }
+}

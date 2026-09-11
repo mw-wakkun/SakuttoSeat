@@ -191,6 +191,28 @@ final class VenueSettingsPresenterTests: XCTestCase {
             XCTAssertEqual(fake.presentCallCount, 1, "outcome: \(outcome)")
         }
     }
+
+    func test_ルートを閉じると広告待ちの解放は破棄される() async {
+        let output = OutputSpy()
+        let unlock = FeatureUnlockState()
+        let hanging = RewardedAdGatewayHangingFake()
+        let presenter = makePresenter(featureUnlock: unlock, rewardedAd: hanging, output: output)
+        presenter.didChangeSelection(FeatureLimit.freeColumnCount + 1)
+        let requested = presenter.viewData.selectedColumnCount
+
+        let task = Task { @MainActor in
+            await presenter.confirmWatchAd(requestedColumnCount: requested)
+        }
+        await hanging.waitUntilPresentStarted()
+        presenter.dismissRoute()
+        hanging.finishSuccessfully()
+        await task.value
+
+        XCTAssertNil(presenter.route)
+        XCTAssertTrue(output.applied.isEmpty)
+        XCTAssertFalse(unlock.isSessionUnlocked)
+        XCTAssertTrue(presenter.viewData.requiresUnlock)
+    }
 }
 
 // MARK: - Router（Gateway 注入）

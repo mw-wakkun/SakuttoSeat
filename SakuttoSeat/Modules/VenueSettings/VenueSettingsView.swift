@@ -48,7 +48,10 @@ struct VenueSettingsView: View {
                     Button("適用") { presenter.didTapApply() }
                 }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("キャンセル") { dismiss() }
+                    Button("キャンセル") {
+                        presenter.cancelRunningTask()
+                        dismiss()
+                    }
                 }
             }
             .alert(RewardedAdCopy.notReadyTitle, isPresented: adNotReadyBinding) {
@@ -68,6 +71,9 @@ struct VenueSettingsView: View {
             }
         }
         .presentationDetents([.medium])
+        .onDisappear {
+            presenter.cancelRunningTask()
+        }
     }
 }
 

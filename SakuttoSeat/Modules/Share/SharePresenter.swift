@@ -20,6 +20,11 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
     /// タップ時点の共有対象。本番は内部利用のみ。テストから payload を検証するために読み取り可能。
     private(set) var subject: ShareSubject?
 
+    /// 広告待ちなど、画面寿命を超えて走らないようにする非同期作業。
+    private var runningTask: Task<Void, Never>?
+    /// 閉じたあとに完了した広告待ちが副作用を残さないための世代。
+    private var runningTaskID = UUID()
+
     init(interactor: ShareInteractor, router: ShareRouter) {
         self.interactor = interactor
         self.router = router
@@ -27,6 +32,7 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
 
     /// 共有ボタンのタップ。共有対象はタップ時点の内容で固定する。
     func didTapShare(subject: ShareSubject) {
+        cancelRunningTask()
         self.subject = subject
         route = .selection
     }
@@ -35,18 +41,20 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
         route = nil
         guard let subject else { return }
 
-        Task { @MainActor in
-            // 選択シートが閉じ終わるまで待ってから次の提示に移る
-            await router.waitUntilPresentable()
+        startRunningTask { [weak self] in
+            let taskID = self?.runningTaskID
+            await self?.router.waitUntilPresentable()
+            guard let self, let taskID, self.isCurrentTask(taskID) else { return }
+
             switch kind {
             case .text:
-                await router.presentShareSheet(text: interactor.makeShareText(for: subject))
+                await self.router.presentShareSheet(text: self.interactor.makeShareText(for: subject))
             case .image:
-                switch interactor.imageShareRequirement() {
+                switch self.interactor.imageShareRequirement() {
                 case .none:
-                    await exportAndShareImage(for: subject)
+                    await self.exportAndShareImage(for: subject)
                 case .rewardedAd:
-                    route = .alert(.confirmImageShareWithAd)
+                    self.route = .alert(.confirmImageShareWithAd)
                 }
             }
         }
@@ -56,25 +64,36 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
         route = nil
         guard let subject else { return }
 
-        Task { @MainActor in
-            await confirmImageShare(for: subject)
+        startRunningTask { [weak self] in
+            await self?.confirmImageShare(for: subject)
         }
     }
 
     /// 広告提示の結果を Route / 画像出力へ写す。View は `didConfirmImageShare` 経由。テストはここを await する。
     func confirmImageShare(for subject: ShareSubject) async {
+        let taskID = runningTaskID
         do {
             try await router.presentRewardedAd()
+            guard isCurrentTask(taskID) else { return }
             await exportAndShareImage(for: subject)
         } catch RewardedAdError.notReady {
+            guard isCurrentTask(taskID) else { return }
             route = .alert(.adNotReady)
         } catch {
-            // notEarned / failed: 共有は行わない
+            // notEarned / failed / キャンセル: 共有は行わない
         }
     }
 
     func dismissRoute() {
+        cancelRunningTask()
         route = nil
+    }
+
+    /// シートや親画面が閉じられたときに、広告待ちなどの非同期作業を破棄する。
+    func cancelRunningTask() {
+        runningTask?.cancel()
+        runningTask = nil
+        runningTaskID = UUID()
     }
 
     private func exportAndShareImage(for subject: ShareSubject) async {
@@ -83,5 +102,17 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
             return
         }
         await router.presentShareSheet(image: image)
+    }
+
+    private func startRunningTask(_ operation: @escaping @MainActor () async -> Void) {
+        runningTask?.cancel()
+        runningTaskID = UUID()
+        runningTask = Task { @MainActor in
+            await operation()
+        }
+    }
+
+    private func isCurrentTask(_ taskID: UUID) -> Bool {
+        runningTaskID == taskID && !Task.isCancelled
     }
 }

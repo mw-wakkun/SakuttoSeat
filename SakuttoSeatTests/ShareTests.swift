@@ -242,6 +242,32 @@ final class SharePresenterTests: XCTestCase {
             XCTAssertEqual(sut.router.presentedImageCount, 0, "outcome: \(outcome)")
         }
     }
+
+    func test_ルートを閉じると広告待ちの画像共有は破棄される() async throws {
+        let hanging = RewardedAdGatewayHangingFake()
+        let router = ShareRouterSpy(rewardedAd: hanging)
+        let presenter = SharePresenter(interactor: ShareInteractor(), router: router)
+        presenter.didTapShare(
+            subject: .numberedList(
+                SimpleShuffleViewDataBuilder.build(
+                    seats: [NumberedSeat(id: UUID(), name: "A", number: 1)]
+                )
+            )
+        )
+        let subject = try XCTUnwrap(presenter.subject)
+
+        let task = Task { @MainActor in
+            await presenter.confirmImageShare(for: subject)
+        }
+        await hanging.waitUntilPresentStarted()
+        presenter.dismissRoute()
+        hanging.finishSuccessfully()
+        await task.value
+
+        XCTAssertNil(presenter.route)
+        XCTAssertEqual(router.makeShareImageCallCount, 0)
+        XCTAssertEqual(router.presentedImageCount, 0)
+    }
 }
 
 private final class ShareRouterSpy: ShareRouter {

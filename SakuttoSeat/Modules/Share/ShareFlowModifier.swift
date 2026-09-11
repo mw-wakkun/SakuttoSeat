@@ -28,6 +28,9 @@ struct ShareFlowModifier: ViewModifier {
                     presenter.didSelectKind(kind)
                 }
             }
+            .onDisappear {
+                presenter.cancelRunningTask()
+            }
             .alert(
                 alertTitle,
                 isPresented: alertIsPresentedBinding,
