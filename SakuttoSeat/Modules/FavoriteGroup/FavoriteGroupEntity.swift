@@ -1,0 +1,34 @@
+//
+//  FavoriteGroupEntity.swift
+//  SakuttoSeat
+//
+//  refactor_favorite.md Phase 2（共有型の所在。画面 = FavoriteGroup、永続化 = GroupFavorite）
+//
+
+import Foundation
+
+/// お気に入りグループの識別子。永続化モデル `GroupFavorite.id` と同一。
+typealias FavoriteGroupID = UUID
+
+/// SwiftData モデル（`GroupFavorite`）を View / Presenter から隔離するスナップショット。
+/// 一覧の表示用結合（`memberSummary`）は ViewData Builder が担う。
+nonisolated struct FavoriteGroupSnapshot: Identifiable, Equatable {
+    let id: FavoriteGroupID
+    let name: String
+    let memberNames: [String]
+    let memberSummary: String
+}
+
+/// お気に入り保存の可否。`TemplateSaveAvailability` と同型
+nonisolated enum FavoriteSaveAvailability: Equatable {
+    case available
+    case limitReached(currentCount: Int, limit: Int)
+}
+
+/// お気に入り保存・読込・削除の失敗理由
+nonisolated enum FavoriteSaveError: Error, Equatable {
+    case limitReached(currentCount: Int, limit: Int)
+    case invalidName
+    case notFound
+    case persistenceFailed(message: String)
+}

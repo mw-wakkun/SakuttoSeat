@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_AttendeeList.md Phase 5（お気に入り一覧の子 VIPER）
+//  refactor_favorite.md Phase 2（View は ViewData.Row と route のみ）
 //  一覧・削除は Presenter → Interactor。選択結果は Output のみ。
 //  Gateway は親 assemble 時に渡す（同じ SwiftData context / In-Memory を共有）。
 //
@@ -26,22 +27,22 @@ struct FavoriteGroupView: View {
                     }
                 } else {
                     Section {
-                        ForEach(presenter.viewData.groups) { group in
+                        ForEach(presenter.viewData.rows) { row in
                             Button {
-                                presenter.didSelectGroup(id: group.id)
+                                presenter.didSelectGroup(id: row.id)
                             } label: {
                                 VStack(alignment: .leading, spacing: 6) {
-                                    Text(group.name)
+                                    Text(row.name)
                                         .font(.headline)
                                         .foregroundColor(.primary)
-                                    Text(group.memberSummary)
+                                    Text(row.memberSummary)
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                         .lineLimit(1)
                                 }
                             }
-                            .accessibilityLabel(group.name)
-                            .accessibilityValue(group.memberSummary)
+                            .accessibilityLabel(row.name)
+                            .accessibilityValue(row.memberSummary)
                             .accessibilityHint(String(localized: "このグループを参加者リストに読み込みます"))
                         }
                         .onDelete { offsets in
@@ -62,16 +63,14 @@ struct FavoriteGroupView: View {
                 }
             }
             .alert(
-                "削除に失敗しました",
+                alertTitle,
                 isPresented: alertIsPresentedBinding,
-                presenting: presenter.alert,
+                presenting: presentedAlert,
                 actions: { _ in
-                    Button("OK", role: .cancel) { presenter.dismissAlert() }
+                    Button("OK", role: .cancel) { presenter.dismissRoute() }
                 },
                 message: { alert in
-                    if case .deleteFailed(let message) = alert {
-                        Text(message)
-                    }
+                    alertMessage(for: alert)
                 }
             )
         }
@@ -80,16 +79,43 @@ struct FavoriteGroupView: View {
             presenter.onAppear()
         }
     }
+}
 
-    private var alertIsPresentedBinding: Binding<Bool> {
+// MARK: - Route Bindings
+
+private extension FavoriteGroupView {
+    var presentedAlert: FavoriteGroupAlert? {
+        if case .alert(let alert) = presenter.route { return alert }
+        return nil
+    }
+
+    var alertTitle: String {
+        switch presentedAlert {
+        case .deleteFailed:
+            return String(localized: "削除に失敗しました")
+        case .loadFailed:
+            return String(localized: "読み込みに失敗しました")
+        case .none:
+            return ""
+        }
+    }
+
+    var alertIsPresentedBinding: Binding<Bool> {
         Binding(
-            get: { presenter.alert != nil },
+            get: { presentedAlert != nil },
             set: { isPresented in
-                if !isPresented {
-                    presenter.dismissAlert()
+                if !isPresented, case .alert = presenter.route {
+                    presenter.dismissRoute()
                 }
             }
         )
+    }
+
+    func alertMessage(for alert: FavoriteGroupAlert) -> Text {
+        switch alert {
+        case .deleteFailed(let message), .loadFailed(let message):
+            Text(message)
+        }
     }
 }
 

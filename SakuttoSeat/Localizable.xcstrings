@@ -605,6 +605,17 @@
         }
       }
     },
+    "読み込みに失敗しました" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "読み込みに失敗しました"
+          }
+        }
+      }
+    },
     "結果を共有します" : {
       "extractionState" : "manual",
       "localizations" : {

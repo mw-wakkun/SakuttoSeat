@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_AttendeeList.md Phase 5
+//  refactor_favorite.md Phase 2（ViewData.Row / route / 取得失敗の提示）
 //
 
 import Combine
@@ -11,7 +12,7 @@ import Foundation
 @MainActor
 final class FavoriteGroupPresenter: ObservableObject, FavoriteGroupPresenterProtocol {
     @Published private(set) var viewData: FavoriteGroupViewData = .empty
-    @Published var alert: FavoriteGroupAlert?
+    @Published var route: FavoriteGroupRoute?
 
     /// protocol existential を MainActor クラスが保持すると deinit で malloc abort するため具象型で保持する。
     private let interactor: FavoriteGroupInteractor
@@ -42,10 +43,10 @@ final class FavoriteGroupPresenter: ObservableObject, FavoriteGroupPresenterProt
             publishState()
         } catch let error as FavoriteSaveError {
             if case .persistenceFailed(let message) = error {
-                alert = .deleteFailed(message: message)
+                route = .alert(.deleteFailed(message: message))
             }
         } catch {
-            alert = .deleteFailed(message: error.localizedDescription)
+            route = .alert(.deleteFailed(message: error.localizedDescription))
         }
     }
 
@@ -53,12 +54,24 @@ final class FavoriteGroupPresenter: ObservableObject, FavoriteGroupPresenterProt
         output?.favoriteGroupDidCancel()
     }
 
-    func dismissAlert() {
-        alert = nil
+    func dismissRoute() {
+        route = nil
     }
 
     private func publishState() {
-        let groups = interactor.allFavorites()
-        viewData = FavoriteGroupViewData(groups: groups, isEmpty: groups.isEmpty)
+        do {
+            viewData = FavoriteGroupViewDataBuilder.build(groups: try interactor.allFavorites())
+            if case .alert(.loadFailed) = route {
+                route = nil
+            }
+        } catch let error as FavoriteSaveError {
+            viewData = .empty
+            if case .persistenceFailed(let message) = error {
+                route = .alert(.loadFailed(message: message))
+            }
+        } catch {
+            viewData = .empty
+            route = .alert(.loadFailed(message: error.localizedDescription))
+        }
     }
 }

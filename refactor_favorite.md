@@ -19,7 +19,7 @@ FavoriteGroup の **5 層の箱** は AttendeeList Phase 5 で既に置いてあ
 | --- | --- | --- |
 | 0 | 準備と回帰テスト（ギャップ埋め） | ✅ 完了（2026-09-11） |
 | 1 | デッド API・コメント偽証・規約穴埋め | 未着手 |
-| 2 | ViewData.Row / Route / Entity の独立 | 未着手 |
+| 2 | ViewData.Row / Route / Entity の独立 | ✅ 完了（2026-09-11） |
 | 3 | Gateway API の ID 志向化と親 Interactor の純化 | 未着手 |
 | 4 | シート identity と Router 境界の安定化 | 未着手 |
 | 5 | 再利用部品（一覧行・シートクロム） | 未着手 |

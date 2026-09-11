@@ -3,29 +3,10 @@
 //  SakuttoSeat
 //
 //  refactor_AttendeeList.md Phase 5（お気に入り一覧の子 VIPER モジュール）
+//  refactor_favorite.md Phase 2（ViewData / Route を分離。Presenter の提示は route）
 //
 
 import Foundation
-
-// MARK: - 表示専用モデル
-
-struct FavoriteGroupViewData: Equatable {
-    let groups: [FavoriteGroupSnapshot]
-    let isEmpty: Bool
-
-    static let empty = FavoriteGroupViewData(groups: [], isEmpty: true)
-}
-
-enum FavoriteGroupAlert: Equatable, Identifiable {
-    case deleteFailed(message: String)
-
-    var id: String {
-        switch self {
-        case .deleteFailed:
-            return "deleteFailed"
-        }
-    }
-}
 
 // MARK: - View <- Presenter
 
@@ -33,20 +14,20 @@ enum FavoriteGroupAlert: Equatable, Identifiable {
 @MainActor
 protocol FavoriteGroupPresenterProtocol: AnyObject {
     var viewData: FavoriteGroupViewData { get }
-    var alert: FavoriteGroupAlert? { get set }
+    var route: FavoriteGroupRoute? { get set }
 
     func onAppear()
     func didSelectGroup(id: FavoriteGroupID)
     func didDeleteGroups(at offsets: IndexSet)
     func didTapClose()
-    func dismissAlert()
+    func dismissRoute()
     func attachFavoriteGateway(_ gateway: GroupFavoriteGatewayBase)
 }
 
 // MARK: - Presenter -> Interactor
 
 nonisolated protocol FavoriteGroupInteractorProtocol: AnyObject {
-    func allFavorites() -> [FavoriteGroupSnapshot]
+    func allFavorites() throws -> [FavoriteGroupSnapshot]
     func deleteFavorites(at offsets: IndexSet) throws
     func attachFavoriteGateway(_ gateway: GroupFavoriteGatewayBase)
 }

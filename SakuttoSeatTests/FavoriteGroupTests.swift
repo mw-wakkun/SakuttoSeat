@@ -3,10 +3,7 @@
 //  SakuttoSeatTests
 //
 //  refactor_AttendeeList.md Phase 5（お気に入り一覧子モジュールの回帰）
-//  refactor_favorite.md Phase 0（現状挙動の characterization）
-//
-//  `_既知の課題` が付いたテストは是正対象の挙動を意図的に固定している。
-//  Phase 2 で取得失敗を Route アラートにする際は、該当ケースを同時に更新する。
+//  refactor_favorite.md Phase 0 / Phase 2（ViewData.Row / Route / 取得失敗の提示）
 //
 
 import XCTest
@@ -26,7 +23,7 @@ final class FavoriteGroupInteractorTests: XCTestCase {
         try gateway.insert(newer)
         let interactor = FavoriteGroupInteractor(favoriteGateway: gateway)
 
-        let groups = interactor.allFavorites()
+        let groups = try interactor.allFavorites()
 
         XCTAssertEqual(groups.map(\.name), ["新しい", "古い"])
         XCTAssertEqual(groups.first?.memberNames, ["B", "C"])
@@ -41,7 +38,7 @@ final class FavoriteGroupInteractorTests: XCTestCase {
 
         try interactor.deleteFavorites(at: IndexSet(integer: 0))
 
-        XCTAssertEqual(interactor.allFavorites().map(\.name), ["古い"])
+        XCTAssertEqual(try interactor.allFavorites().map(\.name), ["古い"])
     }
 
     func test_削除失敗はpersistenceFailedになる() {
@@ -62,11 +59,11 @@ final class FavoriteGroupInteractorTests: XCTestCase {
         try second.insert(GroupFavorite(name: "差し替え後", members: ["B"]))
         let interactor = FavoriteGroupInteractor(favoriteGateway: first)
 
-        XCTAssertEqual(interactor.allFavorites().map(\.name), ["最初"])
+        XCTAssertEqual(try interactor.allFavorites().map(\.name), ["最初"])
 
         interactor.attachFavoriteGateway(second)
 
-        XCTAssertEqual(interactor.allFavorites().map(\.name), ["差し替え後"])
+        XCTAssertEqual(try interactor.allFavorites().map(\.name), ["差し替え後"])
     }
 
     func test_複数offsetで削除する() throws {
@@ -78,7 +75,7 @@ final class FavoriteGroupInteractorTests: XCTestCase {
 
         try interactor.deleteFavorites(at: IndexSet([0, 2]))
 
-        XCTAssertEqual(interactor.allFavorites().map(\.name), ["真ん中"])
+        XCTAssertEqual(try interactor.allFavorites().map(\.name), ["真ん中"])
     }
 
     func test_範囲外offsetは無視される() throws {
@@ -88,7 +85,7 @@ final class FavoriteGroupInteractorTests: XCTestCase {
 
         try interactor.deleteFavorites(at: IndexSet(integer: 5))
 
-        XCTAssertEqual(interactor.allFavorites().map(\.name), ["残る"])
+        XCTAssertEqual(try interactor.allFavorites().map(\.name), ["残る"])
     }
 
     func test_削除時の取得失敗はpersistenceFailedになる() {
@@ -102,10 +99,15 @@ final class FavoriteGroupInteractorTests: XCTestCase {
         }
     }
 
-    func test_取得失敗は空配列になる_既知の課題() {
+    func test_取得失敗はpersistenceFailedになる() {
         let interactor = FavoriteGroupInteractor(favoriteGateway: FailingFetchGroupFavoriteGateway())
 
-        XCTAssertTrue(interactor.allFavorites().isEmpty)
+        XCTAssertThrowsError(try interactor.allFavorites()) { error in
+            XCTAssertEqual(
+                error as? FavoriteSaveError,
+                .persistenceFailed(message: "読み込みに失敗しました")
+            )
+        }
     }
 }
 
@@ -132,7 +134,7 @@ final class FavoriteGroupPresenterTests: XCTestCase {
         )
     }
 
-    func test_onAppearで一覧をViewDataに公開する() throws {
+    func test_onAppearで一覧をViewDataのRowに公開する() throws {
         let gateway = InMemoryGroupFavoriteGateway()
         try gateway.insert(GroupFavorite(name: "同期", members: ["太郎"]))
         let output = OutputSpy()
@@ -140,15 +142,18 @@ final class FavoriteGroupPresenterTests: XCTestCase {
 
         presenter.onAppear()
 
-        XCTAssertEqual(presenter.viewData.groups.map(\.name), ["同期"])
+        XCTAssertEqual(presenter.viewData.rows.map(\.name), ["同期"])
+        XCTAssertEqual(presenter.viewData.rows.map(\.memberSummary), ["太郎"])
         XCTAssertFalse(presenter.viewData.isEmpty)
+        XCTAssertNil(presenter.route)
     }
 
     func test_空ならisEmptyになる() {
         let presenter = makePresenter(gateway: InMemoryGroupFavoriteGateway(), output: OutputSpy())
 
         XCTAssertTrue(presenter.viewData.isEmpty)
-        XCTAssertTrue(presenter.viewData.groups.isEmpty)
+        XCTAssertTrue(presenter.viewData.rows.isEmpty)
+        XCTAssertNil(presenter.route)
     }
 
     func test_選択はOutputへ通知する() throws {
@@ -174,12 +179,12 @@ final class FavoriteGroupPresenterTests: XCTestCase {
 
         XCTAssertEqual(output.selectedID, id)
         XCTAssertEqual(output.cancelCount, 0)
-        XCTAssertEqual(presenter.viewData.groups.map(\.name), ["同期"])
+        XCTAssertEqual(presenter.viewData.rows.map(\.name), ["同期"])
         XCTAssertEqual(try gateway.fetchAll().map(\.name), ["同期"])
-        XCTAssertNil(presenter.alert)
+        XCTAssertNil(presenter.route)
     }
 
-    func test_取得失敗は空のViewDataになりアラートは出ない_既知の課題() {
+    func test_取得失敗は空のViewDataとloadFailedのRouteになる() {
         let presenter = makePresenter(
             gateway: FailingFetchGroupFavoriteGateway(),
             output: OutputSpy()
@@ -188,8 +193,11 @@ final class FavoriteGroupPresenterTests: XCTestCase {
         presenter.onAppear()
 
         XCTAssertTrue(presenter.viewData.isEmpty)
-        XCTAssertTrue(presenter.viewData.groups.isEmpty)
-        XCTAssertNil(presenter.alert)
+        XCTAssertTrue(presenter.viewData.rows.isEmpty)
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.loadFailed(message: "読み込みに失敗しました"))
+        )
     }
 
     func test_削除は一覧から消す() throws {
@@ -200,16 +208,31 @@ final class FavoriteGroupPresenterTests: XCTestCase {
 
         presenter.didDeleteGroups(at: IndexSet(integer: 0))
 
-        XCTAssertEqual(presenter.viewData.groups.map(\.name), ["古い"])
-        XCTAssertNil(presenter.alert)
+        XCTAssertEqual(presenter.viewData.rows.map(\.name), ["古い"])
+        XCTAssertNil(presenter.route)
     }
 
-    func test_削除失敗はアラートになる() {
+    func test_削除失敗はdeleteFailedのRouteになる() {
         let presenter = makePresenter(gateway: FailingDeleteGroupFavoriteGateway(), output: OutputSpy())
 
         presenter.didDeleteGroups(at: IndexSet(integer: 0))
 
-        XCTAssertEqual(presenter.alert, .deleteFailed(message: "削除に失敗しました"))
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.deleteFailed(message: "削除に失敗しました"))
+        )
+    }
+
+    func test_dismissRouteで提示を閉じる() {
+        let presenter = makePresenter(
+            gateway: FailingFetchGroupFavoriteGateway(),
+            output: OutputSpy()
+        )
+        XCTAssertNotNil(presenter.route)
+
+        presenter.dismissRoute()
+
+        XCTAssertNil(presenter.route)
     }
 
     func test_閉じるはOutputへキャンセルを通知する() {
