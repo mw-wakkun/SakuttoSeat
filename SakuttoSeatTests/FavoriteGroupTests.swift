@@ -3,7 +3,8 @@
 //  SakuttoSeatTests
 //
 //  refactor_AttendeeList.md Phase 5（お気に入り一覧子モジュールの回帰）
-//  refactor_favorite.md Phase 0 / Phase 2 / Phase 3（ID 削除・Snapshot 戻り）
+//  refactor_favorite.md Phase 0 / Phase 1（attach は Interactor のみ）
+//  refactor_favorite.md Phase 2 / Phase 3（ID 削除・Snapshot 戻り）
 //
 
 import XCTest
@@ -240,6 +241,20 @@ final class FavoriteGroupPresenterTests: XCTestCase {
         presenter.didTapClose()
 
         XCTAssertEqual(output.cancelCount, 1)
+    }
+}
+
+// MARK: - Copy
+
+final class FavoriteGroupCopyTests: XCTestCase {
+    func test_文言は既存Catalogキーのまま() {
+        XCTAssertEqual(FavoriteGroupCopy.navigationTitle, "お気に入りグループ")
+        XCTAssertEqual(FavoriteGroupCopy.emptyMessage, "登録されているグループはありません")
+        XCTAssertEqual(FavoriteGroupCopy.selectAccessibilityHint, "このグループを参加者リストに読み込みます")
+        XCTAssertEqual(FavoriteGroupCopy.close, "閉じる")
+        XCTAssertEqual(FavoriteGroupCopy.ok, "OK")
+        XCTAssertEqual(FavoriteGroupCopy.deleteFailedTitle, "削除に失敗しました")
+        XCTAssertEqual(FavoriteGroupCopy.loadFailedTitle, "読み込みに失敗しました")
     }
 }
 

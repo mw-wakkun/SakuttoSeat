@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_AttendeeList.md Phase 5
+//  refactor_favorite.md Phase 1（attach は Interactor のみ。deinit を親と揃える）
 //  refactor_favorite.md Phase 2 / Phase 3（ViewData.Row / route。削除は IndexSet → ID）
 //
 
@@ -24,10 +25,8 @@ final class FavoriteGroupPresenter: ObservableObject, FavoriteGroupPresenterProt
         publishState()
     }
 
-    func attachFavoriteGateway(_ gateway: GroupFavoriteGatewayBase) {
-        interactor.attachFavoriteGateway(gateway)
-        publishState()
-    }
+    /// @MainActor クラスの isolated deinit 経路での解放不整合を避ける（親 AttendeeListPresenter と同じ）
+    nonisolated deinit {}
 
     func onAppear() {
         publishState()

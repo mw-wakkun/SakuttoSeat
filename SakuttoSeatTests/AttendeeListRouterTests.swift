@@ -4,6 +4,7 @@
 //
 //  refactor_AttendeeList.md Phase 4 / Phase 5
 //  refactor_favorite.md Phase 0（同一 Gateway インスタンスの受け渡しを断言）
+//  refactor_favorite.md Phase 4（Router はキャッシュしない。シート identity は親 Presenter）
 //  子モジュール生成と Output 結線を固定する。
 //
 
@@ -77,11 +78,45 @@ final class AttendeeListRouterTests: XCTestCase {
 
         _ = router.makeSeatingChartModule(attendees: attendees)
         _ = router.makeSimpleShuffleModule(attendees: attendees)
+        _ = router.makeFavoriteGroupPresenter(
+            gatewayHolder: AttendeeListInteractor(),
+            output: nil
+        )
+        _ = router.makeFavoriteGroupSheet(
+            presenter: FavoriteGroupRouter.assemblePresenter(output: nil)
+        )
         _ = router.makeFavoriteGroupModule(
             gatewayHolder: AttendeeListInteractor(),
             output: nil
         )
         _ = router.makeBulkAddModule(output: nil)
+    }
+
+    func test_FavoriteGroupRouterはassembleのたびに新しいPresenterを返す() {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let output = FavoriteGroupOutputSpy()
+
+        let first = FavoriteGroupRouter.assemblePresenter(
+            favoriteGateway: gateway,
+            output: output
+        )
+        let second = FavoriteGroupRouter.assemblePresenter(
+            favoriteGateway: gateway,
+            output: output
+        )
+
+        XCTAssertFalse(first === second)
+    }
+
+    func test_同じoutputとgatewayで2回makeしても組み立てられる() {
+        let router = AttendeeListRouter()
+        let gatewayHolder = AttendeeListInteractor(favoriteGateway: InMemoryGroupFavoriteGateway())
+        let output = FavoriteGroupOutputSpy()
+
+        _ = router.makeFavoriteGroupModule(gatewayHolder: gatewayHolder, output: output)
+        _ = router.makeFavoriteGroupModule(gatewayHolder: gatewayHolder, output: output)
+        _ = router.makeFavoriteGroupPresenter(gatewayHolder: gatewayHolder, output: output)
+        _ = router.makeFavoriteGroupPresenter(gatewayHolder: gatewayHolder, output: output)
     }
 }
 

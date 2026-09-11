@@ -4,6 +4,7 @@
 //
 //  refactor_AttendeeList.md Phase 0 / Phase 1 / Phase 2 / Phase 3 / Phase 4 / Phase 5
 //  refactor_favorite.md Phase 0（お気に入りシートの Gateway 共有を断言）
+//  refactor_favorite.md Phase 4（シート期間中の子 Presenter identity）
 //  意図メソッド → ViewData / Route の契約を固定する。
 //
 
@@ -136,6 +137,7 @@ final class AttendeeListPresenterTests: XCTestCase {
         presenter.dismissRoute()
 
         XCTAssertNil(presenter.route)
+        XCTAssertNil(presenter.favoriteGroupPresenter)
     }
 
     // MARK: - お気に入り
@@ -228,10 +230,12 @@ final class AttendeeListPresenterTests: XCTestCase {
         let presenter = makePresenter(names: ["A"])
         presenter.didTapShowFavorites()
 
+        let child = presenter.favoriteGroupPresenter
         presenter.didSelectFavoriteGroup(id: UUID())
 
         XCTAssertEqual(names(of: presenter), ["A"])
         XCTAssertEqual(presenter.route, .favoriteList)
+        XCTAssertTrue(presenter.favoriteGroupPresenter === child)
     }
 
     // MARK: - 子モジュール Output（Phase 5）
@@ -246,6 +250,7 @@ final class AttendeeListPresenterTests: XCTestCase {
 
         XCTAssertEqual(names(of: presenter), ["新1", "新2"])
         XCTAssertNil(presenter.route)
+        XCTAssertNil(presenter.favoriteGroupPresenter)
     }
 
     func test_FavoriteGroupOutputのキャンセルはシートを閉じる() {
@@ -255,6 +260,7 @@ final class AttendeeListPresenterTests: XCTestCase {
         presenter.favoriteGroupDidCancel()
 
         XCTAssertNil(presenter.route)
+        XCTAssertNil(presenter.favoriteGroupPresenter)
     }
 
     func test_お気に入りシートは親と同じGatewayインスタンスで組み立てる() throws {
@@ -302,6 +308,70 @@ final class AttendeeListPresenterTests: XCTestCase {
         _ = presenter.makeRouteSheet(.favoriteList)
         _ = presenter.makeRouteSheet(.bulkAdd)
     }
+
+    // MARK: - シート identity（Phase 4）
+
+    func test_お気に入りシート期間中は同一の子Presenterを返す() {
+        let presenter = makePresenter()
+        presenter.didTapShowFavorites()
+        let first = presenter.favoriteGroupPresenter
+        XCTAssertNotNil(first)
+
+        _ = presenter.makeRouteSheet(.favoriteList)
+        XCTAssertTrue(presenter.favoriteGroupPresenter === first)
+        _ = presenter.makeRouteSheet(.favoriteList)
+        XCTAssertTrue(presenter.favoriteGroupPresenter === first)
+    }
+
+    func test_お気に入りシートを閉じたら子Presenterを破棄し再表示で新規assembleする() {
+        let presenter = makePresenter()
+        presenter.didTapShowFavorites()
+        let first = presenter.favoriteGroupPresenter
+        XCTAssertNotNil(first)
+
+        presenter.dismissRoute()
+        XCTAssertNil(presenter.favoriteGroupPresenter)
+
+        presenter.didTapShowFavorites()
+        let second = presenter.favoriteGroupPresenter
+        XCTAssertNotNil(second)
+        XCTAssertFalse(first === second)
+    }
+
+    func test_シート再組み立てでも子のrouteが消えない() throws {
+        let presenter = makePresenter(gateway: FailingFetchGroupFavoriteGateway())
+        presenter.didTapShowFavorites()
+        let child = try XCTUnwrap(presenter.favoriteGroupPresenter)
+        XCTAssertEqual(
+            child.route,
+            .alert(.loadFailed(message: "読み込みに失敗しました"))
+        )
+
+        _ = presenter.makeRouteSheet(.favoriteList)
+        _ = presenter.makeRouteSheet(.favoriteList)
+
+        XCTAssertTrue(presenter.favoriteGroupPresenter === child)
+        XCTAssertEqual(
+            child.route,
+            .alert(.loadFailed(message: "読み込みに失敗しました"))
+        )
+    }
+
+    func test_お気に入りシートを閉じたあとGateway差し替えで新しい子が読む() throws {
+        let firstGateway = InMemoryGroupFavoriteGateway()
+        try firstGateway.insert(name: "最初", members: ["A"])
+        let presenter = makePresenter(gateway: firstGateway)
+        presenter.didTapShowFavorites()
+        XCTAssertEqual(presenter.favoriteGroupPresenter?.viewData.rows.map(\.name), ["最初"])
+        presenter.dismissRoute()
+
+        let secondGateway = InMemoryGroupFavoriteGateway()
+        try secondGateway.insert(name: "差し替え後", members: ["B"])
+        presenter.attachFavoriteGateway(secondGateway)
+        presenter.didTapShowFavorites()
+
+        XCTAssertEqual(presenter.favoriteGroupPresenter?.viewData.rows.map(\.name), ["差し替え後"])
+    }
 }
 
 /// insert だけ失敗させるテスト用 Gateway
@@ -311,6 +381,17 @@ private final class FailingInsertGroupFavoriteGateway: GroupFavoriteGatewayBase 
             domain: "AttendeeListTests",
             code: 1,
             userInfo: [NSLocalizedDescriptionKey: "書き込みに失敗しました"]
+        )
+    }
+}
+
+/// fetchAll だけ失敗させるテスト用 Gateway（子の loadFailed route を残す）
+private final class FailingFetchGroupFavoriteGateway: GroupFavoriteGatewayBase {
+    override func fetchAll() throws -> [FavoriteGroupSnapshot] {
+        throw NSError(
+            domain: "AttendeeListTests",
+            code: 2,
+            userInfo: [NSLocalizedDescriptionKey: "読み込みに失敗しました"]
         )
     }
 }

@@ -4,6 +4,7 @@
 //
 //  refactor_AttendeeList.md Phase 2 / Phase 3 / Phase 4 / Phase 5（層間境界の明示）
 //  refactor_favorite.md Phase 3（親 Interactor から一覧・削除を外す。子組み立ては gatewayHolder）
+//  refactor_favorite.md Phase 4（お気に入りシートは Presenter 組み立てと View ラップを分離）
 //
 
 import SwiftUI
@@ -65,6 +66,11 @@ nonisolated protocol AttendeeListInteractorProtocol: AnyObject {
 protocol AttendeeListRouterProtocol: AnyObject {
     @MainActor func makeSeatingChartModule(attendees: [Attendee]) -> AnyView
     @MainActor func makeSimpleShuffleModule(attendees: [Attendee]) -> AnyView
+    @MainActor func makeFavoriteGroupPresenter(
+        gatewayHolder: AttendeeListInteractor,
+        output: (any FavoriteGroupModuleOutput)?
+    ) -> FavoriteGroupPresenter
+    @MainActor func makeFavoriteGroupSheet(presenter: FavoriteGroupPresenter) -> AnyView
     @MainActor func makeFavoriteGroupModule(
         gatewayHolder: AttendeeListInteractor,
         output: (any FavoriteGroupModuleOutput)?

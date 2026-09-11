@@ -4,6 +4,7 @@
 //
 //  refactor_AttendeeList.md Phase 5
 //  一覧の取得・削除は子 Interactor が Gateway を持つ（保存・読込置換は親）。
+//  refactor_favorite.md Phase 1（本番の Gateway は親が assemble 時に渡す。attach はテスト用）
 //  refactor_favorite.md Phase 3（削除は ID 配列。@Model は Gateway 内に閉じる）
 //
 

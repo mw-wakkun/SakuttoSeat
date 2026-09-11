@@ -7,6 +7,7 @@
 //  永続化は Interactor。遷移先の組み立ては Router へ委譲。
 //  お気に入り一覧・一括追加は子モジュール。選択／確定は Output で受ける。
 //  refactor_favorite.md Phase 3（シート組み立ては gatewayHolder。Presenter は Gateway 型を渡さない）
+//  refactor_favorite.md Phase 4（`.favoriteList` 期間中は子 Presenter を 1 度だけ保持）
 //
 
 import Combine
@@ -19,6 +20,11 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
 
     private let interactor: AttendeeListInteractor
     private let router: AttendeeListRouter
+
+    /// `.favoriteList` 期間中だけ保持する。
+    /// `.sheet(item:)` の content 再評価で再 assemble すると子の alert / 編集中状態が消えるため。
+    /// `didTapShowFavorites` のたびに新規 assemble、閉じたら破棄（Gateway 差し替え後の stale を防ぐ）。
+    private(set) var favoriteGroupPresenter: FavoriteGroupPresenter?
 
     init(interactor: AttendeeListInteractor, router: AttendeeListRouter) {
         self.interactor = interactor
@@ -45,7 +51,7 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
 
     func didTapBulkAdd(text: String) {
         _ = interactor.add(fromText: text)
-        route = nil
+        setRoute(nil)
         publishState()
     }
 
@@ -55,77 +61,81 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
     }
 
     func didTapReset() {
-        route = .alert(.confirmReset)
+        setRoute(.alert(.confirmReset))
     }
 
     func didConfirmReset() {
         _ = interactor.removeAll()
-        route = nil
+        setRoute(nil)
         publishState()
     }
 
     func didTapSaveFavorite() {
         switch interactor.favoriteSaveAvailability() {
         case .available:
-            route = .saveFavoritePrompt
+            setRoute(.saveFavoritePrompt)
         case .limitReached(let currentCount, let limit):
-            route = .alert(.favoriteLimitReached(currentCount: currentCount, limit: limit))
+            setRoute(.alert(.favoriteLimitReached(currentCount: currentCount, limit: limit)))
         }
     }
 
     func didConfirmSaveFavorite(name: String) {
         do {
             try interactor.saveCurrentAsFavorite(named: name)
-            route = nil
+            setRoute(nil)
             publishState()
         } catch let error as FavoriteSaveError {
             switch error {
             case .limitReached(let currentCount, let limit):
-                route = .alert(.favoriteLimitReached(currentCount: currentCount, limit: limit))
+                setRoute(.alert(.favoriteLimitReached(currentCount: currentCount, limit: limit)))
             case .invalidName, .notFound:
-                route = nil
+                setRoute(nil)
             case .persistenceFailed(let message):
-                route = .alert(.saveFailed(message: message))
+                setRoute(.alert(.saveFailed(message: message)))
             }
         } catch {
-            route = .alert(.saveFailed(message: error.localizedDescription))
+            setRoute(.alert(.saveFailed(message: error.localizedDescription)))
         }
     }
 
     func didTapShowFavorites() {
-        route = .favoriteList
+        favoriteGroupPresenter = router.makeFavoriteGroupPresenter(
+            gatewayHolder: interactor,
+            output: self
+        )
+        setRoute(.favoriteList)
     }
 
     func didSelectFavoriteGroup(id: FavoriteGroupID) {
         do {
             _ = try interactor.loadFavorite(id: id)
-            route = nil
+            setRoute(nil)
             publishState()
         } catch FavoriteSaveError.notFound {
             return
         } catch let error as FavoriteSaveError {
             if case .persistenceFailed(let message) = error {
-                route = .alert(.saveFailed(message: message))
+                setRoute(.alert(.saveFailed(message: message)))
             }
         } catch {
-            route = .alert(.saveFailed(message: error.localizedDescription))
+            setRoute(.alert(.saveFailed(message: error.localizedDescription)))
         }
     }
 
     func didTapBulkAddEntry() {
-        route = .bulkAdd
+        setRoute(.bulkAdd)
     }
 
     func didTapSeatingChart() {
-        route = .seatingChart
+        setRoute(.seatingChart)
     }
 
     func didTapSimpleShuffle() {
-        route = .simpleShuffle
+        setRoute(.simpleShuffle)
     }
 
     func dismissRoute() {
-        route = nil
+        setRoute(nil)
     }
 
     /// ナビゲーション先を Router 経由で組み立てる（View から子モジュール型名を排除）
@@ -144,10 +154,7 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
     func makeRouteSheet(_ route: AttendeeListRoute) -> AnyView {
         switch route {
         case .favoriteList:
-            return router.makeFavoriteGroupModule(
-                gatewayHolder: interactor,
-                output: self
-            )
+            return router.makeFavoriteGroupSheet(presenter: favoriteGroupSheetPresenter())
         case .bulkAdd:
             return router.makeBulkAddModule(output: self)
         case .seatingChart, .simpleShuffle, .saveFavoritePrompt, .alert:
@@ -159,6 +166,27 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
 
     private func publishState() {
         viewData = AttendeeListViewDataBuilder.build(attendees: interactor.allAttendees())
+    }
+
+    /// `didTapShowFavorites` で assemble 済みならそれを返す。未セットならここで 1 度だけ作る。
+    private func favoriteGroupSheetPresenter() -> FavoriteGroupPresenter {
+        if let favoriteGroupPresenter {
+            return favoriteGroupPresenter
+        }
+        let assembled = router.makeFavoriteGroupPresenter(
+            gatewayHolder: interactor,
+            output: self
+        )
+        favoriteGroupPresenter = assembled
+        return assembled
+    }
+
+    /// `.favoriteList` 以外へ移るときは子 Presenter を破棄する。
+    private func setRoute(_ newRoute: AttendeeListRoute?) {
+        if newRoute != .favoriteList {
+            favoriteGroupPresenter = nil
+        }
+        route = newRoute
     }
 }
 

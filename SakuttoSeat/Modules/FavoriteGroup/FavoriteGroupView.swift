@@ -3,9 +3,11 @@
 //  SakuttoSeat
 //
 //  refactor_AttendeeList.md Phase 5（お気に入り一覧の子 VIPER）
+//  refactor_favorite.md Phase 1（文言は FavoriteGroupCopy。Gateway は assemble 時注入）
 //  refactor_favorite.md Phase 2（View は ViewData.Row と route のみ）
+//  refactor_favorite.md Phase 4（presentationDetents は Router 組み立て側）
 //  一覧・削除は Presenter → Interactor。選択結果は Output のみ。
-//  Gateway は親 assemble 時に渡す（同じ SwiftData context / In-Memory を共有）。
+//  Gateway は親が assemble 時に同じインスタンスを渡す（子 View は ModelContext を持たない）。
 //
 
 import SwiftUI
@@ -20,7 +22,7 @@ struct FavoriteGroupView: View {
                     Section {
                         EmptyStateView(
                             systemImage: "star.slash",
-                            message: String(localized: "登録されているグループはありません")
+                            message: FavoriteGroupCopy.emptyMessage
                         )
                         .frame(maxWidth: .infinity, minHeight: 120)
                         .listRowInsets(EdgeInsets())
@@ -43,7 +45,7 @@ struct FavoriteGroupView: View {
                             }
                             .accessibilityLabel(row.name)
                             .accessibilityValue(row.memberSummary)
-                            .accessibilityHint(String(localized: "このグループを参加者リストに読み込みます"))
+                            .accessibilityHint(FavoriteGroupCopy.selectAccessibilityHint)
                         }
                         .onDelete { offsets in
                             presenter.didDeleteGroups(at: offsets)
@@ -52,14 +54,14 @@ struct FavoriteGroupView: View {
                 }
             }
             .listStyle(.plain)
-            .navigationTitle("お気に入りグループ")
+            .navigationTitle(FavoriteGroupCopy.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     EditButton()
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("閉じる") { presenter.didTapClose() }
+                    Button(FavoriteGroupCopy.close) { presenter.didTapClose() }
                 }
             }
             .alert(
@@ -67,14 +69,13 @@ struct FavoriteGroupView: View {
                 isPresented: alertIsPresentedBinding,
                 presenting: presentedAlert,
                 actions: { _ in
-                    Button("OK", role: .cancel) { presenter.dismissRoute() }
+                    Button(FavoriteGroupCopy.ok, role: .cancel) { presenter.dismissRoute() }
                 },
                 message: { alert in
                     alertMessage(for: alert)
                 }
             )
         }
-        .presentationDetents([.medium, .large])
         .onAppear {
             presenter.onAppear()
         }
@@ -92,9 +93,9 @@ private extension FavoriteGroupView {
     var alertTitle: String {
         switch presentedAlert {
         case .deleteFailed:
-            return String(localized: "削除に失敗しました")
+            return FavoriteGroupCopy.deleteFailedTitle
         case .loadFailed:
-            return String(localized: "読み込みに失敗しました")
+            return FavoriteGroupCopy.loadFailedTitle
         case .none:
             return ""
         }
@@ -120,12 +121,25 @@ private extension FavoriteGroupView {
 }
 
 #if DEBUG
-#Preview("お気に入りグループ") {
-    FavoriteGroupView(
-        presenter: FavoriteGroupPresenter(
-            interactor: FavoriteGroupInteractor(),
+@MainActor
+private enum FavoriteGroupPreviewFactory {
+    static func makePresenter(populated: Bool) -> FavoriteGroupPresenter {
+        let gateway = InMemoryGroupFavoriteGateway()
+        if populated {
+            try? gateway.insert(name: "同期", members: ["太郎", "花子"])
+        }
+        return FavoriteGroupPresenter(
+            interactor: FavoriteGroupInteractor(favoriteGateway: gateway),
             output: nil
         )
-    )
+    }
+}
+
+#Preview("お気に入りグループ") {
+    FavoriteGroupView(presenter: FavoriteGroupPreviewFactory.makePresenter(populated: true))
+}
+
+#Preview("お気に入りグループ（空）") {
+    FavoriteGroupView(presenter: FavoriteGroupPreviewFactory.makePresenter(populated: false))
 }
 #endif
