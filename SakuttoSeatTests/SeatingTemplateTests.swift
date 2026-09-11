@@ -6,6 +6,7 @@
 //  refactor_templateListView.md Phase 2（子 VIPER の一覧・削除・Output・取得失敗）
 //  refactor_templateListView.md Phase 3（Snapshot 戻り / delete(ids:) / insert(fields)。テストは fetchAll で断言）
 //  refactor_templateListView.md Phase 5（ViewData は件数ラベルのみ。空 / 1 / 3 件の部品呼び出し）
+//  refactor_templateListView.md Phase 6（閉じる / 編集 / 空状態 / 行の A11y Copy）
 //
 
 import SwiftData
@@ -579,9 +580,70 @@ final class SeatingTemplateCopyTests: XCTestCase {
         XCTAssertEqual(SeatingTemplateCopy.tableCountLabel(2), "テーブル数: 2")
     }
 
+    func test_閉じる編集空状態のHintはFavoriteGroupと対になる() {
+        XCTAssertEqual(SeatingTemplateCopy.closeAccessibilityHint, "保存済みテンプレートの一覧を閉じます")
+        XCTAssertEqual(SeatingTemplateCopy.editAccessibilityHint, "テンプレートを削除できるようにします")
+        XCTAssertEqual(SeatingTemplateCopy.done, "完了")
+        XCTAssertEqual(SeatingTemplateCopy.doneAccessibilityHint, "編集を終了します")
+        XCTAssertEqual(SeatingTemplateCopy.emptyAccessibilityHint, "閉じるボタンで座席表に戻ります")
+        XCTAssertEqual(SeatingTemplateCopy.editingSelectDisabledHint, "編集中は読み込みできません")
+        XCTAssertEqual(SeatingTemplateCopy.selectAccessibilityHint, "このテンプレートを座席表に読み込みます")
+    }
+
+    func test_行のHintは編集中に読み込み案内を出さない() {
+        XCTAssertEqual(
+            SeatingTemplateCopy.rowAccessibilityHint(isEditing: false),
+            "このテンプレートを座席表に読み込みます"
+        )
+        XCTAssertEqual(
+            SeatingTemplateCopy.rowAccessibilityHint(isEditing: true),
+            "編集中は読み込みできません"
+        )
+    }
+
+    func test_編集トグルのLabelとHintは完了時に切り替わる() {
+        XCTAssertEqual(SeatingTemplateCopy.editAccessibilityLabel(isEditing: false), "編集")
+        XCTAssertEqual(SeatingTemplateCopy.editAccessibilityLabel(isEditing: true), "完了")
+        XCTAssertEqual(
+            SeatingTemplateCopy.editButtonAccessibilityHint(isEditing: false),
+            "テンプレートを削除できるようにします"
+        )
+        XCTAssertEqual(
+            SeatingTemplateCopy.editButtonAccessibilityHint(isEditing: true),
+            "編集を終了します"
+        )
+    }
+
     func test_失敗アラートのタイトルはCatalogにある() {
         XCTAssertEqual(SeatingTemplateCopy.deleteFailedTitle, String(localized: "削除に失敗しました"))
         XCTAssertEqual(SeatingTemplateCopy.loadFailedTitle, String(localized: "読み込みに失敗しました"))
+    }
+
+    func test_A11yHintはCatalogキーと一致する() {
+        XCTAssertEqual(
+            SeatingTemplateCopy.closeAccessibilityHint,
+            String(localized: "保存済みテンプレートの一覧を閉じます")
+        )
+        XCTAssertEqual(
+            SeatingTemplateCopy.selectAccessibilityHint,
+            String(localized: "このテンプレートを座席表に読み込みます")
+        )
+        XCTAssertEqual(
+            SeatingTemplateCopy.emptyAccessibilityHint,
+            String(localized: "閉じるボタンで座席表に戻ります")
+        )
+        XCTAssertEqual(
+            SeatingTemplateCopy.editAccessibilityHint,
+            String(localized: "テンプレートを削除できるようにします")
+        )
+        XCTAssertEqual(
+            SeatingTemplateCopy.editingSelectDisabledHint,
+            String(localized: "編集中は読み込みできません")
+        )
+        XCTAssertEqual(
+            SeatingTemplateCopy.doneAccessibilityHint,
+            String(localized: "編集を終了します")
+        )
     }
 }
 

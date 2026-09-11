@@ -4,7 +4,8 @@
 //
 //  refactor_templateListView.md Phase 2（テンプレート一覧の子 VIPER）
 //  refactor_templateListView.md Phase 5（EmptyStateView / SavedListRow / SheetChromeToolbar / .plain。
-//    行は素の SavedListRow。A11y Hint の対訳は Phase 6）
+//    行は素の SavedListRow）
+//  refactor_templateListView.md Phase 6（閉じる / 編集 / 空状態 / 行の A11y。編集中は読み込み Hint を出さない）
 //  一覧・削除は Presenter → Interactor。選択結果は Output のみ。
 //  View は ViewData.Row と route のみ。Gateway は親が assemble 時に同じインスタンスを渡す。
 //
@@ -22,7 +23,8 @@ struct SeatingTemplateView: View {
                     Section {
                         EmptyStateView(
                             systemImage: "square.grid.2x2",
-                            message: SeatingTemplateCopy.emptyMessage
+                            message: SeatingTemplateCopy.emptyMessage,
+                            accessibilityHint: SeatingTemplateCopy.emptyAccessibilityHint
                         )
                         .frame(maxWidth: .infinity, minHeight: 120)
                         .listRowInsets(EdgeInsets())
@@ -37,6 +39,11 @@ struct SeatingTemplateView: View {
                             } label: {
                                 SavedListRow(title: row.name, subtitle: row.tableCountLabel)
                             }
+                            .accessibilityLabel(row.name)
+                            .accessibilityValue(row.tableCountLabel)
+                            .accessibilityHint(
+                                SeatingTemplateCopy.rowAccessibilityHint(isEditing: editMode == .active)
+                            )
                         }
                         .onDelete { offsets in
                             presenter.didDeleteTemplates(at: offsets)
@@ -57,6 +64,13 @@ struct SeatingTemplateView: View {
                     showsEditButton: !presenter.viewData.isEmpty,
                     editTitle: SeatingTemplateCopy.edit,
                     closeTitle: SeatingTemplateCopy.close,
+                    editAccessibilityLabel: SeatingTemplateCopy.editAccessibilityLabel(
+                        isEditing: editMode == .active
+                    ),
+                    editAccessibilityHint: SeatingTemplateCopy.editButtonAccessibilityHint(
+                        isEditing: editMode == .active
+                    ),
+                    closeAccessibilityHint: SeatingTemplateCopy.closeAccessibilityHint,
                     onToggleEdit: {
                         withAnimation {
                             editMode = (editMode == .active) ? .inactive : .active

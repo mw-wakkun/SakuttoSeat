@@ -23,7 +23,7 @@ Gateway 化 / 子 VIPER 化）を、FavoriteGroup の完成形に揃えて実施
 | 3 | Gateway の Snapshot 化と親 Interactor の純化 | ✅ 完了（2026-09-11） |
 | 4 | シート identity と Router 境界の安定化 | ✅ 完了（2026-09-11） |
 | 5 | 再利用部品の揃え（空状態・List・Copy） | ✅ 完了（2026-09-11） |
-| 6 | 性能・A11y・i18n・編集モード UX | 未着手 |
+| 6 | 性能・A11y・i18n・編集モード UX | ✅ 完了（2026-09-11） |
 
 回帰基準: 既存 `SeatingChartInteractorTests` / `SeatingChartPresenterTests` /
 `SeatingChartViewDataTests` のテンプレート系 + Phase 0 で新設する
@@ -688,6 +688,20 @@ Phase 2 で部品接続済みなら、残差だけ。
 - `Self._printChanges()` は任意。Phase 4 の Presenter 保持テストで代替してよい。
 - 完了条件: 編集中に誤って読み込まない（Phase 2 済みなら確認のみ）。空状態と 1 件状態で VoiceOver が辿れる。
 - リスク: 低。
+
+実装時の決定（2026-09-11）:
+
+- 閉じる Hint は FavoriteGroup の「保存済みグループの一覧を閉じます」と対になる
+  「保存済みテンプレートの一覧を閉じます」。空状態は「閉じるボタンで座席表に戻ります」。
+  行は「このテンプレートを座席表に読み込みます」／編集中は既存キー「編集中は読み込みできません」。
+- 編集トグルは FavoriteGroup と同じ切替。Label は「編集」／「完了」。
+  Hint は「テンプレートを削除できるようにします」／既存キー「編集を終了します」。
+- 行に accessibilityLabel（名前）と accessibilityValue（件数ラベル）を付与。VoiceOver は一覧 → 選択で親 Output。
+- 削除失敗 / 読込失敗のタイトルは既存 Catalog キーのまま。SwiftUI `.alert` が読み上げる。
+- Catalog は ja のみ追加（en 等は増やさない）。既存キー（編集中 / 完了 / 失敗タイトル）は再利用。
+- 親 CTA「お気に入り」の A11y は触っていない（`refactor_seating.md` Phase 6）。
+- 編集中選択の無効化は Phase 2 済み。Phase 6 では VoiceOver Hint も揃えた。
+- `Self._printChanges()` による再描画計測は任意のため未実施（Phase 4 の Presenter 保持テストで代替）。
 
 ---
 

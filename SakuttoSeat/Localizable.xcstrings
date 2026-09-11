@@ -121,6 +121,17 @@
     "このテーブルを削除" : {
 
     },
+    "このテンプレートを座席表に読み込みます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このテンプレートを座席表に読み込みます"
+          }
+        }
+      }
+    },
     "この番号の席に座ってもらいましょう。" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -185,6 +196,17 @@
     },
     "テーブル追加" : {
 
+    },
+    "テンプレートを削除できるようにします" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テンプレートを削除できるようにします"
+          }
+        }
+      }
     },
     "テンプレート名 (例: デフォルト設定)" : {
 
@@ -282,6 +304,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "保存済みグループの一覧を開きます"
+          }
+        }
+      }
+    },
+    "保存済みテンプレートの一覧を閉じます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存済みテンプレートの一覧を閉じます"
           }
         }
       }
@@ -750,6 +783,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "閉じるボタンで参加者リストに戻ります"
+          }
+        }
+      }
+    },
+    "閉じるボタンで座席表に戻ります" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "閉じるボタンで座席表に戻ります"
           }
         }
       }
