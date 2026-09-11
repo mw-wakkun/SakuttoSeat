@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct AttendeeRow: View {
-    let index: Int
+    let number: Int
     let name: String
 
     var body: some View {
@@ -18,7 +18,7 @@ struct AttendeeRow: View {
                     .fill(Color.sakuttoBlueStart.opacity(0.1))
                     .frame(width: 35, height: 35)
 
-                Text("\(index + 1)")
+                Text("\(number)")
                     .font(.system(.subheadline, design: .rounded))
                     .bold()
                     .foregroundColor(.sakuttoBlueStart)

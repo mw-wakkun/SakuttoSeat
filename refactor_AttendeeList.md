@@ -15,7 +15,7 @@
 | --- | --- | --- |
 | 0 | 準備と回帰テスト | ✅ 完了（2026-09-11） |
 | 1 | ファイル分割・デッドコード削除・規約統一 | ✅ 完了（2026-09-11） |
-| 2 | Contracts と ViewData / Route の導入 | 未着手 |
+| 2 | Contracts と ViewData / Route の導入 | ✅ 完了（2026-09-11） |
 | 3 | Presenter → Interactor へのロジック移送・Gateway の正しい配置 | 未着手 |
 | 4 | Router の実体化・遷移の Presenter 主導化 | 未着手 |
 | 5 | 子モジュール切り出し（FavoriteGroup / BulkAdd）と SimpleShuffle の VIPER 化 | 未着手 |

@@ -4,31 +4,10 @@
 //
 //  Created by masafumi wakugawa on 2026/05/05.
 //  refactor_AttendeeList.md Phase 1（規約統一・API 対称化）
+//  Phase 2: InteractorProtocol を Contracts へ移設
 //
 
 import Foundation
-
-nonisolated protocol AttendeeListInteractorProtocol: AnyObject {
-    /// 現在の参加者リストを返す
-    func allAttendees() -> [Attendee]
-
-    /// 指定された名前で参加者を1人追加する。先頭・末尾の空白を除去し、同名の場合は「(2)」「(3)」
-    /// などを自動付与してユニークな名前を保証する。更新後のリストを返す。
-    func add(name: String) -> [Attendee]
-
-    /// 参加者をシャッフルする。最大3回試行して元の順序と異なることを保証し、更新後のリストを返す。
-    func shuffle() -> [Attendee]
-
-    /// 指定されたインデックスの参加者を削除し、更新後のリストを返す。
-    func remove(atOffsets offsets: IndexSet) -> [Attendee]
-
-    /// すべての参加者を削除して空にしたリストを返す。
-    func removeAll() -> [Attendee]
-
-    /// テキストからパースして複数の参加者を追加する。改行・カンマ（半角/全角）で分割され、
-    /// 各エントリに対して add(name:) ロジックが適用される。更新後のリストを返す。
-    func add(fromText text: String) -> [Attendee]
-}
 
 nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
     // このモジュール用のメモリ内参加者ストレージ
