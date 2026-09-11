@@ -2,25 +2,37 @@
 //  RewardedAdGatewayImpl.swift
 //  SakuttoSeat
 //
-//  refactor_Ad.md Phase 2（RewardedAdManager の移植。報酬競合の是正は Phase 3）
+//  refactor_Ad.md Phase 2（RewardedAdManager の移植）
+//  refactor_Ad.md Phase 3（報酬は同期フラグ。Delegate は MainActor で continuation を resume）
 //
 
 import Foundation
 import GoogleMobileAds
 import UIKit
 
-final class RewardedAdGatewayImpl: RewardedAdGatewayBase, FullScreenContentDelegate {
+nonisolated final class RewardedAdGatewayImpl: RewardedAdGatewayBase, FullScreenContentDelegate {
     private var rewardedAd: RewardedAd?
-    private var hasEarnedReward = false
+    private var isLoadInFlight = false
+
+    /// earned コールバックは MainActor ではないことがある。フラグと continuation は lock で守る。
+    private let presentationLock = NSLock()
+    private var presentation = RewardedAdPresentationState()
     private var presentContinuation: CheckedContinuation<Void, Error>?
 
     fileprivate override init() {
         super.init()
-        preload()
+        // preload は App の MobileAds.start() 完了後。init では走らせない。
+    }
+
+    deinit {
+        let (_, continuation) = consumeContinuationAfter { $0.abortIfPresenting() }
+        continuation?.resume(throwing: RewardedAdError.failed("広告の提示が中断されました"))
     }
 
     override func preload() {
-        loadAd()
+        Task { @MainActor in
+            await self.loadAdAfterSDKStart()
+        }
     }
 
     /// 準備済みなら提示し、dismiss 時に earned / notEarned / failed で完了する。
@@ -34,11 +46,22 @@ final class RewardedAdGatewayImpl: RewardedAdGatewayBase, FullScreenContentDeleg
         try await presentAsync()
     }
 
+    @MainActor
+    private func loadAdAfterSDKStart() async {
+        _ = await MobileAds.shared.start()
+        loadAd()
+    }
+
+    @MainActor
     private func loadAd() {
+        let isPresenting = withPresentationLock { presentation.isPresenting }
+        guard !isPresenting, !isLoadInFlight, !isReady else { return }
+        isLoadInFlight = true
         let request = Request()
-        RewardedAd.load(with: AdConfiguration.rewardedUnitID, request: request) { [weak self] ad, error in
+        RewardedAd.load(with: AdConfiguration.rewardedUnitID, request: request) { ad, error in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                self.isLoadInFlight = false
                 if let error = error {
                     print("リワード広告読み込み失敗: \(error.localizedDescription)")
                     self.isReady = false
@@ -55,53 +78,101 @@ final class RewardedAdGatewayImpl: RewardedAdGatewayBase, FullScreenContentDeleg
     /// dismiss 完了時に earned → return / notEarned・failed → throw
     @MainActor
     private func presentAsync() async throws {
-        guard presentContinuation == nil else {
+        let alreadyPresenting = withPresentationLock { presentation.isPresenting }
+        guard !alreadyPresenting else {
             throw RewardedAdError.failed("すでに広告を提示中です")
         }
 
         guard let rewardedAd,
               let topViewController = UIApplication.shared.topViewController else {
             print("広告が準備できていないか、画面が見つかりません")
-            loadAd()
+            preload()
             throw RewardedAdError.notReady
         }
 
-        hasEarnedReward = false
         isReady = false
 
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            self.presentContinuation = continuation
-            rewardedAd.present(from: topViewController) { [weak self] in
-                Task { @MainActor [weak self] in
-                    self?.hasEarnedReward = true
-                }
+            withPresentationLock {
+                _ = presentation.beginPresenting()
+                presentContinuation = continuation
             }
+            rewardedAd.present(from: topViewController) { [weak self] in
+                // 同期的にフラグを立てる。MainActor hop しない（報酬競合の修正）。
+                self?.markEarnedSynchronously()
+            }
+        }
+    }
+
+    /// userDidEarnReward 用。Task を挟まない。
+    private func markEarnedSynchronously() {
+        withPresentationLock {
+            presentation.markEarned()
         }
     }
 
     // MARK: - FullScreenContentDelegate
 
     func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
-        let earned = hasEarnedReward
-        hasEarnedReward = false
-        let continuation = presentContinuation
-        presentContinuation = nil
-        loadAd()
-
-        if earned {
-            continuation?.resume(returning: ())
-        } else {
-            continuation?.resume(throwing: RewardedAdError.notEarned)
+        Task { @MainActor [weak self] in
+            self?.finishFromDismiss()
         }
     }
 
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
+        Task { @MainActor [weak self] in
+            self?.finishFromFailure(error)
+        }
+    }
+
+    @MainActor
+    private func finishFromDismiss() {
+        let (completion, continuation) = consumeContinuationAfter { $0.dismiss() }
+        preload()
+        resume(continuation, with: completion)
+    }
+
+    @MainActor
+    private func finishFromFailure(_ error: Error) {
         print("広告表示エラー: \(error.localizedDescription)")
-        hasEarnedReward = false
-        let continuation = presentContinuation
-        presentContinuation = nil
-        loadAd()
-        continuation?.resume(throwing: RewardedAdError.failed(error.localizedDescription))
+        let (completion, continuation) = consumeContinuationAfter { $0.fail(error.localizedDescription) }
+        preload()
+        resume(continuation, with: completion)
+    }
+
+    private func consumeContinuationAfter(
+        _ update: (inout RewardedAdPresentationState) -> RewardedAdPresentationState.Completion
+    ) -> (RewardedAdPresentationState.Completion, CheckedContinuation<Void, Error>?) {
+        withPresentationLock {
+            let completion = update(&presentation)
+            guard completion != .alreadyFinished else { return (completion, nil) }
+            let continuation = presentContinuation
+            presentContinuation = nil
+            return (completion, continuation)
+        }
+    }
+
+    private func resume(
+        _ continuation: CheckedContinuation<Void, Error>?,
+        with completion: RewardedAdPresentationState.Completion
+    ) {
+        guard let continuation else { return }
+        switch completion {
+        case .earned:
+            continuation.resume(returning: ())
+        case .notEarned:
+            continuation.resume(throwing: RewardedAdError.notEarned)
+        case .failed(let message):
+            continuation.resume(throwing: RewardedAdError.failed(message))
+        case .alreadyFinished:
+            break
+        }
+    }
+
+    private func withPresentationLock<T>(_ body: () -> T) -> T {
+        presentationLock.lock()
+        defer { presentationLock.unlock() }
+        return body()
     }
 }
 

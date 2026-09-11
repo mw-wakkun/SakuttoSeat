@@ -30,7 +30,9 @@ struct SakuttoSeatApp: App {
         WindowGroup {
             AttendeeListRouter.assembleModule()
                 .task {
+                    // start 完了後にだけリワードを preload。バナーは Representable 側でも start を待つ。
                     await MobileAds.shared.start()
+                    SessionRewardedAd.shared.preload()
                 }
         }
         .modelContainer(for: [GroupFavorite.self, SeatingLayoutTemplate.self])

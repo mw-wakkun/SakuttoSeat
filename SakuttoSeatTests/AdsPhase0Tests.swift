@@ -7,6 +7,7 @@
 //  Share / VenueSettings の Presenter 分岐は Phase 4 まで XCTSkip。
 //  refactor_Ad.md Phase 1（AdConfiguration / UnlockRequirement の移設を固定）
 //  refactor_Ad.md Phase 2（Router が Fake を注入できることを固定）
+//  refactor_Ad.md Phase 3（報酬フラグの順序・バナー幅の pt 丸め）
 //
 
 import XCTest
@@ -36,6 +37,24 @@ final class AdBannerReloadPolicyTests: XCTestCase {
             AdBannerMetrics.shouldReloadBanner(
                 previous: CGSize(width: 320, height: 50),
                 next: CGSize(width: 390, height: 60)
+            )
+        )
+    }
+
+    func test_幅をpt単位で丸めて同じなら再loadしない() {
+        XCTAssertFalse(
+            AdBannerMetrics.shouldReloadBanner(
+                previous: CGSize(width: 320.4, height: 50.2),
+                next: CGSize(width: 320.1, height: 50.4)
+            )
+        )
+    }
+
+    func test_丸めた幅が違えば再loadする() {
+        XCTAssertTrue(
+            AdBannerMetrics.shouldReloadBanner(
+                previous: CGSize(width: 320.4, height: 50),
+                next: CGSize(width: 320.6, height: 50)
             )
         )
     }
@@ -147,3 +166,88 @@ final class RewardedAdGatewayFakeTests: XCTestCase {
         }
     }
 }
+
+// MARK: - 報酬フラグの順序（Phase 3。SDK なしでコールバック順を駆動）
+
+final class RewardedAdPresentationStateTests: XCTestCase {
+
+    func test_同期で報酬を立ててからdismissするとearned() {
+        var state = RewardedAdPresentationState()
+
+        XCTAssertTrue(state.beginPresenting())
+        state.markEarned()
+
+        XCTAssertEqual(state.dismiss(), .earned)
+        XCTAssertFalse(state.isPresenting)
+        XCTAssertFalse(state.hasEarnedReward)
+    }
+
+    func test_報酬なしでdismissするとnotEarned() {
+        var state = RewardedAdPresentationState()
+
+        XCTAssertTrue(state.beginPresenting())
+
+        XCTAssertEqual(state.dismiss(), .notEarned)
+    }
+
+    func test_dismiss後の遅延markEarnedは覆さない() {
+        var state = RewardedAdPresentationState()
+        XCTAssertTrue(state.beginPresenting())
+
+        XCTAssertEqual(state.dismiss(), .notEarned)
+        state.markEarned()
+
+        XCTAssertEqual(state.dismiss(), .alreadyFinished)
+        XCTAssertFalse(state.hasEarnedReward)
+    }
+
+    func test_failするとfailed() {
+        var state = RewardedAdPresentationState()
+        XCTAssertTrue(state.beginPresenting())
+
+        XCTAssertEqual(state.fail("network"), .failed("network"))
+        XCTAssertEqual(state.dismiss(), .alreadyFinished)
+    }
+
+    func test_二重dismissはalreadyFinished() {
+        var state = RewardedAdPresentationState()
+        XCTAssertTrue(state.beginPresenting())
+        state.markEarned()
+
+        XCTAssertEqual(state.dismiss(), .earned)
+        XCTAssertEqual(state.dismiss(), .alreadyFinished)
+    }
+
+    func test_提示中の再beginはfalse() {
+        var state = RewardedAdPresentationState()
+
+        XCTAssertTrue(state.beginPresenting())
+        XCTAssertFalse(state.beginPresenting())
+    }
+
+    func test_未dismissの破棄はfailed() {
+        var state = RewardedAdPresentationState()
+        XCTAssertTrue(state.beginPresenting())
+
+        XCTAssertEqual(state.abortIfPresenting(), .failed("広告の提示が中断されました"))
+        XCTAssertFalse(state.isPresenting)
+    }
+
+    func test_提示していないabortはalreadyFinished() {
+        var state = RewardedAdPresentationState()
+
+        XCTAssertEqual(state.abortIfPresenting(), .alreadyFinished)
+    }
+
+    func test_完了後に再beginできる() {
+        var state = RewardedAdPresentationState()
+        XCTAssertTrue(state.beginPresenting())
+        state.markEarned()
+        XCTAssertEqual(state.dismiss(), .earned)
+
+        XCTAssertTrue(state.beginPresenting())
+        XCTAssertFalse(state.hasEarnedReward)
+        XCTAssertEqual(state.dismiss(), .notEarned)
+    }
+}
+

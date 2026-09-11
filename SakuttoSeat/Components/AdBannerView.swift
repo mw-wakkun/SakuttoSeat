@@ -7,6 +7,7 @@
 //  refactor_Ad.md Phase 0（shouldReloadBanner を純関数化）
 //  起動直後の空バナー対策: SDK start 完了と rootViewController 確定後に load する
 //  refactor_Ad.md Phase 1（Components へ移設。ユニット ID は AdConfiguration）
+//  refactor_Ad.md Phase 3（幅は pt 丸め比較。load は updateUIView の単一路。失敗時は自動リトライしない）
 //
 
 import GoogleMobileAds
@@ -24,9 +25,15 @@ enum AdBannerMetrics {
         anchoredAdaptiveAdSize(width: width).size
     }
 
-    /// 直前に load したサイズと同じなら再 load しない（Coordinator の現行判断を純関数化）。
+    /// 直前に load したサイズと同じなら再 load しない。
+    /// 幅・高さは pt 単位に丸めて比較し、小数点の揺れで過剰 reload しない。
     static func shouldReloadBanner(previous: CGSize?, next: CGSize) -> Bool {
-        previous != next
+        guard let previous else { return true }
+        return roundedPointSize(previous) != roundedPointSize(next)
+    }
+
+    private static func roundedPointSize(_ size: CGSize) -> CGSize {
+        CGSize(width: size.width.rounded(), height: size.height.rounded())
     }
 }
 
@@ -59,6 +66,7 @@ extension AdBannerView {
         private var lastLoadedSize: CGSize?
         private var loadGeneration = 0
 
+        /// load はしない。初回 load は `updateUIView` → `updateAdSizeIfNeeded` の単一路。
         func makeBanner(adSize: AdSize) -> BannerView {
             let banner = BannerView(adSize: adSize)
             banner.adUnitID = AdConfiguration.bannerUnitID
@@ -66,6 +74,7 @@ extension AdBannerView {
             return banner
         }
 
+        /// サイズが実質同一なら load しない。失敗時の自動リトライもしない。
         func updateAdSizeIfNeeded(_ adSize: AdSize, on banner: BannerView) {
             let size = adSize.size
             guard AdBannerMetrics.shouldReloadBanner(previous: lastLoadedSize, next: size) else {
@@ -85,7 +94,8 @@ extension AdBannerView {
             guard let banner, loadGeneration == generation else { return }
 
             // start() 完了前の load は「SDK tried to perform a networking task before being initialized」で
-            // 失敗し、同じサイズでは再試行されない。App 側の start と二重でも安全。
+            // 失敗し、同じサイズでは再試行されない。App の Gateway preload と二重でも安全。
+            // Phase 3: バナー側の start() 待ちは外さない。
             _ = await MobileAds.shared.start()
             guard loadGeneration == generation else { return }
 
@@ -124,6 +134,7 @@ extension AdBannerView {
                 ?? scene?.windows.first?.rootViewController
         }
 
+        /// 失敗は握る。自動リトライはしない。次のサイズ変更または Representable 再生成で再試行する。
         func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
             #if DEBUG
             print("バナー広告読み込み失敗: \(error.localizedDescription)")

@@ -4,11 +4,13 @@
 //
 //  refactor_Ad.md Phase 0（契約の固定）
 //  refactor_Ad.md Phase 2（具象 Base。Router は existential ではなくこれを保持する）
+//  refactor_Ad.md Phase 3（preload は App の start 完了後）
 //
 
 import Foundation
 
 /// リワード広告のロード状態。Interactor からも読めるよう nonisolated。
+/// `preload()` は `MobileAds.shared.start()` 完了後に App から呼ぶ（Phase 3）。
 nonisolated protocol RewardedAdGateway: AnyObject {
     var isReady: Bool { get }
     func preload()

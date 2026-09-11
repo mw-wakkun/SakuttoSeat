@@ -21,7 +21,7 @@
 | — | Phase 0 完了後の表示 hotfix（下記） | ✅ 完了（2026-09-11） |
 | 1 | 配置・命名・設定の単一化（挙動は変えない） | ✅ 完了（2026-09-11） |
 | 2 | Gateway 契約と Router 注入口 | ✅ 完了（2026-09-11） |
-| 3 | SDK 寿命・報酬判定・バナー Coordinator の是正 | 未着手 |
+| 3 | SDK 寿命・報酬判定・バナー Coordinator の是正 | ✅ 完了（2026-09-11） |
 | 4 | Share / VenueSettings の提示経路をテスト可能にする | 未着手 |
 | 5 | バナー UI の単一窓口化・余白規約 | 未着手 |
 | 6 | パフォーマンス・A11y・収益まわりの仕上げ | 未着手 |
@@ -389,7 +389,7 @@ Phase 0 自体はテスト固定が目的で、表示バグの修正は含まな
 
 | 症状 | 対応 | 後続で触るなら |
 | --- | --- | --- |
-| 起動直後にテスト広告が出ない | `MobileAds.start()` 完了と `rootViewController` 確定後に `load`。`BannerViewDelegate` で失敗を DEBUG ログ | Phase 3（残: リワード報酬競合、Gateway 接続） |
+| 起動直後にテスト広告が出ない | `MobileAds.start()` 完了と `rootViewController` 確定後に `load`。`BannerViewDelegate` で失敗を DEBUG ログ | Phase 3 でリワード preload を App に接続。バナーの start 待ちは維持 |
 | 広告が親を横に押し広げ、ボタンが欠ける | `sizeThatFits` と明示 `frame`。幅は親から測る | Phase 5 |
 | overlay 化で広告が再消滅 | `BannerView` は通常の子 View に戻す（overlay 禁止） | Phase 5 で overlay にしない |
 | バナーが高すぎる | `currentOrientationAnchoredAdaptiveBanner`（50〜90pt）。`large` は使わない | Phase 5 で large に戻さない |
@@ -481,6 +481,19 @@ enum SessionRewardedAd {
 - 完了条件: 視聴完了 → 画像共有 / 列数解放が手元で再現する。
   視聴中断 → 副作用なし。未準備 → 既存アラート。
 - リスク: 中〜高（広告フィルはネットワーク依存。DEBUG は Google サンプル ID を維持）。
+
+実施済み（2026-09-11）:
+- `RewardedAdPresentationState` を切り出し、userDidEarnReward は同期 `markEarned()`。
+  `Task { @MainActor }` を挟まない。コールバック順（earned→dismiss / dismiss→遅延 earned /
+  二重 dismiss / 未 dismiss 破棄）をユニットテストで固定
+- Delegate は MainActor に hop してから continuation を resume。二重 resume は
+  `alreadyFinished` で無視。deinit 中は continuation を `failed` で閉じる
+- `SakuttoSeatApp` の `.task` で `MobileAds.shared.start()` 完了後に
+  `SessionRewardedAd.shared.preload()`。Impl の `init` からは preload しない
+- Impl の `loadAd` も start 完了を待ってから `RewardedAd.load`。バナー Representable の
+  `start()` 待ちは外していない
+- バナー: load は `updateUIView` の単一路。`shouldReloadBanner` は pt 丸め比較。
+  失敗時の自動リトライは入れない（hotfix の VC 延期・Delegate ログも維持）
 
 ### Phase 4: Share / VenueSettings の提示経路をテスト可能にする（0.5〜1 日）
 
