@@ -101,7 +101,7 @@ struct ShareFlowModifier: ViewModifier {
     private func alertMessage(for alert: ShareAlert) -> Text {
         switch alert {
         case .confirmImageShareWithAd:
-            Text("動画広告を視聴して画像を出力しますか？")
+            Text("動画を見て、きれいな座席表画像を保存・送信しますか？")
         case .adNotReady:
             Text(RewardedAdCopy.notReadyMessage)
         case .imageExportFailed:

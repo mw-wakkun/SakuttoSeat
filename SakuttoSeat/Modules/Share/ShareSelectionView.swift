@@ -21,7 +21,7 @@ struct ShareSelectionView: View {
                 shareOptionButton(
                     icon: "doc.text",
                     title: "テキストで共有",
-                    subtitle: nil,
+                    subtitle: "無料ですぐに共有できます",
                     tint: .sakuttoBlueStart
                 ) {
                     onSelect(.text)
@@ -30,7 +30,7 @@ struct ShareSelectionView: View {
                 shareOptionButton(
                     icon: "photo",
                     title: "画像で共有",
-                    subtitle: "短い動画広告の視聴が必要です",
+                    subtitle: "動画を見てきれいな座席表画像を保存・送信",
                     tint: .purple
                 ) {
                     onSelect(.image)

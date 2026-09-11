@@ -235,7 +235,9 @@ private extension AttendeeListView {
                 .padding(.top, AppSpacing.bottomChromeTop)
                 .padding(.bottom, 8)
 
-            AdBannerContainer()
+            if !isTextFieldFocused {
+                AdBannerContainer()
+            }
         }
         .frame(maxWidth: .infinity)
         .background(
