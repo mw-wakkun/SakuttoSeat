@@ -9,6 +9,7 @@
 //  refactor_groupFavorite.md Phase 2（保存結果の断言は name / memberNames。結合は ViewData）
 //  refactor_groupFavorite.md Phase 3（fetchAll は削除。詳細は fetch(id:)）
 //  refactor_groupFavorite.md Phase 4（assemble 注入の Gateway は attach / onAppear 前から使う）
+//  refactor_groupFavorite.md Phase 5（失敗ダブルは Support/GroupFavoriteTestGateways）
 //
 
 import XCTest
@@ -345,28 +346,5 @@ final class AttendeeListInteractorTests: XCTestCase {
         interactor.attachFavoriteGateway(gateway)
 
         XCTAssertTrue(interactor.currentFavoriteGateway() === gateway)
-    }
-}
-
-
-/// insert だけ失敗させるテスト用 Gateway
-private final class FailingInsertGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    override func insert(name: String, members: [String]) throws {
-        throw NSError(
-            domain: "AttendeeListTests",
-            code: 1,
-            userInfo: [NSLocalizedDescriptionKey: "書き込みに失敗しました"]
-        )
-    }
-}
-
-/// fetch(id:) だけ失敗させるテスト用 Gateway
-private final class FailingFetchGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    override func fetch(id: FavoriteGroupID) throws -> FavoriteGroupSnapshot? {
-        throw NSError(
-            domain: "AttendeeListTests",
-            code: 2,
-            userInfo: [NSLocalizedDescriptionKey: "読み込みに失敗しました"]
-        )
     }
 }

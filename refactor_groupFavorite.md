@@ -26,7 +26,7 @@
 | 2 | Entity / `@Model` の純化（Snapshot・init・表示結合） | ✅ 完了（2026-09-11） |
 | 3 | Gateway の性能と API 分割（一括削除・一覧/詳細） | ✅ 完了（2026-09-11） |
 | 4 | App 注入で View から SwiftData を排除 | ✅ 完了（2026-09-11） |
-| 5 | テストダブル共通化・デッド API・仕上げ | 未着手 |
+| 5 | テストダブル共通化・デッド API・仕上げ | ✅ 完了（2026-09-11） |
 
 回帰基準: 既存 `FavoriteGroupTests` + `AttendeeListInteractorTests` のお気に入り系 +
 `AttendeeListPresenterTests` の FavoriteGroup Output / シート identity +
@@ -619,6 +619,22 @@ Gateway 専用 DTO を Core に増やすと型がまた分裂する。
   推奨: **本計画ではやらない。** 永続化層の成果を薄める。
 - 完了条件: 失敗ダブルの定義が 1 ファイル。Phase 0〜4 green。
 - リスク: 低。
+
+実装時の決定（2026-09-11）:
+
+- 新設 `SakuttoSeatTests/Support/GroupFavoriteTestGateways.swift`。
+  `FailingInsert` / `FailingFetch` / `FailingDelete` / `FetchCounting` を 1 系統。
+  本番コードには置かない。
+- `FailingFetch` は `fetchCount` / `fetchSummaries` / `fetch(id:)` をすべて失敗させる
+  （親の読込置換と子の一覧の両方）。エラー文言は既存テストの localizedDescription を維持。
+- `FetchCounting` は InMemory を内包し、`fetchSummaries` 回数だけ数える。
+- `AttendeeListRouter.makeFavoriteGroupModule` を Protocol / 実装から削除。
+  Presenter 経路は既に `makeFavoriteGroupPresenter` + `makeFavoriteGroupSheet`。
+  子 `FavoriteGroupRouter.assembleModule` はテスト用の便宜として残す。
+- Router テストは Presenter + Sheet に寄せた。
+- Gateway / 両 Interactor に「本番は MainActor Presenter 経由のみ」をコメントで固定。
+  型での `@MainActor` 強制はしない（`nonisolated` Interactor 規約）。
+- `didDeleteGroups(at: IndexSet)` は触らない（計画の推奨どおり）。
 
 ---
 

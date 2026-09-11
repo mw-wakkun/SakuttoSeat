@@ -6,11 +6,14 @@
 //  refactor_favorite.md Phase 3（Snapshot 戻り / fetch(id:) / delete(ids:) / insert(name:members:)）
 //  refactor_groupFavorite.md Phase 1（@Model の住所は Core/Persistence。型名は変えない）
 //  refactor_groupFavorite.md Phase 3（fetchSummaries / 一括削除。fetchAll は削除）
+//  refactor_groupFavorite.md Phase 5（呼び出しは MainActor Presenter 経由。型は nonisolated）
 //
 //  画面 = FavoriteGroup、永続化 = GroupFavorite。@Model は Core/Persistence。
 //  Protocol existential をクラスが保持すると deinit で malloc abort するため、
 //  Interactor は具象基底クラスだけを保持する。
 //  一覧は fetchSummaries、読込置換は fetch(id:)。字幕結合は Gateway だけが担う。
+//  本番経路は @MainActor Presenter からのみ呼ぶ。型に @MainActor は付けない
+//  （nonisolated Interactor 規約と衝突するため。refactor_groupFavorite.md Phase 5）。
 //
 
 import Foundation
@@ -18,6 +21,7 @@ import SwiftData
 
 /// `nonisolated`: 要件が MainActor 隔離だと、それを満たす具象側のメソッドも
 /// MainActor 隔離と推論され、`nonisolated` な Interactor から呼べなくなるため。
+/// オフトレッドからの呼び出しは未定義。本番は MainActor Presenter 経由のみ。
 nonisolated protocol GroupFavoriteGateway: AnyObject {
     func fetchCount() throws -> Int
     func fetchSummaries() throws -> [FavoriteGroupSummary]

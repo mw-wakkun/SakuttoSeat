@@ -7,10 +7,13 @@
 //  refactor_favorite.md Phase 1（本番の Gateway は親が assemble 時に渡す。attach はテスト用）
 //  refactor_favorite.md Phase 3（削除は ID 配列。@Model は Gateway 内に閉じる）
 //  refactor_groupFavorite.md Phase 3（一覧は fetchSummaries。Snapshot 相当へは写さない）
+//  refactor_groupFavorite.md Phase 5（Gateway 呼び出しは MainActor Presenter 経由のみ）
 //
 
 import Foundation
 
+/// Gateway 呼び出しは本番では `@MainActor` Presenter 経由のみ。
+/// Interactor 自体は `nonisolated`（VIPER 規約）。型で MainActor は強制しない。
 nonisolated final class FavoriteGroupInteractor: FavoriteGroupInteractorProtocol {
     /// Protocol existential は保持しない（deinit の malloc abort 回避）
     private var favoriteGateway: GroupFavoriteGatewayBase

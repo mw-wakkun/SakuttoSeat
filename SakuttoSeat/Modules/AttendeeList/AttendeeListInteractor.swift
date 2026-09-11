@@ -6,10 +6,13 @@
 //  refactor_AttendeeList.md Phase 3 / Phase 6（お気に入り永続化・一括置換。ユニーク名は O(n)）
 //  refactor_favorite.md Phase 3（保存・読込置換のみ。一覧・削除は子。load は fetch(id:)）
 //  refactor_groupFavorite.md Phase 4（本番 Gateway は assemble 時注入。attach はテスト用）
+//  refactor_groupFavorite.md Phase 5（Gateway 呼び出しは MainActor Presenter 経由のみ）
 //
 
 import Foundation
 
+/// Gateway 呼び出しは本番では `@MainActor` Presenter 経由のみ。
+/// Interactor 自体は `nonisolated`（VIPER 規約）。型で MainActor は強制しない。
 nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
     private var attendees: [Attendee] = []
     /// Protocol existential は保持しない（deinit の malloc abort 回避）

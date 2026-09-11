@@ -6,6 +6,7 @@
 //  refactor_favorite.md Phase 0（同一 Gateway インスタンスの受け渡しを断言）
 //  refactor_favorite.md Phase 4（Router はキャッシュしない。シート identity は親 Presenter）
 //  refactor_groupFavorite.md Phase 4（assembleModule は渡された Gateway を起動時点から使う）
+//  refactor_groupFavorite.md Phase 5（結合 makeFavoriteGroupModule は削除。Presenter + Sheet）
 //  子モジュール生成と Output 結線を固定する。
 //
 
@@ -46,11 +47,12 @@ final class AttendeeListRouterTests: XCTestCase {
     func test_お気に入りモジュールはFavoriteGroupRouterへ委譲する() {
         let router = AttendeeListRouter()
         let output = FavoriteGroupOutputSpy()
-
-        _ = router.makeFavoriteGroupModule(
+        let presenter = router.makeFavoriteGroupPresenter(
             gatewayHolder: AttendeeListInteractor(favoriteGateway: InMemoryGroupFavoriteGateway()),
             output: output
         )
+
+        _ = router.makeFavoriteGroupSheet(presenter: presenter)
         _ = FavoriteGroupRouter.assembleModule(output: output)
     }
 
@@ -59,10 +61,11 @@ final class AttendeeListRouterTests: XCTestCase {
         try gateway.insert(name: "共有", members: ["A"])
         XCTAssertEqual(gateway.fetchSummariesCallCount, 0)
 
-        _ = AttendeeListRouter().makeFavoriteGroupModule(
+        let presenter = AttendeeListRouter().makeFavoriteGroupPresenter(
             gatewayHolder: AttendeeListInteractor(favoriteGateway: gateway),
             output: FavoriteGroupOutputSpy()
         )
+        _ = AttendeeListRouter().makeFavoriteGroupSheet(presenter: presenter)
         _ = FavoriteGroupRouter.assembleModule(
             favoriteGateway: gateway,
             output: FavoriteGroupOutputSpy()
@@ -92,10 +95,6 @@ final class AttendeeListRouterTests: XCTestCase {
         _ = router.makeFavoriteGroupSheet(
             presenter: FavoriteGroupRouter.assemblePresenter(output: nil)
         )
-        _ = router.makeFavoriteGroupModule(
-            gatewayHolder: AttendeeListInteractor(),
-            output: nil
-        )
         _ = router.makeBulkAddModule(output: nil)
     }
 
@@ -120,32 +119,10 @@ final class AttendeeListRouterTests: XCTestCase {
         let gatewayHolder = AttendeeListInteractor(favoriteGateway: InMemoryGroupFavoriteGateway())
         let output = FavoriteGroupOutputSpy()
 
-        _ = router.makeFavoriteGroupModule(gatewayHolder: gatewayHolder, output: output)
-        _ = router.makeFavoriteGroupModule(gatewayHolder: gatewayHolder, output: output)
-        _ = router.makeFavoriteGroupPresenter(gatewayHolder: gatewayHolder, output: output)
-        _ = router.makeFavoriteGroupPresenter(gatewayHolder: gatewayHolder, output: output)
-    }
-}
-
-private final class FetchCountingGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    private var snapshots: [FavoriteGroupSnapshot] = []
-    private(set) var fetchSummariesCallCount = 0
-
-    override func fetchCount() throws -> Int { snapshots.count }
-
-    override func fetchSummaries() throws -> [FavoriteGroupSummary] {
-        fetchSummariesCallCount += 1
-        return snapshots.map {
-            FavoriteGroupSummary(
-                id: $0.id,
-                name: $0.name,
-                memberSummary: $0.memberNames.joined(separator: ", ")
-            )
-        }
-    }
-
-    override func insert(name: String, members: [String]) throws {
-        snapshots.append(FavoriteGroupSnapshot.persisted(name: name, memberNames: members))
+        let first = router.makeFavoriteGroupPresenter(gatewayHolder: gatewayHolder, output: output)
+        _ = router.makeFavoriteGroupSheet(presenter: first)
+        let second = router.makeFavoriteGroupPresenter(gatewayHolder: gatewayHolder, output: output)
+        _ = router.makeFavoriteGroupSheet(presenter: second)
     }
 }
 

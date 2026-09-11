@@ -6,6 +6,7 @@
 //  refactor_favorite.md Phase 3（親 Interactor から一覧・削除を外す。子組み立ては gatewayHolder）
 //  refactor_favorite.md Phase 4（お気に入りシートは Presenter 組み立てと View ラップを分離）
 //  refactor_groupFavorite.md Phase 4（PresenterProtocol から attachFavoriteGateway を外す）
+//  refactor_groupFavorite.md Phase 5（結合 makeFavoriteGroupModule は削除）
 //
 
 import SwiftUI
@@ -70,9 +71,5 @@ protocol AttendeeListRouterProtocol: AnyObject {
         output: (any FavoriteGroupModuleOutput)?
     ) -> FavoriteGroupPresenter
     @MainActor func makeFavoriteGroupSheet(presenter: FavoriteGroupPresenter) -> AnyView
-    @MainActor func makeFavoriteGroupModule(
-        gatewayHolder: AttendeeListInteractor,
-        output: (any FavoriteGroupModuleOutput)?
-    ) -> AnyView
     @MainActor func makeBulkAddModule(output: (any BulkAddModuleOutput)?) -> AnyView
 }

@@ -6,6 +6,7 @@
 //  refactor_favorite.md Phase 0（お気に入りシートの Gateway 共有を断言）
 //  refactor_favorite.md Phase 4（シート期間中の子 Presenter identity）
 //  refactor_groupFavorite.md Phase 4（Gateway は Interactor init 注入。Protocol 経由 attach は無い）
+//  refactor_groupFavorite.md Phase 5（失敗ダブルは Support/GroupFavoriteTestGateways）
 //  意図メソッド → ViewData / Route の契約を固定する。
 //
 
@@ -382,50 +383,5 @@ final class AttendeeListPresenterTests: XCTestCase {
         presenter.didTapShowFavorites()
 
         XCTAssertEqual(presenter.favoriteGroupPresenter?.viewData.rows.map(\.name), ["差し替え後"])
-    }
-}
-
-/// insert だけ失敗させるテスト用 Gateway
-private final class FailingInsertGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    override func insert(name: String, members: [String]) throws {
-        throw NSError(
-            domain: "AttendeeListTests",
-            code: 1,
-            userInfo: [NSLocalizedDescriptionKey: "書き込みに失敗しました"]
-        )
-    }
-}
-
-/// fetchSummaries だけ失敗させるテスト用 Gateway（子の loadFailed route を残す）
-private final class FailingFetchGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    override func fetchSummaries() throws -> [FavoriteGroupSummary] {
-        throw NSError(
-            domain: "AttendeeListTests",
-            code: 2,
-            userInfo: [NSLocalizedDescriptionKey: "読み込みに失敗しました"]
-        )
-    }
-}
-
-/// 親シート組み立てが同じ Gateway インスタンスを子へ渡すことを数える
-private final class FetchCountingGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    private var snapshots: [FavoriteGroupSnapshot] = []
-    private(set) var fetchSummariesCallCount = 0
-
-    override func fetchCount() throws -> Int { snapshots.count }
-
-    override func fetchSummaries() throws -> [FavoriteGroupSummary] {
-        fetchSummariesCallCount += 1
-        return snapshots.map {
-            FavoriteGroupSummary(
-                id: $0.id,
-                name: $0.name,
-                memberSummary: $0.memberNames.joined(separator: ", ")
-            )
-        }
-    }
-
-    override func insert(name: String, members: [String]) throws {
-        snapshots.append(FavoriteGroupSnapshot.persisted(name: name, memberNames: members))
     }
 }

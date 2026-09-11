@@ -10,6 +10,7 @@
 //  refactor_groupFavorite.md Phase 2（memberSummary 断言は ViewData Builder）
 //  refactor_groupFavorite.md Phase 3（一覧は Summary。Gateway 直読みは fetchSummaries）
 //  refactor_groupFavorite.md Phase 4（onAppear は再 fetch しない。init で公開済み）
+//  refactor_groupFavorite.md Phase 5（失敗ダブルは Support/GroupFavoriteTestGateways）
 //
 
 import XCTest
@@ -333,51 +334,5 @@ final class FavoriteGroupViewDataTests: XCTestCase {
         )
         let manyData = FavoriteGroupViewDataBuilder.build(groups: [many])
         XCTAssertEqual(manyData.rows.map(\.memberSummary), ["太郎, 花子, 次郎"])
-    }
-}
-
-private final class FailingFetchGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    override func fetchSummaries() throws -> [FavoriteGroupSummary] {
-        throw NSError(
-            domain: "FavoriteGroupTests",
-            code: 2,
-            userInfo: [NSLocalizedDescriptionKey: "読み込みに失敗しました"]
-        )
-    }
-}
-
-private final class FailingDeleteGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    override func fetchSummaries() throws -> [FavoriteGroupSummary] {
-        [FavoriteGroupSummary(id: UUID(), name: "同期", memberSummary: "A")]
-    }
-
-    override func delete(ids: [FavoriteGroupID]) throws {
-        throw NSError(
-            domain: "FavoriteGroupTests",
-            code: 1,
-            userInfo: [NSLocalizedDescriptionKey: "削除に失敗しました"]
-        )
-    }
-}
-
-private final class FetchCountingGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    private var snapshots: [FavoriteGroupSnapshot] = []
-    private(set) var fetchSummariesCallCount = 0
-
-    override func fetchCount() throws -> Int { snapshots.count }
-
-    override func fetchSummaries() throws -> [FavoriteGroupSummary] {
-        fetchSummariesCallCount += 1
-        return snapshots.map {
-            FavoriteGroupSummary(
-                id: $0.id,
-                name: $0.name,
-                memberSummary: $0.memberNames.joined(separator: ", ")
-            )
-        }
-    }
-
-    override func insert(name: String, members: [String]) throws {
-        snapshots.append(FavoriteGroupSnapshot.persisted(name: name, memberNames: members))
     }
 }
