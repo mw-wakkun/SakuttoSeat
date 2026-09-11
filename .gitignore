@@ -13,3 +13,7 @@ fastlane/test_output/
 # App Store Connect API Key（絶対にコミットしないこと）
 *.p8
 *.mobileprovision
+
+# Bundler のローカルインストール（bundle config set --local path vendor/bundle）
+.bundle/
+vendor/bundle/
