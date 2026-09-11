@@ -40,7 +40,7 @@ final class AttendeeListRouterTests: XCTestCase {
         let output = FavoriteGroupOutputSpy()
 
         _ = router.makeFavoriteGroupModule(
-            favoriteGateway: InMemoryGroupFavoriteGateway(),
+            gatewayHolder: AttendeeListInteractor(favoriteGateway: InMemoryGroupFavoriteGateway()),
             output: output
         )
         _ = FavoriteGroupRouter.assembleModule(output: output)
@@ -48,11 +48,11 @@ final class AttendeeListRouterTests: XCTestCase {
 
     func test_お気に入りモジュールは渡したGatewayインスタンスから一覧を読む() throws {
         let gateway = FetchCountingGroupFavoriteGateway()
-        try gateway.insert(GroupFavorite(name: "共有", members: ["A"]))
+        try gateway.insert(name: "共有", members: ["A"])
         XCTAssertEqual(gateway.fetchAllCallCount, 0)
 
         _ = AttendeeListRouter().makeFavoriteGroupModule(
-            favoriteGateway: gateway,
+            gatewayHolder: AttendeeListInteractor(favoriteGateway: gateway),
             output: FavoriteGroupOutputSpy()
         )
         _ = FavoriteGroupRouter.assembleModule(
@@ -77,24 +77,27 @@ final class AttendeeListRouterTests: XCTestCase {
 
         _ = router.makeSeatingChartModule(attendees: attendees)
         _ = router.makeSimpleShuffleModule(attendees: attendees)
-        _ = router.makeFavoriteGroupModule(favoriteGateway: InMemoryGroupFavoriteGateway(), output: nil)
+        _ = router.makeFavoriteGroupModule(
+            gatewayHolder: AttendeeListInteractor(),
+            output: nil
+        )
         _ = router.makeBulkAddModule(output: nil)
     }
 }
 
 private final class FetchCountingGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    private var favorites: [GroupFavorite] = []
+    private var snapshots: [FavoriteGroupSnapshot] = []
     private(set) var fetchAllCallCount = 0
 
-    override func fetchCount() throws -> Int { favorites.count }
+    override func fetchCount() throws -> Int { snapshots.count }
 
-    override func fetchAll() throws -> [GroupFavorite] {
+    override func fetchAll() throws -> [FavoriteGroupSnapshot] {
         fetchAllCallCount += 1
-        return favorites.sorted { $0.createdAt > $1.createdAt }
+        return snapshots
     }
 
-    override func insert(_ favorite: GroupFavorite) throws {
-        favorites.append(favorite)
+    override func insert(name: String, members: [String]) throws {
+        snapshots.append(FavoriteGroupSnapshot.persisted(name: name, memberNames: members))
     }
 }
 

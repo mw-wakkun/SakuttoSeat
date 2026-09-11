@@ -4,6 +4,7 @@
 //
 //  Created by masafumi wakugawa on 2026/05/05.
 //  refactor_AttendeeList.md Phase 3 / Phase 6（お気に入り永続化・一括置換。ユニーク名は O(n)）
+//  refactor_favorite.md Phase 3（保存・読込置換のみ。一覧・削除は子。load は fetch(id:)）
 //
 
 import Foundation
@@ -70,6 +71,8 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
         favoriteGateway = gateway
     }
 
+    /// Router が子モジュール組み立て時に同じインスタンスを渡すための供給口。
+    /// Presenter の公開面には出さない。
     func currentFavoriteGateway() -> GroupFavoriteGatewayBase {
         favoriteGateway
     }
@@ -95,46 +98,25 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
             throw FavoriteSaveError.invalidName
         }
 
-        let favorite = GroupFavorite(name: trimmedName, members: attendees.map(\.name))
         do {
-            try favoriteGateway.insert(favorite)
-        } catch {
-            throw FavoriteSaveError.persistenceFailed(message: error.localizedDescription)
-        }
-    }
-
-    func allFavorites() -> [FavoriteGroupSnapshot] {
-        let favorites = (try? favoriteGateway.fetchAll()) ?? []
-        return favorites.map { $0.makeSnapshot() }
-    }
-
-    func deleteFavorites(at offsets: IndexSet) throws {
-        let currentList: [GroupFavorite]
-        do {
-            currentList = try favoriteGateway.fetchAll()
-        } catch {
-            throw FavoriteSaveError.persistenceFailed(message: error.localizedDescription)
-        }
-
-        do {
-            try favoriteGateway.delete(atOffsets: offsets, in: currentList)
+            try favoriteGateway.insert(name: trimmedName, members: attendees.map(\.name))
         } catch {
             throw FavoriteSaveError.persistenceFailed(message: error.localizedDescription)
         }
     }
 
     func loadFavorite(id: FavoriteGroupID) throws -> [Attendee] {
-        let favorites: [GroupFavorite]
+        let favorite: FavoriteGroupSnapshot?
         do {
-            favorites = try favoriteGateway.fetchAll()
+            favorite = try favoriteGateway.fetch(id: id)
         } catch {
             throw FavoriteSaveError.persistenceFailed(message: error.localizedDescription)
         }
 
-        guard let favorite = favorites.first(where: { $0.id == id }) else {
+        guard let favorite else {
             throw FavoriteSaveError.notFound
         }
-        return replaceAll(names: favorite.members)
+        return replaceAll(names: favorite.memberNames)
     }
 
     // MARK: - プライベートヘルパー

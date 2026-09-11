@@ -3,7 +3,7 @@
 //  SakuttoSeatTests
 //
 //  refactor_AttendeeList.md Phase 5（お気に入り一覧子モジュールの回帰）
-//  refactor_favorite.md Phase 0 / Phase 2（ViewData.Row / Route / 取得失敗の提示）
+//  refactor_favorite.md Phase 0 / Phase 2 / Phase 3（ID 削除・Snapshot 戻り）
 //
 
 import XCTest
@@ -15,12 +15,8 @@ final class FavoriteGroupInteractorTests: XCTestCase {
 
     func test_一覧は新しい順のスナップショットを返す() throws {
         let gateway = InMemoryGroupFavoriteGateway()
-        let older = GroupFavorite(name: "古い", members: ["A"])
-        older.createdAt = Date(timeIntervalSince1970: 1)
-        let newer = GroupFavorite(name: "新しい", members: ["B", "C"])
-        newer.createdAt = Date(timeIntervalSince1970: 2)
-        try gateway.insert(older)
-        try gateway.insert(newer)
+        try gateway.insert(name: "古い", members: ["A"])
+        try gateway.insert(name: "新しい", members: ["B", "C"])
         let interactor = FavoriteGroupInteractor(favoriteGateway: gateway)
 
         let groups = try interactor.allFavorites()
@@ -30,13 +26,14 @@ final class FavoriteGroupInteractorTests: XCTestCase {
         XCTAssertEqual(groups.first?.memberSummary, "B, C")
     }
 
-    func test_offset指定で削除する() throws {
+    func test_ID指定で削除する() throws {
         let gateway = InMemoryGroupFavoriteGateway()
-        try gateway.insert(GroupFavorite(name: "古い", members: ["A"]))
-        try gateway.insert(GroupFavorite(name: "新しい", members: ["B"]))
+        try gateway.insert(name: "古い", members: ["A"])
+        try gateway.insert(name: "新しい", members: ["B"])
         let interactor = FavoriteGroupInteractor(favoriteGateway: gateway)
+        let newerID = try XCTUnwrap(interactor.allFavorites().first?.id)
 
-        try interactor.deleteFavorites(at: IndexSet(integer: 0))
+        try interactor.deleteFavorites(ids: [newerID])
 
         XCTAssertEqual(try interactor.allFavorites().map(\.name), ["古い"])
     }
@@ -44,7 +41,7 @@ final class FavoriteGroupInteractorTests: XCTestCase {
     func test_削除失敗はpersistenceFailedになる() {
         let interactor = FavoriteGroupInteractor(favoriteGateway: FailingDeleteGroupFavoriteGateway())
 
-        XCTAssertThrowsError(try interactor.deleteFavorites(at: IndexSet(integer: 0))) { error in
+        XCTAssertThrowsError(try interactor.deleteFavorites(ids: [UUID()])) { error in
             XCTAssertEqual(
                 error as? FavoriteSaveError,
                 .persistenceFailed(message: "削除に失敗しました")
@@ -54,9 +51,9 @@ final class FavoriteGroupInteractorTests: XCTestCase {
 
     func test_attachFavoriteGatewayで永続化先を差し替える() throws {
         let first = InMemoryGroupFavoriteGateway()
-        try first.insert(GroupFavorite(name: "最初", members: ["A"]))
+        try first.insert(name: "最初", members: ["A"])
         let second = InMemoryGroupFavoriteGateway()
-        try second.insert(GroupFavorite(name: "差し替え後", members: ["B"]))
+        try second.insert(name: "差し替え後", members: ["B"])
         let interactor = FavoriteGroupInteractor(favoriteGateway: first)
 
         XCTAssertEqual(try interactor.allFavorites().map(\.name), ["最初"])
@@ -66,37 +63,27 @@ final class FavoriteGroupInteractorTests: XCTestCase {
         XCTAssertEqual(try interactor.allFavorites().map(\.name), ["差し替え後"])
     }
 
-    func test_複数offsetで削除する() throws {
+    func test_複数IDで削除する() throws {
         let gateway = InMemoryGroupFavoriteGateway()
-        try gateway.insert(makeFavorite(name: "古い", members: ["A"], createdAt: 1))
-        try gateway.insert(makeFavorite(name: "真ん中", members: ["B"], createdAt: 2))
-        try gateway.insert(makeFavorite(name: "新しい", members: ["C"], createdAt: 3))
+        try gateway.insert(name: "古い", members: ["A"])
+        try gateway.insert(name: "真ん中", members: ["B"])
+        try gateway.insert(name: "新しい", members: ["C"])
         let interactor = FavoriteGroupInteractor(favoriteGateway: gateway)
+        let groups = try interactor.allFavorites()
 
-        try interactor.deleteFavorites(at: IndexSet([0, 2]))
+        try interactor.deleteFavorites(ids: [groups[0].id, groups[2].id])
 
         XCTAssertEqual(try interactor.allFavorites().map(\.name), ["真ん中"])
     }
 
-    func test_範囲外offsetは無視される() throws {
+    func test_存在しないIDの削除は無視される() throws {
         let gateway = InMemoryGroupFavoriteGateway()
-        try gateway.insert(GroupFavorite(name: "残る", members: ["A"]))
+        try gateway.insert(name: "残る", members: ["A"])
         let interactor = FavoriteGroupInteractor(favoriteGateway: gateway)
 
-        try interactor.deleteFavorites(at: IndexSet(integer: 5))
+        try interactor.deleteFavorites(ids: [UUID()])
 
         XCTAssertEqual(try interactor.allFavorites().map(\.name), ["残る"])
-    }
-
-    func test_削除時の取得失敗はpersistenceFailedになる() {
-        let interactor = FavoriteGroupInteractor(favoriteGateway: FailingFetchGroupFavoriteGateway())
-
-        XCTAssertThrowsError(try interactor.deleteFavorites(at: IndexSet(integer: 0))) { error in
-            XCTAssertEqual(
-                error as? FavoriteSaveError,
-                .persistenceFailed(message: "読み込みに失敗しました")
-            )
-        }
     }
 
     func test_取得失敗はpersistenceFailedになる() {
@@ -136,7 +123,7 @@ final class FavoriteGroupPresenterTests: XCTestCase {
 
     func test_onAppearで一覧をViewDataのRowに公開する() throws {
         let gateway = InMemoryGroupFavoriteGateway()
-        try gateway.insert(GroupFavorite(name: "同期", members: ["太郎"]))
+        try gateway.insert(name: "同期", members: ["太郎"])
         let output = OutputSpy()
         let presenter = makePresenter(gateway: gateway, output: output)
 
@@ -158,7 +145,7 @@ final class FavoriteGroupPresenterTests: XCTestCase {
 
     func test_選択はOutputへ通知する() throws {
         let gateway = InMemoryGroupFavoriteGateway()
-        try gateway.insert(GroupFavorite(name: "同期", members: ["太郎"]))
+        try gateway.insert(name: "同期", members: ["太郎"])
         let output = OutputSpy()
         let presenter = makePresenter(gateway: gateway, output: output)
         let id = try XCTUnwrap(gateway.fetchAll().first?.id)
@@ -170,7 +157,7 @@ final class FavoriteGroupPresenterTests: XCTestCase {
 
     func test_選択はGatewayとViewDataを変えずOutputだけに通知する() throws {
         let gateway = InMemoryGroupFavoriteGateway()
-        try gateway.insert(GroupFavorite(name: "同期", members: ["太郎"]))
+        try gateway.insert(name: "同期", members: ["太郎"])
         let output = OutputSpy()
         let presenter = makePresenter(gateway: gateway, output: output)
         let id = try XCTUnwrap(gateway.fetchAll().first?.id)
@@ -202,13 +189,24 @@ final class FavoriteGroupPresenterTests: XCTestCase {
 
     func test_削除は一覧から消す() throws {
         let gateway = InMemoryGroupFavoriteGateway()
-        try gateway.insert(GroupFavorite(name: "古い", members: ["A"]))
-        try gateway.insert(GroupFavorite(name: "新しい", members: ["B"]))
+        try gateway.insert(name: "古い", members: ["A"])
+        try gateway.insert(name: "新しい", members: ["B"])
         let presenter = makePresenter(gateway: gateway, output: OutputSpy())
 
         presenter.didDeleteGroups(at: IndexSet(integer: 0))
 
         XCTAssertEqual(presenter.viewData.rows.map(\.name), ["古い"])
+        XCTAssertNil(presenter.route)
+    }
+
+    func test_範囲外offsetの削除は一覧を変えない() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        try gateway.insert(name: "残る", members: ["A"])
+        let presenter = makePresenter(gateway: gateway, output: OutputSpy())
+
+        presenter.didDeleteGroups(at: IndexSet(integer: 5))
+
+        XCTAssertEqual(presenter.viewData.rows.map(\.name), ["残る"])
         XCTAssertNil(presenter.route)
     }
 
@@ -245,14 +243,8 @@ final class FavoriteGroupPresenterTests: XCTestCase {
     }
 }
 
-private func makeFavorite(name: String, members: [String], createdAt: TimeInterval) -> GroupFavorite {
-    let favorite = GroupFavorite(name: name, members: members)
-    favorite.createdAt = Date(timeIntervalSince1970: createdAt)
-    return favorite
-}
-
 private final class FailingFetchGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    override func fetchAll() throws -> [GroupFavorite] {
+    override func fetchAll() throws -> [FavoriteGroupSnapshot] {
         throw NSError(
             domain: "FavoriteGroupTests",
             code: 2,
@@ -262,11 +254,11 @@ private final class FailingFetchGroupFavoriteGateway: GroupFavoriteGatewayBase {
 }
 
 private final class FailingDeleteGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    override func fetchAll() throws -> [GroupFavorite] {
-        [GroupFavorite(name: "同期", members: ["A"])]
+    override func fetchAll() throws -> [FavoriteGroupSnapshot] {
+        [FavoriteGroupSnapshot.persisted(name: "同期", memberNames: ["A"])]
     }
 
-    override func delete(atOffsets offsets: IndexSet, in sortedFavorites: [GroupFavorite]) throws {
+    override func delete(ids: [FavoriteGroupID]) throws {
         throw NSError(
             domain: "FavoriteGroupTests",
             code: 1,

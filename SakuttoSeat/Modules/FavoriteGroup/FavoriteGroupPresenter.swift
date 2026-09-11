@@ -3,7 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_AttendeeList.md Phase 5
-//  refactor_favorite.md Phase 2（ViewData.Row / route / 取得失敗の提示）
+//  refactor_favorite.md Phase 2 / Phase 3（ViewData.Row / route。削除は IndexSet → ID）
 //
 
 import Combine
@@ -38,8 +38,13 @@ final class FavoriteGroupPresenter: ObservableObject, FavoriteGroupPresenterProt
     }
 
     func didDeleteGroups(at offsets: IndexSet) {
+        let ids = offsets.compactMap { offset in
+            viewData.rows.indices.contains(offset) ? viewData.rows[offset].id : nil
+        }
+        guard !ids.isEmpty else { return }
+
         do {
-            try interactor.deleteFavorites(at: offsets)
+            try interactor.deleteFavorites(ids: ids)
             publishState()
         } catch let error as FavoriteSaveError {
             if case .persistenceFailed(let message) = error {

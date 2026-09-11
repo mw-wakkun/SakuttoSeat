@@ -3,25 +3,32 @@
 //  SakuttoSeat
 //
 //  refactor_seating.md Phase 4
+//  refactor_favorite.md Phase 3（Snapshot 戻り / fetch(id:) / delete(ids:) / insert(name:members:)）
+//
+//  画面 = FavoriteGroup、永続化 = GroupFavorite。@Model はこのファイル内に閉じる。
+//  Protocol existential をクラスが保持すると deinit で malloc abort するため、
+//  Interactor は具象基底クラスだけを保持する。
 //
 
 import Foundation
 import SwiftData
 
-protocol GroupFavoriteGateway: AnyObject {
+/// `nonisolated`: 要件が MainActor 隔離だと、それを満たす具象側のメソッドも
+/// MainActor 隔離と推論され、`nonisolated` な Interactor から呼べなくなるため。
+nonisolated protocol GroupFavoriteGateway: AnyObject {
     func fetchCount() throws -> Int
-    func fetchAll() throws -> [GroupFavorite]
-    func insert(_ favorite: GroupFavorite) throws
-    func delete(_ favorite: GroupFavorite) throws
-    func delete(atOffsets offsets: IndexSet, in sortedFavorites: [GroupFavorite]) throws
+    func fetchAll() throws -> [FavoriteGroupSnapshot]
+    func fetch(id: FavoriteGroupID) throws -> FavoriteGroupSnapshot?
+    func insert(name: String, members: [String]) throws
+    func delete(ids: [FavoriteGroupID]) throws
 }
 
 nonisolated class GroupFavoriteGatewayBase: GroupFavoriteGateway {
     func fetchCount() throws -> Int { 0 }
-    func fetchAll() throws -> [GroupFavorite] { [] }
-    func insert(_ favorite: GroupFavorite) throws {}
-    func delete(_ favorite: GroupFavorite) throws {}
-    func delete(atOffsets offsets: IndexSet, in sortedFavorites: [GroupFavorite]) throws {}
+    func fetchAll() throws -> [FavoriteGroupSnapshot] { [] }
+    func fetch(id: FavoriteGroupID) throws -> FavoriteGroupSnapshot? { nil }
+    func insert(name: String, members: [String]) throws {}
+    func delete(ids: [FavoriteGroupID]) throws {}
 }
 
 nonisolated final class SwiftDataGroupFavoriteGateway: GroupFavoriteGatewayBase {
@@ -35,50 +42,79 @@ nonisolated final class SwiftDataGroupFavoriteGateway: GroupFavoriteGatewayBase 
         try context.fetchCount(FetchDescriptor<GroupFavorite>())
     }
 
-    override func fetchAll() throws -> [GroupFavorite] {
+    override func fetchAll() throws -> [FavoriteGroupSnapshot] {
         let descriptor = FetchDescriptor<GroupFavorite>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
-        return try context.fetch(descriptor)
+        return try context.fetch(descriptor).map { $0.makeSnapshot() }
     }
 
-    override func insert(_ favorite: GroupFavorite) throws {
-        context.insert(favorite)
+    override func fetch(id: FavoriteGroupID) throws -> FavoriteGroupSnapshot? {
+        try fetchModel(id: id)?.makeSnapshot()
+    }
+
+    override func insert(name: String, members: [String]) throws {
+        context.insert(GroupFavorite(name: name, members: members))
         try context.save()
     }
 
-    override func delete(_ favorite: GroupFavorite) throws {
-        context.delete(favorite)
-        try context.save()
-    }
-
-    override func delete(atOffsets offsets: IndexSet, in sortedFavorites: [GroupFavorite]) throws {
-        for index in offsets where sortedFavorites.indices.contains(index) {
-            context.delete(sortedFavorites[index])
+    override func delete(ids: [FavoriteGroupID]) throws {
+        guard !ids.isEmpty else { return }
+        for id in ids {
+            if let favorite = try fetchModel(id: id) {
+                context.delete(favorite)
+            }
         }
         try context.save()
+    }
+
+    private func fetchModel(id: FavoriteGroupID) throws -> GroupFavorite? {
+        let targetID = id
+        let descriptor = FetchDescriptor<GroupFavorite>(
+            predicate: #Predicate { $0.id == targetID }
+        )
+        return try context.fetch(descriptor).first
     }
 }
 
 nonisolated final class InMemoryGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    private(set) var favorites: [GroupFavorite] = []
+    private var records: [Record] = []
+    /// 同一瞬間の連続 insert でも新しい順が崩れないようにする
+    private var nextCreatedAt: TimeInterval = 0
 
-    override func fetchCount() throws -> Int { favorites.count }
+    override func fetchCount() throws -> Int { records.count }
 
-    override func fetchAll() throws -> [GroupFavorite] {
-        favorites.sorted { $0.createdAt > $1.createdAt }
+    override func fetchAll() throws -> [FavoriteGroupSnapshot] {
+        records.sorted { $0.createdAt > $1.createdAt }.map(\.snapshot)
     }
 
-    override func insert(_ favorite: GroupFavorite) throws {
-        favorites.append(favorite)
+    override func fetch(id: FavoriteGroupID) throws -> FavoriteGroupSnapshot? {
+        records.first { $0.snapshot.id == id }?.snapshot
     }
 
-    override func delete(_ favorite: GroupFavorite) throws {
-        favorites.removeAll { $0.id == favorite.id }
+    override func insert(name: String, members: [String]) throws {
+        nextCreatedAt += 1
+        records.append(
+            Record(
+                snapshot: FavoriteGroupSnapshot.persisted(name: name, memberNames: members),
+                createdAt: Date(timeIntervalSince1970: nextCreatedAt)
+            )
+        )
     }
 
-    override func delete(atOffsets offsets: IndexSet, in sortedFavorites: [GroupFavorite]) throws {
-        let ids = Set(offsets.compactMap { sortedFavorites.indices.contains($0) ? sortedFavorites[$0].id : nil })
-        favorites.removeAll { ids.contains($0.id) }
+    override func delete(ids: [FavoriteGroupID]) throws {
+        let idSet = Set(ids)
+        records.removeAll { idSet.contains($0.snapshot.id) }
+    }
+
+    private struct Record {
+        let snapshot: FavoriteGroupSnapshot
+        let createdAt: Date
+    }
+}
+
+extension GroupFavorite {
+    fileprivate func makeSnapshot() -> FavoriteGroupSnapshot {
+        FavoriteGroupSnapshot.persisted(id: id, name: name, memberNames: members)
     }
 }

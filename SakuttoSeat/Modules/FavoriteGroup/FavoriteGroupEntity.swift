@@ -17,6 +17,20 @@ nonisolated struct FavoriteGroupSnapshot: Identifiable, Equatable {
     let name: String
     let memberNames: [String]
     let memberSummary: String
+
+    /// Gateway が永続化モデルから写すときの工場。表示用結合は Builder が再計算する。
+    static func persisted(
+        id: FavoriteGroupID = UUID(),
+        name: String,
+        memberNames: [String]
+    ) -> FavoriteGroupSnapshot {
+        FavoriteGroupSnapshot(
+            id: id,
+            name: name,
+            memberNames: memberNames,
+            memberSummary: memberNames.joined(separator: ", ")
+        )
+    }
 }
 
 /// お気に入り保存の可否。`TemplateSaveAvailability` と同型

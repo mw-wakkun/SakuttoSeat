@@ -3,7 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_AttendeeList.md Phase 5（お気に入り一覧の子 VIPER モジュール）
-//  refactor_favorite.md Phase 2（ViewData / Route を分離。Presenter の提示は route）
+//  refactor_favorite.md Phase 2 / Phase 3（ViewData / Route。Interactor 削除は ID 配列）
 //
 
 import Foundation
@@ -28,8 +28,7 @@ protocol FavoriteGroupPresenterProtocol: AnyObject {
 
 nonisolated protocol FavoriteGroupInteractorProtocol: AnyObject {
     func allFavorites() throws -> [FavoriteGroupSnapshot]
-    func deleteFavorites(at offsets: IndexSet) throws
-    func attachFavoriteGateway(_ gateway: GroupFavoriteGatewayBase)
+    func deleteFavorites(ids: [FavoriteGroupID]) throws
 }
 
 // MARK: - Presenter -> 親モジュール

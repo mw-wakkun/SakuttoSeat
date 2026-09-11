@@ -4,6 +4,7 @@
 //
 //  Created by masafumi wakugawa on 2026/05/05.
 //  refactor_AttendeeList.md Phase 4 / Phase 5（遷移・提示・子モジュール組み立て）
+//  refactor_favorite.md Phase 3（お気に入り子は gatewayHolder から現行 Gateway を読む）
 //
 
 import SwiftUI
@@ -37,10 +38,13 @@ final class AttendeeListRouter: AttendeeListRouterProtocol {
 
     @MainActor
     func makeFavoriteGroupModule(
-        favoriteGateway: GroupFavoriteGatewayBase,
+        gatewayHolder: AttendeeListInteractor,
         output: (any FavoriteGroupModuleOutput)?
     ) -> AnyView {
-        FavoriteGroupRouter.assembleModule(favoriteGateway: favoriteGateway, output: output)
+        FavoriteGroupRouter.assembleModule(
+            favoriteGateway: gatewayHolder.currentFavoriteGateway(),
+            output: output
+        )
     }
 
     @MainActor

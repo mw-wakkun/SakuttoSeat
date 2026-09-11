@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_AttendeeList.md Phase 2 / Phase 3 / Phase 4 / Phase 5（層間境界の明示）
+//  refactor_favorite.md Phase 3（親 Interactor から一覧・削除を外す。子組み立ては gatewayHolder）
 //
 
 import SwiftUI
@@ -50,8 +51,6 @@ nonisolated protocol AttendeeListInteractorProtocol: AnyObject {
 
     func favoriteSaveAvailability() -> FavoriteSaveAvailability
     func saveCurrentAsFavorite(named name: String) throws
-    func allFavorites() -> [FavoriteGroupSnapshot]
-    func deleteFavorites(at offsets: IndexSet) throws
     func loadFavorite(id: FavoriteGroupID) throws -> [Attendee]
 
     func attachFavoriteGateway(_ gateway: GroupFavoriteGatewayBase)
@@ -67,7 +66,7 @@ protocol AttendeeListRouterProtocol: AnyObject {
     @MainActor func makeSeatingChartModule(attendees: [Attendee]) -> AnyView
     @MainActor func makeSimpleShuffleModule(attendees: [Attendee]) -> AnyView
     @MainActor func makeFavoriteGroupModule(
-        favoriteGateway: GroupFavoriteGatewayBase,
+        gatewayHolder: AttendeeListInteractor,
         output: (any FavoriteGroupModuleOutput)?
     ) -> AnyView
     @MainActor func makeBulkAddModule(output: (any BulkAddModuleOutput)?) -> AnyView

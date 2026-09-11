@@ -3,6 +3,8 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/24.
+//  永続化モデル（SwiftData）。画面モジュール名は FavoriteGroup。
+//  Snapshot への変換は GroupFavoriteGateway が担う。
 //
 
 import Foundation
@@ -20,14 +22,5 @@ final class GroupFavorite {
         self.name = name
         self.members = members
         self.createdAt = Date()
-    }
-
-    func makeSnapshot() -> FavoriteGroupSnapshot {
-        FavoriteGroupSnapshot(
-            id: id,
-            name: name,
-            memberNames: members,
-            memberSummary: members.joined(separator: ", ")
-        )
     }
 }

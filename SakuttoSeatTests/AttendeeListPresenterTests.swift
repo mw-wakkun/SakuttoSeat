@@ -176,13 +176,13 @@ final class AttendeeListPresenterTests: XCTestCase {
         let saved = try gateway.fetchAll()
         XCTAssertEqual(saved.count, 1)
         XCTAssertEqual(saved.first?.name, "同期")
-        XCTAssertEqual(saved.first?.members, ["太郎", "花子"])
+        XCTAssertEqual(saved.first?.memberNames, ["太郎", "花子"])
         XCTAssertNil(presenter.route)
     }
 
     func test_お気に入り選択で参加者リストを置換する() throws {
         let gateway = InMemoryGroupFavoriteGateway()
-        try gateway.insert(GroupFavorite(name: "新メンバ", members: ["新1", "新2", "新3"]))
+        try gateway.insert(name: "新メンバ", members: ["新1", "新2", "新3"])
         let presenter = makePresenter(names: ["旧1", "旧2"], gateway: gateway)
 
         presenter.didSelectFavoriteGroup(id: try XCTUnwrap(gateway.fetchAll().first?.id))
@@ -193,7 +193,7 @@ final class AttendeeListPresenterTests: XCTestCase {
 
     func test_メンバーが空のお気に入りを選ぶとリストが空になる() throws {
         let gateway = InMemoryGroupFavoriteGateway()
-        try gateway.insert(GroupFavorite(name: "空", members: []))
+        try gateway.insert(name: "空", members: [])
         let presenter = makePresenter(names: ["残したくない"], gateway: gateway)
 
         presenter.didSelectFavoriteGroup(id: try XCTUnwrap(gateway.fetchAll().first?.id))
@@ -238,7 +238,7 @@ final class AttendeeListPresenterTests: XCTestCase {
 
     func test_FavoriteGroupOutputの選択はリストを置換してシートを閉じる() throws {
         let gateway = InMemoryGroupFavoriteGateway()
-        try gateway.insert(GroupFavorite(name: "新メンバ", members: ["新1", "新2"]))
+        try gateway.insert(name: "新メンバ", members: ["新1", "新2"])
         let presenter = makePresenter(names: ["旧"], gateway: gateway)
         presenter.didTapShowFavorites()
 
@@ -259,7 +259,7 @@ final class AttendeeListPresenterTests: XCTestCase {
 
     func test_お気に入りシートは親と同じGatewayインスタンスで組み立てる() throws {
         let gateway = FetchCountingGroupFavoriteGateway()
-        try gateway.insert(GroupFavorite(name: "共有", members: ["A"]))
+        try gateway.insert(name: "共有", members: ["A"])
         let presenter = makePresenter(gateway: gateway)
         let fetchCountBeforeSheet = gateway.fetchAllCallCount
 
@@ -306,7 +306,7 @@ final class AttendeeListPresenterTests: XCTestCase {
 
 /// insert だけ失敗させるテスト用 Gateway
 private final class FailingInsertGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    override func insert(_ favorite: GroupFavorite) throws {
+    override func insert(name: String, members: [String]) throws {
         throw NSError(
             domain: "AttendeeListTests",
             code: 1,
@@ -317,17 +317,17 @@ private final class FailingInsertGroupFavoriteGateway: GroupFavoriteGatewayBase 
 
 /// 親シート組み立てが同じ Gateway インスタンスを子へ渡すことを数える
 private final class FetchCountingGroupFavoriteGateway: GroupFavoriteGatewayBase {
-    private var favorites: [GroupFavorite] = []
+    private var snapshots: [FavoriteGroupSnapshot] = []
     private(set) var fetchAllCallCount = 0
 
-    override func fetchCount() throws -> Int { favorites.count }
+    override func fetchCount() throws -> Int { snapshots.count }
 
-    override func fetchAll() throws -> [GroupFavorite] {
+    override func fetchAll() throws -> [FavoriteGroupSnapshot] {
         fetchAllCallCount += 1
-        return favorites.sorted { $0.createdAt > $1.createdAt }
+        return snapshots
     }
 
-    override func insert(_ favorite: GroupFavorite) throws {
-        favorites.append(favorite)
+    override func insert(name: String, members: [String]) throws {
+        snapshots.append(FavoriteGroupSnapshot.persisted(name: name, memberNames: members))
     }
 }

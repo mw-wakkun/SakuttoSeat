@@ -4,7 +4,7 @@
 //
 //  refactor_AttendeeList.md Phase 5
 //  一覧の取得・削除は子 Interactor が Gateway を持つ（保存・読込置換は親）。
-//  refactor_favorite.md Phase 2（allFavorites は throws。失敗は Presenter が route にする）
+//  refactor_favorite.md Phase 3（削除は ID 配列。@Model は Gateway 内に閉じる）
 //
 
 import Foundation
@@ -17,28 +17,22 @@ nonisolated final class FavoriteGroupInteractor: FavoriteGroupInteractorProtocol
         self.favoriteGateway = favoriteGateway
     }
 
+    /// テスト用の差し替え。本番は assemble 時に注入済み。
     func attachFavoriteGateway(_ gateway: GroupFavoriteGatewayBase) {
         favoriteGateway = gateway
     }
 
     func allFavorites() throws -> [FavoriteGroupSnapshot] {
         do {
-            return try favoriteGateway.fetchAll().map { $0.makeSnapshot() }
+            return try favoriteGateway.fetchAll()
         } catch {
             throw FavoriteSaveError.persistenceFailed(message: error.localizedDescription)
         }
     }
 
-    func deleteFavorites(at offsets: IndexSet) throws {
-        let currentList: [GroupFavorite]
+    func deleteFavorites(ids: [FavoriteGroupID]) throws {
         do {
-            currentList = try favoriteGateway.fetchAll()
-        } catch {
-            throw FavoriteSaveError.persistenceFailed(message: error.localizedDescription)
-        }
-
-        do {
-            try favoriteGateway.delete(atOffsets: offsets, in: currentList)
+            try favoriteGateway.delete(ids: ids)
         } catch {
             throw FavoriteSaveError.persistenceFailed(message: error.localizedDescription)
         }

@@ -6,6 +6,7 @@
 //  refactor_AttendeeList.md Phase 3 / Phase 4 / Phase 5
 //  永続化は Interactor。遷移先の組み立ては Router へ委譲。
 //  お気に入り一覧・一括追加は子モジュール。選択／確定は Output で受ける。
+//  refactor_favorite.md Phase 3（シート組み立ては gatewayHolder。Presenter は Gateway 型を渡さない）
 //
 
 import Combine
@@ -144,7 +145,7 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
         switch route {
         case .favoriteList:
             return router.makeFavoriteGroupModule(
-                favoriteGateway: interactor.currentFavoriteGateway(),
+                gatewayHolder: interactor,
                 output: self
             )
         case .bulkAdd:
