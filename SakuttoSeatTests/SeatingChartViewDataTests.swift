@@ -115,7 +115,7 @@ final class SeatingChartViewDataTests: XCTestCase {
             ],
             globalColumnCount: 4
         )
-        let id = try XCTUnwrap(gateway.fetchAll().first?.id)
+        let id = try XCTUnwrap(gateway.fetchSummaries().first?.id)
 
         presenter.templateListDidSelect(id: id)
 
@@ -133,7 +133,7 @@ final class SeatingChartViewDataTests: XCTestCase {
             ],
             globalColumnCount: 4
         )
-        let id = try XCTUnwrap(gateway.fetchAll().first?.id)
+        let id = try XCTUnwrap(gateway.fetchSummaries().first?.id)
 
         presenter.templateListDidSelect(id: id)
 

@@ -77,7 +77,7 @@ final class SeatingChartPresenterTests: XCTestCase {
             ],
             globalColumnCount: 4
         )
-        let id = try XCTUnwrap(gateway.fetchAll().first?.id)
+        let id = try XCTUnwrap(gateway.fetchSummaries().first?.id)
         presenter.didTapLoadTemplate()
 
         presenter.templateListDidSelect(id: id)
@@ -101,7 +101,7 @@ final class SeatingChartPresenterTests: XCTestCase {
         presenter.didConfirmSaveTemplate(name: "1件目")
         presenter.didConfirmSaveTemplate(name: "2件目")
         presenter.didConfirmSaveTemplate(name: "3件目")
-        XCTAssertEqual(try gateway.fetchAll().count, 3)
+        XCTAssertEqual(try gateway.fetchSummaries().count, 3)
 
         presenter.didTapSaveTemplate()
         XCTAssertEqual(
@@ -118,12 +118,13 @@ final class SeatingChartPresenterTests: XCTestCase {
 
         presenter.didConfirmSaveTemplate(name: "歓迎会")
 
-        let saved = try gateway.fetchAll()
-        XCTAssertEqual(saved.count, 1)
-        XCTAssertEqual(saved[0].name, "歓迎会")
-        XCTAssertEqual(saved[0].globalColumnCount, 3)
-        XCTAssertEqual(saved[0].tables.map(\.name), ["テーブルA", "テーブルB"])
-        XCTAssertEqual(saved[0].tables.map(\.capacity), [4, 4])
+        let summaries = try gateway.fetchSummaries()
+        XCTAssertEqual(summaries.count, 1)
+        let saved = try XCTUnwrap(gateway.fetch(id: try XCTUnwrap(summaries.first?.id)))
+        XCTAssertEqual(saved.name, "歓迎会")
+        XCTAssertEqual(saved.globalColumnCount, 3)
+        XCTAssertEqual(saved.tables.map(\.name), ["テーブルA", "テーブルB"])
+        XCTAssertEqual(saved.tables.map(\.capacity), [4, 4])
     }
 
     func test_テンプレート保存_名前が空白のみなら保存されない() throws {
@@ -132,7 +133,7 @@ final class SeatingChartPresenterTests: XCTestCase {
 
         presenter.didConfirmSaveTemplate(name: "   ")
 
-        XCTAssertTrue(try gateway.fetchAll().isEmpty)
+        XCTAssertTrue(try gateway.fetchSummaries().isEmpty)
     }
 
     func test_セッション解放フラグはGatewayへ委譲される() {
@@ -229,7 +230,7 @@ final class SeatingChartPresenterTests: XCTestCase {
             ],
             globalColumnCount: 4
         )
-        let id = try XCTUnwrap(gateway.fetchAll().first?.id)
+        let id = try XCTUnwrap(gateway.fetchSummaries().first?.id)
 
         presenter.templateListDidSelect(id: id)
 
@@ -274,13 +275,13 @@ final class SeatingChartPresenterTests: XCTestCase {
         let gateway = FetchCountingSeatingTemplateGateway()
         try gateway.insert(name: "共有", tables: [], globalColumnCount: 2)
         let presenter = makePresenter(names: ["A"], templateGateway: gateway)
-        let fetchCountBeforeSheet = gateway.fetchAllCallCount
+        let fetchCountBeforeSheet = gateway.fetchSummariesCallCount
 
         presenter.didTapLoadTemplate()
         _ = presenter.makeRouteSheet(.templateList)
 
         XCTAssertEqual(presenter.route, .templateList)
-        XCTAssertGreaterThan(gateway.fetchAllCallCount, fetchCountBeforeSheet)
+        XCTAssertGreaterThan(gateway.fetchSummariesCallCount, fetchCountBeforeSheet)
     }
 
     // MARK: - シート identity（Phase 4）
@@ -352,9 +353,9 @@ final class SeatingChartPresenterTests: XCTestCase {
     }
 }
 
-/// fetchAll だけ失敗させるテスト用 Gateway（子の loadFailed route を残す）
+/// fetchSummaries だけ失敗させるテスト用 Gateway（子の loadFailed route を残す）
 private final class FailingFetchSeatingTemplateGateway: SeatingTemplateGatewayBase {
-    override func fetchAll() throws -> [LayoutTemplateSnapshot] {
+    override func fetchSummaries() throws -> [LayoutTemplateSummary] {
         throw NSError(
             domain: "SeatingChartPresenterTests",
             code: 2,
@@ -365,17 +366,27 @@ private final class FailingFetchSeatingTemplateGateway: SeatingTemplateGatewayBa
 
 /// 親シート組み立てが同じ Gateway インスタンスを子へ渡すことを数える
 private final class FetchCountingSeatingTemplateGateway: SeatingTemplateGatewayBase {
-    private var stored: [LayoutTemplateSnapshot] = []
-    private(set) var fetchAllCallCount = 0
+    private let inner = InMemorySeatingTemplateGateway()
+    private(set) var fetchSummariesCallCount = 0
 
-    override func fetchCount() throws -> Int { stored.count }
+    override func fetchCount() throws -> Int {
+        try inner.fetchCount()
+    }
 
-    override func fetchAll() throws -> [LayoutTemplateSnapshot] {
-        fetchAllCallCount += 1
-        return stored
+    override func fetchSummaries() throws -> [LayoutTemplateSummary] {
+        fetchSummariesCallCount += 1
+        return try inner.fetchSummaries()
+    }
+
+    override func fetch(id: SeatingTemplateID) throws -> LayoutTemplateSnapshot? {
+        try inner.fetch(id: id)
     }
 
     override func insert(name: String, tables: [TableTemplate], globalColumnCount: Int) throws {
-        stored.append(LayoutTemplateSnapshot(name: name, tables: tables, globalColumnCount: globalColumnCount))
+        try inner.insert(name: name, tables: tables, globalColumnCount: globalColumnCount)
+    }
+
+    override func delete(ids: [SeatingTemplateID]) throws {
+        try inner.delete(ids: ids)
     }
 }

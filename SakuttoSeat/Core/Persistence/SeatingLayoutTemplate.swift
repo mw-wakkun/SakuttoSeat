@@ -3,8 +3,8 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/08/15.
-//  永続化モデル（SwiftData）。画面モジュール名は SeatingTemplate。
-//  画面型は `SeatingTemplate*`。型名のリネームは本計画では行わない。
+//  永続化モデル（SwiftData）。VIPER 画面モジュールではない。
+//  画面名は SeatingTemplate。Snapshot 変換は SeatingTemplateGateway。
 //
 
 import Foundation

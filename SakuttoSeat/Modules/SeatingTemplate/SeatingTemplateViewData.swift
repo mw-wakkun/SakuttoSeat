@@ -49,7 +49,7 @@ enum SeatingTemplateCopy {
 // MARK: - ViewData
 
 /// Presenter が生成し、View が消費する表示専用モデル。
-/// Entity（`LayoutTemplateSnapshot`）はここに現れない。
+/// `@Model`（`SeatingLayoutTemplate`）と詳細 Snapshot はここに現れない。一覧は Summary を写す。
 nonisolated struct SeatingTemplateViewData: Equatable {
     struct Row: Identifiable, Equatable {
         let id: SeatingTemplateID
@@ -63,14 +63,15 @@ nonisolated struct SeatingTemplateViewData: Equatable {
     static let empty = SeatingTemplateViewData(rows: [])
 }
 
+/// Summary を一覧行へ写す。件数ラベルは Gateway が一覧 DTO に載せ済み。
 nonisolated enum SeatingTemplateViewDataBuilder {
-    static func build(templates: [LayoutTemplateSnapshot]) -> SeatingTemplateViewData {
+    static func build(templates: [LayoutTemplateSummary]) -> SeatingTemplateViewData {
         SeatingTemplateViewData(
             rows: templates.map { template in
                 SeatingTemplateViewData.Row(
                     id: template.id,
                     name: template.name,
-                    tableCountLabel: SeatingTemplateCopy.tableCountLabel(template.tables.count)
+                    tableCountLabel: template.tableCountLabel
                 )
             }
         )

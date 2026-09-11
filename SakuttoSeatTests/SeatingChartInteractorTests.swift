@@ -533,7 +533,7 @@ final class SeatingChartInteractorTests: XCTestCase {
             ],
             globalColumnCount: 4
         )
-        let id = try XCTUnwrap(gateway.fetchAll().first?.id)
+        let id = try XCTUnwrap(gateway.fetchSummaries().first?.id)
 
         let tables = try interactor.loadAndApplyTemplate(id: id)
 
@@ -598,14 +598,14 @@ final class SeatingChartInteractorTests: XCTestCase {
         let first = InMemorySeatingTemplateGateway()
         let interactor = makeInteractor(names: ["A"], templateGateway: first)
         try interactor.saveCurrentLayoutAsTemplate(named: "最初")
-        XCTAssertEqual(try first.fetchAll().map(\.name), ["最初"])
+        XCTAssertEqual(try first.fetchSummaries().map(\.name), ["最初"])
 
         let second = InMemorySeatingTemplateGateway()
         interactor.attachTemplateGateway(second)
         try interactor.saveCurrentLayoutAsTemplate(named: "差し替え後")
 
-        XCTAssertEqual(try first.fetchAll().map(\.name), ["最初"])
-        XCTAssertEqual(try second.fetchAll().map(\.name), ["差し替え後"])
+        XCTAssertEqual(try first.fetchSummaries().map(\.name), ["最初"])
+        XCTAssertEqual(try second.fetchSummaries().map(\.name), ["差し替え後"])
     }
 
     func test_currentTemplateGatewayはattachしたインスタンスを返す() {

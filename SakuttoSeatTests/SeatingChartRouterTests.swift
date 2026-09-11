@@ -70,7 +70,7 @@ final class SeatingChartRouterTests: XCTestCase {
     func test_一覧組み立ては渡したGatewayインスタンスから一覧を読む() throws {
         let gateway = FetchCountingSeatingTemplateGateway()
         try gateway.insert(name: "共有", tables: [], globalColumnCount: 2)
-        XCTAssertEqual(gateway.fetchAllCallCount, 0)
+        XCTAssertEqual(gateway.fetchSummariesCallCount, 0)
         let gatewayHolder = SeatingChartInteractor(templateGateway: gateway)
 
         _ = SeatingChartRouter().makeTemplateListModule(
@@ -86,7 +86,7 @@ final class SeatingChartRouterTests: XCTestCase {
             output: TemplateListOutputSpy()
         )
 
-        XCTAssertGreaterThanOrEqual(gateway.fetchAllCallCount, 3)
+        XCTAssertGreaterThanOrEqual(gateway.fetchSummariesCallCount, 3)
     }
 
     func test_makeTemplateListSheetはSeatingTemplateViewを包む() {
@@ -129,18 +129,28 @@ private final class TemplateListOutputSpy: SeatingTemplateModuleOutput {
 }
 
 private final class FetchCountingSeatingTemplateGateway: SeatingTemplateGatewayBase {
-    private var stored: [LayoutTemplateSnapshot] = []
-    private(set) var fetchAllCallCount = 0
+    private let inner = InMemorySeatingTemplateGateway()
+    private(set) var fetchSummariesCallCount = 0
 
-    override func fetchCount() throws -> Int { stored.count }
+    override func fetchCount() throws -> Int {
+        try inner.fetchCount()
+    }
 
-    override func fetchAll() throws -> [LayoutTemplateSnapshot] {
-        fetchAllCallCount += 1
-        return stored
+    override func fetchSummaries() throws -> [LayoutTemplateSummary] {
+        fetchSummariesCallCount += 1
+        return try inner.fetchSummaries()
+    }
+
+    override func fetch(id: SeatingTemplateID) throws -> LayoutTemplateSnapshot? {
+        try inner.fetch(id: id)
     }
 
     override func insert(name: String, tables: [TableTemplate], globalColumnCount: Int) throws {
-        stored.append(LayoutTemplateSnapshot(name: name, tables: tables, globalColumnCount: globalColumnCount))
+        try inner.insert(name: name, tables: tables, globalColumnCount: globalColumnCount)
+    }
+
+    override func delete(ids: [SeatingTemplateID]) throws {
+        try inner.delete(ids: ids)
     }
 }
 

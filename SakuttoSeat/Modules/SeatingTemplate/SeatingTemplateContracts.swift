@@ -4,6 +4,7 @@
 //
 //  refactor_templateListView.md Phase 2 / Phase 3（テンプレート一覧の子 VIPER モジュール）
 //  一覧・削除は子。保存・読込適用は親。View は ViewData.Row と Route のみ。
+//  一覧は Summary。fetchAll は使わない。
 //
 
 import Foundation
@@ -26,7 +27,7 @@ protocol SeatingTemplatePresenterProtocol: AnyObject {
 // MARK: - Presenter -> Interactor
 
 nonisolated protocol SeatingTemplateInteractorProtocol: AnyObject {
-    func allTemplates() throws -> [LayoutTemplateSnapshot]
+    func allTemplates() throws -> [LayoutTemplateSummary]
     func deleteTemplates(ids: [SeatingTemplateID]) throws
 }
 
