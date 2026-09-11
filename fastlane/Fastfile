@@ -73,11 +73,16 @@ platform :ios do
   # =========================================================================
 
   desc "TestFlight へビルドを配信する（ビルド番号のみ更新／Git 操作なし）"
-  lane :beta do
+  lane :beta do |options|
     api_key = fetch_api_key
 
-    # マーケティングバージョンは据え置き、ビルド番号だけを +1 する
-    increment_build_number(xcodeproj: XCODEPROJ)
+    # version: 指定時はマーケティングバージョンも更新する。
+    # 未指定ならビルド番号のみ +1。skip_increment:true は再試行用。
+    if options[:version]
+      bump_version(version: options[:version])
+    elsif !options[:skip_increment]
+      increment_build_number(xcodeproj: XCODEPROJ)
+    end
 
     ipa_path = build_signed_ipa(api_key: api_key)
 
@@ -161,11 +166,16 @@ platform :ios do
 
   desc "証明書・プロファイルを自動解決しつつ配布用 ipa をビルドする"
   private_lane :build_signed_ipa do |options|
-    # 【証明書取得】
-    # Xcode プロジェクトは「自動署名 (Automatic)」設定のまま変更しない。
-    # 代わりに xcodebuild へ API Key を渡し、-allowProvisioningUpdates によって
-    # 証明書とプロビジョニングプロファイルを Apple 側で自動発行・取得させる。
-    # archive と exportArchive の両方で認証が必要なため、双方に同じ引数を渡す。
+    # 【証明書・プロファイル】
+    # Xcode プロジェクトの自動署名は変更しない。export だけ sigh の
+    # App Store プロファイルを使う（クラウド署名の権限エラーを避ける）。
+    get_provisioning_profile(
+      api_key: options[:api_key],
+      app_identifier: CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier),
+      force: ENV["FORCE_PROFILE"].to_s == "1",
+      include_all_certificates: true
+    )
+
     signing_args = provisioning_xcargs(options[:api_key])
 
     # 【ビルド】scheme からアーカイブし、App Store 配布用に署名した ipa を書き出す
@@ -176,8 +186,9 @@ platform :ios do
       output_directory: OUTPUT_DIR,
       output_name: "#{SCHEME}.ipa",
       clean: true,
+      # gym は archive 用の xcargs を exportArchive にも引き継ぐ。
+      # ここに export_xcargs を重ねると引数が二重になり xcodebuild が exit 64 で落ちる。
       xcargs: signing_args,
-      export_xcargs: signing_args,
       export_options: {
         signingStyle: "automatic",
         teamID: CredentialsManager::AppfileConfig.try_fetch_value(:team_id)
