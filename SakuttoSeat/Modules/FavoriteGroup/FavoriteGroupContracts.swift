@@ -7,6 +7,7 @@
 //  refactor_favorite.md Phase 2 / Phase 3（ViewData / Route。Interactor 削除は ID 配列）
 //  refactor_groupFavorite.md Phase 2（子 Interactor の throws は persistenceFailed に限定）
 //  refactor_groupFavorite.md Phase 3（一覧は Summary。fetchAll は使わない）
+//  refactor_groupFavorite.md Phase 4（onAppear の再同期は不要。init で公開済み）
 //
 
 import Foundation

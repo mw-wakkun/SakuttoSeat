@@ -7,6 +7,7 @@
 //  refactor_favorite.md Phase 2 / Phase 3（ViewData.Row / route。削除は IndexSet → ID）
 //  refactor_groupFavorite.md Phase 2（FavoriteSaveError の非 persistenceFailed は明示 default）
 //  refactor_groupFavorite.md Phase 3（Builder は Summary を受ける）
+//  refactor_groupFavorite.md Phase 4（onAppear の再 fetch はやめる。init で公開済み）
 //
 
 import Combine
@@ -30,9 +31,8 @@ final class FavoriteGroupPresenter: ObservableObject, FavoriteGroupPresenterProt
     /// @MainActor クラスの isolated deinit 経路での解放不整合を避ける（親 AttendeeListPresenter と同じ）
     nonisolated deinit {}
 
-    func onAppear() {
-        publishState()
-    }
+    /// 一覧は init で公開済み。後差し廃止後の再 fetch はしない。
+    func onAppear() {}
 
     func didSelectGroup(id: FavoriteGroupID) {
         output?.favoriteGroupDidSelect(id: id)

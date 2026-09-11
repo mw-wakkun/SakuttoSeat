@@ -8,6 +8,7 @@
 //  refactor_favorite.md Phase 4（presentationDetents は Router 組み立て側）
 //  refactor_favorite.md Phase 5（SavedListRow / SheetChromeToolbar。編集中は選択しない）
 //  refactor_favorite.md Phase 6（閉じる / 編集 / 空状態の A11y。編集中は読み込み Hint を出さない）
+//  refactor_groupFavorite.md Phase 4（onAppear はフックのみ。再 fetch は Presenter init 済み）
 //  一覧・削除は Presenter → Interactor。選択結果は Output のみ。
 //  Gateway は親が assemble 時に同じインスタンスを渡す（子 View は ModelContext を持たない）。
 //
@@ -94,6 +95,7 @@ struct FavoriteGroupView: View {
             )
         }
         .onAppear {
+            // 一覧は Presenter init で公開済み。再 fetch はしない。
             presenter.onAppear()
         }
     }

@@ -5,10 +5,10 @@
 //  Created by masafumi wakugawa on 2026/05/05.
 //  refactor_AttendeeList.md Phase 6（DesignSystem / safeAreaInset / A11y / キーボード）
 //  refactor_Ad.md Phase 5（バナー余白は AdBannerContainer 内）
+//  refactor_groupFavorite.md Phase 4（View は ModelContext / Gateway を知らない）
 //
 
 import SwiftUI
-import SwiftData
 
 struct AttendeeListView: View {
     @StateObject var presenter: AttendeeListPresenter
@@ -17,10 +17,6 @@ struct AttendeeListView: View {
     /// 保存アラートの TextField 用（route が `.saveFavoritePrompt` のときだけ使う）
     @State private var groupName = ""
     @FocusState private var isTextFieldFocused: Bool
-
-    /// SwiftData の制約上、実 Gateway は初回 `onAppear` で渡す（SeatingChart と同じ過渡期）。
-    /// View は Entity / `@Query` を持たない。保持は Interactor。
-    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         NavigationStack {
@@ -68,7 +64,6 @@ struct AttendeeListView: View {
                 presenter.makeRouteSheet(route)
             }
             .onAppear {
-                presenter.attachFavoriteGateway(SwiftDataGroupFavoriteGateway(context: modelContext))
                 presenter.onAppear()
                 isTextFieldFocused = true
             }
@@ -345,7 +340,7 @@ private extension AttendeeListView {
 private enum AttendeeListPreviewSupport {
     @MainActor
     static func makePresenter() -> AttendeeListPresenter {
-        let interactor = AttendeeListInteractor()
+        let interactor = AttendeeListInteractor() // Preview は InMemory。実 SwiftData には触れない。
         _ = interactor.add(fromText: "太郎,花子,次郎")
         return AttendeeListPresenter(interactor: interactor, router: AttendeeListRouter())
     }

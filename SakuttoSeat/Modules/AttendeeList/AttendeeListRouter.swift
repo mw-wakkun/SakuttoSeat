@@ -6,17 +6,20 @@
 //  refactor_AttendeeList.md Phase 4 / Phase 5（遷移・提示・子モジュール組み立て）
 //  refactor_favorite.md Phase 3（お気に入り子は gatewayHolder から現行 Gateway を読む）
 //  refactor_favorite.md Phase 4（子 Presenter の組み立てとシート View を分離。キャッシュは親）
+//  refactor_groupFavorite.md Phase 4（assemble 時点で Gateway を注入。デフォルトは InMemory）
 //
 
 import SwiftUI
 
 final class AttendeeListRouter: AttendeeListRouterProtocol {
 
-    /// モジュールの初期組み立て（アプリ起動時などに使用）
+    /// モジュールの初期組み立て（アプリ起動時などに使用）。
+    /// 本番は App が SwiftData Gateway を渡す。Preview / テストはデフォルトの InMemory。
     @MainActor
-    static func assembleModule() -> some View {
-        // assemble 時点は In-Memory。実画面は View 初回 onAppear で SwiftData Gateway を渡す。
-        let interactor = AttendeeListInteractor()
+    static func assembleModule(
+        favoriteGateway: GroupFavoriteGatewayBase = InMemoryGroupFavoriteGateway()
+    ) -> some View {
+        let interactor = AttendeeListInteractor(favoriteGateway: favoriteGateway)
         let router = AttendeeListRouter()
         let presenter = AttendeeListPresenter(
             interactor: interactor,

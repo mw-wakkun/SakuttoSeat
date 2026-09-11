@@ -5,6 +5,7 @@
 //  refactor_AttendeeList.md Phase 2 / Phase 3 / Phase 4 / Phase 5（層間境界の明示）
 //  refactor_favorite.md Phase 3（親 Interactor から一覧・削除を外す。子組み立ては gatewayHolder）
 //  refactor_favorite.md Phase 4（お気に入りシートは Presenter 組み立てと View ラップを分離）
+//  refactor_groupFavorite.md Phase 4（PresenterProtocol から attachFavoriteGateway を外す）
 //
 
 import SwiftUI
@@ -34,9 +35,6 @@ protocol AttendeeListPresenterProtocol: AnyObject {
     func didTapSeatingChart()
     func didTapSimpleShuffle()
     func dismissRoute()
-
-    /// View は SwiftData の `ModelContext` だけを渡し、Gateway の保持は Interactor に委譲する。
-    func attachFavoriteGateway(_ gateway: GroupFavoriteGatewayBase)
 }
 
 // MARK: - Presenter -> Interactor
@@ -54,6 +52,7 @@ nonisolated protocol AttendeeListInteractorProtocol: AnyObject {
     func saveCurrentAsFavorite(named name: String) throws
     func loadFavorite(id: FavoriteGroupID) throws -> [Attendee]
 
+    /// テスト用の差し替え。本番は assemble 時に注入済み。View / PresenterProtocol からは呼ばない。
     func attachFavoriteGateway(_ gateway: GroupFavoriteGatewayBase)
 }
 

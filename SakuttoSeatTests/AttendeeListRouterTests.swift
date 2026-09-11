@@ -5,6 +5,7 @@
 //  refactor_AttendeeList.md Phase 4 / Phase 5
 //  refactor_favorite.md Phase 0（同一 Gateway インスタンスの受け渡しを断言）
 //  refactor_favorite.md Phase 4（Router はキャッシュしない。シート identity は親 Presenter）
+//  refactor_groupFavorite.md Phase 4（assembleModule は渡された Gateway を起動時点から使う）
 //  子モジュール生成と Output 結線を固定する。
 //
 
@@ -16,6 +17,12 @@ final class AttendeeListRouterTests: XCTestCase {
 
     func test_assembleModuleがエントリ画面を返す() {
         _ = AttendeeListRouter.assembleModule()
+    }
+
+    func test_assembleModuleは渡したGatewayでエントリ画面を返す() {
+        _ = AttendeeListRouter.assembleModule(
+            favoriteGateway: InMemoryGroupFavoriteGateway()
+        )
     }
 
     func test_座席表モジュールを組み立てる() {

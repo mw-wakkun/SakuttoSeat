@@ -9,6 +9,7 @@
 //  refactor_favorite.md Phase 6（閉じる / 編集 / 空状態の A11y Copy）
 //  refactor_groupFavorite.md Phase 2（memberSummary 断言は ViewData Builder）
 //  refactor_groupFavorite.md Phase 3（一覧は Summary。Gateway 直読みは fetchSummaries）
+//  refactor_groupFavorite.md Phase 4（onAppear は再 fetch しない。init で公開済み）
 //
 
 import XCTest
@@ -125,18 +126,28 @@ final class FavoriteGroupPresenterTests: XCTestCase {
         )
     }
 
-    func test_onAppearで一覧をViewDataのRowに公開する() throws {
+    func test_initで一覧をViewDataのRowに公開する() throws {
         let gateway = InMemoryGroupFavoriteGateway()
         try gateway.insert(name: "同期", members: ["太郎"])
         let output = OutputSpy()
         let presenter = makePresenter(gateway: gateway, output: output)
 
-        presenter.onAppear()
-
         XCTAssertEqual(presenter.viewData.rows.map(\.name), ["同期"])
         XCTAssertEqual(presenter.viewData.rows.map(\.memberSummary), ["太郎"])
         XCTAssertFalse(presenter.viewData.isEmpty)
         XCTAssertNil(presenter.route)
+    }
+
+    func test_onAppearはinitのあとに再fetchしない() throws {
+        let gateway = FetchCountingGroupFavoriteGateway()
+        try gateway.insert(name: "同期", members: ["太郎"])
+        let presenter = makePresenter(gateway: gateway, output: OutputSpy())
+        let countAfterInit = gateway.fetchSummariesCallCount
+
+        presenter.onAppear()
+
+        XCTAssertEqual(gateway.fetchSummariesCallCount, countAfterInit)
+        XCTAssertEqual(presenter.viewData.rows.map(\.name), ["同期"])
     }
 
     func test_空ならisEmptyになる() {
@@ -180,8 +191,6 @@ final class FavoriteGroupPresenterTests: XCTestCase {
             gateway: FailingFetchGroupFavoriteGateway(),
             output: OutputSpy()
         )
-
-        presenter.onAppear()
 
         XCTAssertTrue(presenter.viewData.isEmpty)
         XCTAssertTrue(presenter.viewData.rows.isEmpty)
@@ -348,5 +357,27 @@ private final class FailingDeleteGroupFavoriteGateway: GroupFavoriteGatewayBase 
             code: 1,
             userInfo: [NSLocalizedDescriptionKey: "削除に失敗しました"]
         )
+    }
+}
+
+private final class FetchCountingGroupFavoriteGateway: GroupFavoriteGatewayBase {
+    private var snapshots: [FavoriteGroupSnapshot] = []
+    private(set) var fetchSummariesCallCount = 0
+
+    override func fetchCount() throws -> Int { snapshots.count }
+
+    override func fetchSummaries() throws -> [FavoriteGroupSummary] {
+        fetchSummariesCallCount += 1
+        return snapshots.map {
+            FavoriteGroupSummary(
+                id: $0.id,
+                name: $0.name,
+                memberSummary: $0.memberNames.joined(separator: ", ")
+            )
+        }
+    }
+
+    override func insert(name: String, members: [String]) throws {
+        snapshots.append(FavoriteGroupSnapshot.persisted(name: name, memberNames: members))
     }
 }

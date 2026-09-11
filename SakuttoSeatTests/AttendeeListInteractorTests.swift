@@ -8,6 +8,7 @@
 //  refactor_groupFavorite.md Phase 0（空メンバー保存は拒まない現状を固定）
 //  refactor_groupFavorite.md Phase 2（保存結果の断言は name / memberNames。結合は ViewData）
 //  refactor_groupFavorite.md Phase 3（fetchAll は削除。詳細は fetch(id:)）
+//  refactor_groupFavorite.md Phase 4（assemble 注入の Gateway は attach / onAppear 前から使う）
 //
 
 import XCTest
@@ -306,6 +307,16 @@ final class AttendeeListInteractorTests: XCTestCase {
         }
     }
 
+    func test_initで渡したGatewayはattachなしで保存に使われる() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let interactor = AttendeeListInteractor(favoriteGateway: gateway)
+        _ = interactor.add(name: "A")
+
+        try interactor.saveCurrentAsFavorite(named: "起動直後")
+
+        XCTAssertEqual(try gateway.fetchSummaries().map(\.name), ["起動直後"])
+    }
+
     func test_attachFavoriteGatewayで永続化先を差し替える() throws {
         let first = InMemoryGroupFavoriteGateway()
         let second = InMemoryGroupFavoriteGateway()
@@ -318,6 +329,13 @@ final class AttendeeListInteractorTests: XCTestCase {
 
         XCTAssertEqual(try first.fetchSummaries().map(\.name), ["最初"])
         XCTAssertEqual(try second.fetchSummaries().map(\.name), ["差し替え後"])
+    }
+
+    func test_currentFavoriteGatewayはinitで渡したインスタンスを返す() {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let interactor = AttendeeListInteractor(favoriteGateway: gateway)
+
+        XCTAssertTrue(interactor.currentFavoriteGateway() === gateway)
     }
 
     func test_currentFavoriteGatewayはattachしたインスタンスを返す() {

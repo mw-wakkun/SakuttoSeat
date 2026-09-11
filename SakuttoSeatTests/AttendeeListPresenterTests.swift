@@ -5,6 +5,7 @@
 //  refactor_AttendeeList.md Phase 0 / Phase 1 / Phase 2 / Phase 3 / Phase 4 / Phase 5
 //  refactor_favorite.md Phase 0（お気に入りシートの Gateway 共有を断言）
 //  refactor_favorite.md Phase 4（シート期間中の子 Presenter identity）
+//  refactor_groupFavorite.md Phase 4（Gateway は Interactor init 注入。Protocol 経由 attach は無い）
 //  意図メソッド → ViewData / Route の契約を固定する。
 //
 
@@ -18,12 +19,20 @@ final class AttendeeListPresenterTests: XCTestCase {
         names: [String] = [],
         gateway: GroupFavoriteGatewayBase = InMemoryGroupFavoriteGateway()
     ) -> AttendeeListPresenter {
-        let interactor = AttendeeListInteractor()
+        makePresenter(
+            names: names,
+            interactor: AttendeeListInteractor(favoriteGateway: gateway)
+        )
+    }
+
+    private func makePresenter(
+        names: [String] = [],
+        interactor: AttendeeListInteractor
+    ) -> AttendeeListPresenter {
         if !names.isEmpty {
             _ = interactor.add(fromText: names.joined(separator: ","))
         }
         let presenter = AttendeeListPresenter(interactor: interactor, router: AttendeeListRouter())
-        presenter.attachFavoriteGateway(gateway)
         presenter.onAppear()
         return presenter
     }
@@ -361,14 +370,15 @@ final class AttendeeListPresenterTests: XCTestCase {
     func test_お気に入りシートを閉じたあとGateway差し替えで新しい子が読む() throws {
         let firstGateway = InMemoryGroupFavoriteGateway()
         try firstGateway.insert(name: "最初", members: ["A"])
-        let presenter = makePresenter(gateway: firstGateway)
+        let interactor = AttendeeListInteractor(favoriteGateway: firstGateway)
+        let presenter = makePresenter(interactor: interactor)
         presenter.didTapShowFavorites()
         XCTAssertEqual(presenter.favoriteGroupPresenter?.viewData.rows.map(\.name), ["最初"])
         presenter.dismissRoute()
 
         let secondGateway = InMemoryGroupFavoriteGateway()
         try secondGateway.insert(name: "差し替え後", members: ["B"])
-        presenter.attachFavoriteGateway(secondGateway)
+        interactor.attachFavoriteGateway(secondGateway)
         presenter.didTapShowFavorites()
 
         XCTAssertEqual(presenter.favoriteGroupPresenter?.viewData.rows.map(\.name), ["差し替え後"])

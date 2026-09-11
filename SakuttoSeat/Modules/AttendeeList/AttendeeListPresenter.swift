@@ -8,6 +8,7 @@
 //  お気に入り一覧・一括追加は子モジュール。選択／確定は Output で受ける。
 //  refactor_favorite.md Phase 3（シート組み立ては gatewayHolder。Presenter は Gateway 型を渡さない）
 //  refactor_favorite.md Phase 4（`.favoriteList` 期間中は子 Presenter を 1 度だけ保持）
+//  refactor_groupFavorite.md Phase 4（attach は Interactor のみ。PresenterProtocol からは外す）
 //
 
 import Combine
@@ -23,7 +24,7 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
 
     /// `.favoriteList` 期間中だけ保持する。
     /// `.sheet(item:)` の content 再評価で再 assemble すると子の alert / 編集中状態が消えるため。
-    /// `didTapShowFavorites` のたびに新規 assemble、閉じたら破棄（Gateway 差し替え後の stale を防ぐ）。
+    /// `didTapShowFavorites` のたびに新規 assemble、閉じたら破棄（テストの Gateway 差し替え後の stale を防ぐ）。
     private(set) var favoriteGroupPresenter: FavoriteGroupPresenter?
 
     init(interactor: AttendeeListInteractor, router: AttendeeListRouter) {
@@ -34,11 +35,6 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
 
     /// @MainActor クラスの isolated deinit 経路での解放不整合を避ける
     nonisolated deinit {}
-
-    func attachFavoriteGateway(_ gateway: GroupFavoriteGatewayBase) {
-        interactor.attachFavoriteGateway(gateway)
-        publishState()
-    }
 
     func onAppear() {
         publishState()

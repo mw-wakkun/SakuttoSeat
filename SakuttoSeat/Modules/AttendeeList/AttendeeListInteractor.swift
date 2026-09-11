@@ -5,6 +5,7 @@
 //  Created by masafumi wakugawa on 2026/05/05.
 //  refactor_AttendeeList.md Phase 3 / Phase 6（お気に入り永続化・一括置換。ユニーク名は O(n)）
 //  refactor_favorite.md Phase 3（保存・読込置換のみ。一覧・削除は子。load は fetch(id:)）
+//  refactor_groupFavorite.md Phase 4（本番 Gateway は assemble 時注入。attach はテスト用）
 //
 
 import Foundation
@@ -67,6 +68,7 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
 
     // MARK: - お気に入り
 
+    /// テスト用の差し替え。本番は assemble 時に注入済み。View 経路からは呼ばない。
     func attachFavoriteGateway(_ gateway: GroupFavoriteGatewayBase) {
         favoriteGateway = gateway
     }

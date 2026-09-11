@@ -25,7 +25,7 @@
 | 1 | 配置・命名の固定（偽モジュール解消。型名は変えない） | ✅ 完了（2026-09-11） |
 | 2 | Entity / `@Model` の純化（Snapshot・init・表示結合） | ✅ 完了（2026-09-11） |
 | 3 | Gateway の性能と API 分割（一括削除・一覧/詳細） | ✅ 完了（2026-09-11） |
-| 4 | App 注入で View から SwiftData を排除 | 未着手 |
+| 4 | App 注入で View から SwiftData を排除 | ✅ 完了（2026-09-11） |
 | 5 | テストダブル共通化・デッド API・仕上げ | 未着手 |
 
 回帰基準: 既存 `FavoriteGroupTests` + `AttendeeListInteractorTests` のお気に入り系 +
@@ -590,6 +590,21 @@ Gateway 専用 DTO を Core に増やすと型がまた分裂する。
   実機/シミュレータで保存 → 一覧 → 選択置換 → キル後も残る。
 - リスク: 中。`mainContext` と Environment のコンテナ不一致、プレビューのクラッシュ。
   座席表のテンプレ attach は残るので、App は `.modelContainer` を引き続き付ける。
+
+実装時の決定（2026-09-11）:
+
+- App が `ModelContainer` を保持し、`SwiftDataGroupFavoriteGateway(context: container.mainContext)` を
+  `AttendeeListRouter.assembleModule(favoriteGateway:)` へ渡す。`.modelContainer(modelContainer)` も
+  同一コンテナ（座席表テンプレの Environment attach が残るため）。
+- `assembleModule` のデフォルト引数は InMemory。Preview / テストは実 SwiftData に触れない。
+- `AttendeeListView` から `import SwiftData`、`modelContext`、`attachFavoriteGateway` を削除。
+  `onAppear` はフォーカスと `presenter.onAppear()`（参加者 ViewData）だけ。
+- PresenterProtocol / 具象 Presenter から `attachFavoriteGateway` を削除。
+  Interactor の attach はテスト用に残す（FavoriteGroup 子と同じ）。本番 View 経路からは呼ばない。
+- テストの Gateway 差し替えは Interactor init / `interactor.attachFavoriteGateway`。
+- 子シートの Gateway 共有は現状どおり `currentFavoriteGateway()`。
+- 子 Presenter の `onAppear` 再 `publishState` はやめた（init で公開済み）。View のフックは残す。
+- 起動直後の保存が InMemory に逃げないことは Interactor の init 注入テストで固定。
 
 ### Phase 5: テストダブル共通化・デッド API・仕上げ（0.5 日）
 
