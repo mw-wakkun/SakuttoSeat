@@ -16,6 +16,8 @@ struct SeatingChartView: View {
 
     private let scrollAnchorTopID = "SeatingChartScrollTop"
     private let scrollBottomBreathingRoom: CGFloat = 32
+    /// 横 ScrollView は内容の理想高さを返さないことがある。定員が増えたテーブルが重ならないよう実測する。
+    @State private var canvasContentHeight: CGFloat = 0
 
     var body: some View {
         ScrollViewReader { scrollProxy in
@@ -68,7 +70,7 @@ struct SeatingChartView: View {
                                             .frame(maxWidth: .infinity)
                                     }
                                 }
-                                .frame(maxWidth: .infinity, alignment: .center)
+                                .frame(maxWidth: .infinity, alignment: .top)
                             }
                         }
                         .padding(.top, 8)
@@ -78,8 +80,18 @@ struct SeatingChartView: View {
                             max(length, presenter.viewData.minGridWidth)
                         }
                     }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .background {
+                        GeometryReader { proxy in
+                            Color.clear.preference(
+                                key: CanvasContentHeightKey.self,
+                                value: proxy.size.height
+                            )
+                        }
+                    }
                 }
-                .fixedSize(horizontal: false, vertical: true)
+                .onPreferenceChange(CanvasContentHeightKey.self) { canvasContentHeight = $0 }
+                .frame(height: canvasContentHeight > 0 ? canvasContentHeight : nil, alignment: .top)
                 .padding(.bottom, scrollBottomBreathingRoom)
             }
             .onChange(of: presenter.canvasEvent) { _, event in
@@ -242,6 +254,14 @@ extension SeatingChartView {
                 .shadow(color: .black.opacity(0.05), radius: 3, y: -3)
                 .ignoresSafeArea(edges: .bottom)
         )
+    }
+}
+
+private struct CanvasContentHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 

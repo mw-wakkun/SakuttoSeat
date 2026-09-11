@@ -44,6 +44,28 @@ final class SeatGridLayoutTests: XCTestCase {
         return renderer.uiImage?.size
     }
 
+    private func makeTableView(capacity: Int, columnCount: Int) -> SeatingTableView {
+        let table = SeatingTable(
+            name: "テーブルA",
+            capacity: capacity,
+            columnCount: columnCount,
+            assignedMembers: (0..<capacity).map { index in
+                SeatingMember(id: UUID(), name: "\(index + 1)")
+            }
+        )
+        return SeatingTableView(
+            table: SeatingChartViewDataBuilder.makeTableViewData(from: table),
+            onEditTarget: {},
+            onTapSeat: { _ in }
+        )
+    }
+
+    private func renderedSize(of view: some View) -> CGSize? {
+        let renderer = ImageRenderer(content: view)
+        renderer.proposedSize = ProposedViewSize(width: 180, height: nil)
+        return renderer.uiImage?.size
+    }
+
     func test_列数が少ないほど行数が増えて高さが伸びる() throws {
         let twoColumns = try XCTUnwrap(renderedSize(slotCount: 4, columnCount: 2, proposedWidth: 200))
         let fourColumns = try XCTUnwrap(renderedSize(slotCount: 4, columnCount: 4, proposedWidth: 200))
@@ -84,6 +106,38 @@ final class SeatGridLayoutTests: XCTestCase {
 
         // テーブルごとの横幅を揃えるため、端数の行があっても幅は変わらない
         XCTAssertEqual(full.width, partial.width, accuracy: 1.0)
+    }
+
+    func test_定員10名2列は定員4名2列より明らかに高い() throws {
+        let fourSeats = try XCTUnwrap(renderedSize(slotCount: 4, columnCount: 2, proposedWidth: 200))
+        let tenSeats = try XCTUnwrap(renderedSize(slotCount: 10, columnCount: 2, proposedWidth: 200))
+
+        // 2列なら 4 席は 2 行、10 席は 5 行。親が 2 行ぶんの高さしか取らないとテーブルが重なる
+        XCTAssertGreaterThan(tenSeats.height, fourSeats.height * 2)
+    }
+
+    func test_幅提案が極端に小さくても定員10名2列の高さは潰れない() throws {
+        let normal = try XCTUnwrap(renderedSize(slotCount: 10, columnCount: 2, proposedWidth: 200))
+        let tiny = try XCTUnwrap(renderedSize(slotCount: 10, columnCount: 2, proposedWidth: 1))
+
+        XCTAssertEqual(tiny.height, normal.height, accuracy: 8)
+        XCTAssertGreaterThan(tiny.height, 200)
+    }
+
+    func test_定員10名2列のテーブルを2段重ねても重ならない() throws {
+        let table = makeTableView(capacity: 10, columnCount: 2)
+        let one = renderedSize(of: table.frame(width: 180))
+        let stacked = renderedSize(
+            of: VStack(alignment: .leading, spacing: 16) {
+                table.frame(width: 180)
+                table.frame(width: 180)
+            }
+        )
+
+        let oneHeight = try XCTUnwrap(one?.height)
+        let stackedHeight = try XCTUnwrap(stacked?.height)
+
+        XCTAssertEqual(stackedHeight, oneHeight * 2 + 16, accuracy: 24)
     }
 
     func test_座席が空でも描画が破綻しない() {

@@ -117,6 +117,7 @@ struct SeatingTableView: View {
                     seatGrid(seats: table.seats, columnCount: columnCount, minCellWidth: 0)
                 }
             }
+            .fixedSize(horizontal: false, vertical: true)
             .animation(.spring(response: 0.6, dampingFraction: 0.8), value: table.seats)
         }
         .padding(15)

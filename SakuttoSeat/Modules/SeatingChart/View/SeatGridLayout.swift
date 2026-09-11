@@ -31,24 +31,33 @@ struct SeatGridLayout: Layout {
     /// 1座席あたりの幅
     private func cellWidth(proposal: ProposedViewSize, subviews: Subviews) -> CGFloat {
         let totalSpacing = horizontalSpacing * CGFloat(columns - 1)
-
-        if let proposedWidth = proposal.width, proposedWidth > 0 {
-            return max(minCellWidth, (proposedWidth - totalSpacing) / CGFloat(columns))
-        }
-
-        // 幅の提案がない場合は、最も広い座席の理想幅にそろえる
         let idealWidth = subviews
             .map { $0.sizeThatFits(.unspecified).width }
             .max() ?? 0
-        return max(minCellWidth, idealWidth)
+        let floorWidth = max(minCellWidth, idealWidth)
+
+        guard let proposedWidth = proposal.width, proposedWidth.isFinite, proposedWidth > 0 else {
+            return floorWidth
+        }
+
+        let fromProposal = (proposedWidth - totalSpacing) / CGFloat(columns)
+        // 1pt 未満の提案幅は「未指定」と同じ。狭い幅で測ると座席の高さが潰れ、
+        // 親が過小な高さで配置してテーブル同士が重なる。
+        guard fromProposal >= 1 else { return floorWidth }
+        return max(minCellWidth, fromProposal)
     }
 
     /// 行ごとの高さ（その行で最も高い座席に合わせる）
+    ///
+    /// 高さは幅にほぼ依存しない（アイコン + 1行ラベル）。極端に狭い `cellWidth` で測ると
+    /// 高さが 0 に潰れ、`sizeThatFits` と `placeSubviews` が食い違う。
     private func rowHeights(cellWidth: CGFloat, subviews: Subviews) -> [CGFloat] {
-        stride(from: 0, to: subviews.count, by: columns).map { start in
+        let measureWidth = cellWidth >= 44 ? cellWidth : nil
+        let measureSize = ProposedViewSize(width: measureWidth, height: nil)
+        return stride(from: 0, to: subviews.count, by: columns).map { start in
             let end = min(start + columns, subviews.count)
             return (start..<end)
-                .map { subviews[$0].sizeThatFits(ProposedViewSize(width: cellWidth, height: nil)).height }
+                .map { subviews[$0].sizeThatFits(measureSize).height }
                 .max() ?? 0
         }
     }
@@ -69,7 +78,11 @@ struct SeatGridLayout: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         guard !subviews.isEmpty else { return }
 
-        let width = cellWidth(proposal: proposal, subviews: subviews)
+        // 配置は実際に割り当てられた bounds に合わせる（proposal 幅と bounds 幅がずれると溢れる）
+        let width = cellWidth(
+            proposal: ProposedViewSize(width: bounds.width, height: bounds.height),
+            subviews: subviews
+        )
         let heights = rowHeights(cellWidth: width, subviews: subviews)
 
         var y = bounds.minY

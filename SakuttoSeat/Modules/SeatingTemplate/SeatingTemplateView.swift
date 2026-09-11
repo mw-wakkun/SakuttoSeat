@@ -3,9 +3,10 @@
 //  SakuttoSeat
 //
 //  refactor_templateListView.md Phase 2（テンプレート一覧の子 VIPER）
+//  refactor_templateListView.md Phase 5（EmptyStateView / SavedListRow / SheetChromeToolbar / .plain。
+//    行は素の SavedListRow。A11y Hint の対訳は Phase 6）
 //  一覧・削除は Presenter → Interactor。選択結果は Output のみ。
 //  View は ViewData.Row と route のみ。Gateway は親が assemble 時に同じインスタンスを渡す。
-//  A11y Hint の対訳は Phase 6。
 //
 
 import SwiftUI
@@ -121,22 +122,27 @@ private extension SeatingTemplateView {
 }
 
 #if DEBUG
+extension SeatingTemplateView {
+    /// Preview 用。編集モードの見た目を FavoriteGroup と並置して確認する。
+    init(presenter: SeatingTemplatePresenter, previewEditMode: EditMode) {
+        _presenter = StateObject(wrappedValue: presenter)
+        _editMode = State(initialValue: previewEditMode)
+    }
+}
+
 @MainActor
 private enum SeatingTemplatePreviewFactory {
-    static func makePresenter(populated: Bool) -> SeatingTemplatePresenter {
+    static func makePresenter(populatedCount: Int) -> SeatingTemplatePresenter {
         let gateway = InMemorySeatingTemplateGateway()
-        if populated {
+        let samples: [(name: String, tables: [TableTemplate])] = [
+            ("宴会場", [makeTable(name: "受付卓")]),
+            ("教室", [makeTable(name: "前列"), makeTable(name: "後列")]),
+            ("カフェ", [])
+        ]
+        for sample in samples.prefix(max(0, populatedCount)) {
             try? gateway.insert(
-                name: "宴会場",
-                tables: [
-                    TableTemplate(
-                        name: "受付卓",
-                        capacity: 3,
-                        columnCount: 3,
-                        layoutDirection: .left,
-                        layoutText: "入り口側"
-                    )
-                ],
+                name: sample.name,
+                tables: sample.tables,
                 globalColumnCount: 2
             )
         }
@@ -145,13 +151,34 @@ private enum SeatingTemplatePreviewFactory {
             output: nil
         )
     }
-}
 
-#Preview("テンプレート読込") {
-    SeatingTemplateView(presenter: SeatingTemplatePreviewFactory.makePresenter(populated: true))
+    private static func makeTable(name: String) -> TableTemplate {
+        TableTemplate(
+            name: name,
+            capacity: 3,
+            columnCount: 3,
+            layoutDirection: .left,
+            layoutText: "入り口側"
+        )
+    }
 }
 
 #Preview("テンプレート読込（空）") {
-    SeatingTemplateView(presenter: SeatingTemplatePreviewFactory.makePresenter(populated: false))
+    SeatingTemplateView(presenter: SeatingTemplatePreviewFactory.makePresenter(populatedCount: 0))
+}
+
+#Preview("テンプレート読込（1件）") {
+    SeatingTemplateView(presenter: SeatingTemplatePreviewFactory.makePresenter(populatedCount: 1))
+}
+
+#Preview("テンプレート読込（3件）") {
+    SeatingTemplateView(presenter: SeatingTemplatePreviewFactory.makePresenter(populatedCount: 3))
+}
+
+#Preview("テンプレート読込（編集）") {
+    SeatingTemplateView(
+        presenter: SeatingTemplatePreviewFactory.makePresenter(populatedCount: 3),
+        previewEditMode: .active
+    )
 }
 #endif

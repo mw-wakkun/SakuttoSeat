@@ -3,7 +3,8 @@
 //  SakuttoSeat
 //
 //  refactor_templateListView.md Phase 2（Copy と表示専用モデル。Entity / `@Model` はここに現れない）
-//  文言自体は変えない。A11y Hint の対訳は Phase 6。
+//  refactor_templateListView.md Phase 5（行は件数ラベルのみ。A11y Hint の対訳は Phase 6）
+//  文言自体は変えない。
 //
 
 import Foundation
