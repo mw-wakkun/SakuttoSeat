@@ -4,7 +4,8 @@
 //
 //  refactor_seating.md Phase 4（遷移・提示・子モジュール組み立て）
 //  Phase 5（共有・広告の提示は Share モジュールへ移管し、ここは子モジュール組立に専念）
-//  refactor_templateListView.md Phase 2（テンプレート一覧は子 VIPER に委譲。identity は Phase 4）
+//  refactor_templateListView.md Phase 3（テンプレート子は gatewayHolder から現行 Gateway を読む）
+//  シート identity は Phase 4。この時点では毎回 assemble する。
 //
 
 import SwiftUI
@@ -44,10 +45,29 @@ final class SeatingChartRouter: SeatingChartRouterProtocol {
     }
 
     @MainActor
+    func makeTemplateListPresenter(
+        gatewayHolder: SeatingChartInteractor,
+        output: (any SeatingTemplateModuleOutput)?
+    ) -> SeatingTemplatePresenter {
+        SeatingTemplateRouter.assemblePresenter(
+            gateway: gatewayHolder.currentTemplateGateway(),
+            output: output
+        )
+    }
+
+    @MainActor
+    func makeTemplateListSheet(presenter: SeatingTemplatePresenter) -> AnyView {
+        SeatingTemplateRouter.assembleView(presenter: presenter)
+    }
+
+    @MainActor
     func makeTemplateListModule(
-        gateway: SeatingTemplateGatewayBase,
+        gatewayHolder: SeatingChartInteractor,
         output: (any SeatingTemplateModuleOutput)?
     ) -> AnyView {
-        SeatingTemplateRouter.assembleModule(gateway: gateway, output: output)
+        SeatingTemplateRouter.assembleModule(
+            gateway: gatewayHolder.currentTemplateGateway(),
+            output: output
+        )
     }
 }

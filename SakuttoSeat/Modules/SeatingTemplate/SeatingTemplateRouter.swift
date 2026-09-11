@@ -2,7 +2,7 @@
 //  SeatingTemplateRouter.swift
 //  SakuttoSeat
 //
-//  refactor_templateListView.md Phase 2（子モジュールの組み立て）
+//  refactor_templateListView.md Phase 2 / Phase 3（子モジュールの組み立て）
 //  親が assemble 時に同じ Gateway インスタンスを渡す（子 View は ModelContext を持たない）。
 //  シート identity は Phase 4。この時点では毎回 assemble する。
 //

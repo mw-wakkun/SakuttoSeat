@@ -127,19 +127,17 @@ private enum SeatingTemplatePreviewFactory {
         let gateway = InMemorySeatingTemplateGateway()
         if populated {
             try? gateway.insert(
-                SeatingLayoutTemplate(
-                    name: "宴会場",
-                    tables: [
-                        TableTemplate(
-                            name: "受付卓",
-                            capacity: 3,
-                            columnCount: 3,
-                            layoutDirection: .left,
-                            layoutText: "入り口側"
-                        )
-                    ],
-                    globalColumnCount: 2
-                )
+                name: "宴会場",
+                tables: [
+                    TableTemplate(
+                        name: "受付卓",
+                        capacity: 3,
+                        columnCount: 3,
+                        layoutDirection: .left,
+                        layoutText: "入り口側"
+                    )
+                ],
+                globalColumnCount: 2
             )
         }
         return SeatingTemplatePresenter(

@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/06.
+//  refactor_templateListView.md Phase 3（保存・読込適用は Snapshot / ID。@Model は Gateway 内）
 //
 
 import Foundation
@@ -249,13 +250,12 @@ nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
             throw TemplateSaveError.invalidName
         }
 
-        let template = SeatingLayoutTemplate(
-            name: snapshot.name,
-            tables: snapshot.tables,
-            globalColumnCount: snapshot.globalColumnCount
-        )
         do {
-            try templateGateway.insert(template)
+            try templateGateway.insert(
+                name: snapshot.name,
+                tables: snapshot.tables,
+                globalColumnCount: snapshot.globalColumnCount
+            )
         } catch {
             throw TemplateSaveError.persistenceFailed(message: error.localizedDescription)
         }
@@ -308,25 +308,18 @@ nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
 
     @discardableResult
     func loadAndApplyTemplate(id: SeatingTemplateID) throws -> [SeatingTable] {
-        let template: SeatingLayoutTemplate?
+        let snapshot: LayoutTemplateSnapshot?
         do {
-            template = try templateGateway.fetch(id: id)
+            snapshot = try templateGateway.fetch(id: id)
         } catch {
             throw TemplateSaveError.persistenceFailed(message: error.localizedDescription)
         }
 
-        guard let template else {
+        guard let snapshot else {
             throw TemplateSaveError.notFound
         }
 
-        return applyTemplate(
-            LayoutTemplateSnapshot(
-                id: template.id,
-                name: template.name,
-                tables: template.tables,
-                globalColumnCount: template.globalColumnCount
-            )
-        )
+        return applyTemplate(snapshot)
     }
 
     // MARK: - テーブル名

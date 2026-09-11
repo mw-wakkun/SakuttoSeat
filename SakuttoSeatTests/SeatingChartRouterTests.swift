@@ -2,8 +2,9 @@
 //  SeatingChartRouterTests.swift
 //  SakuttoSeatTests
 //
-//  refactor_templateListView.md Phase 0 / Phase 2
-//  テンプレート一覧は子 VIPER に委譲する。シート identity は Phase 4。
+//  refactor_templateListView.md Phase 0 / Phase 2 / Phase 3
+//  テンプレート一覧は子 VIPER に委譲する。Gateway は gatewayHolder から読む。
+//  シート identity は Phase 4。
 //
 
 import SwiftUI
@@ -18,7 +19,7 @@ final class SeatingChartRouterTests: XCTestCase {
         let output = TemplateListOutputSpy()
 
         let sheet = router.makeTemplateListModule(
-            gateway: InMemorySeatingTemplateGateway(),
+            gatewayHolder: SeatingChartInteractor(),
             output: output
         )
 
@@ -30,33 +31,46 @@ final class SeatingChartRouterTests: XCTestCase {
 
     func test_RouterProtocol経由でもテンプレート一覧を組み立てる() {
         let router: any SeatingChartRouterProtocol = SeatingChartRouter()
+        let gatewayHolder = SeatingChartInteractor()
 
         let sheet = router.makeTemplateListModule(
-            gateway: InMemorySeatingTemplateGateway(),
+            gatewayHolder: gatewayHolder,
             output: TemplateListOutputSpy()
         )
 
         XCTAssertTrue(viewTreeContainsTypeName(sheet, "SeatingTemplateView"))
+        _ = router.makeTemplateListPresenter(
+            gatewayHolder: gatewayHolder,
+            output: TemplateListOutputSpy()
+        )
+        _ = router.makeTemplateListSheet(
+            presenter: SeatingTemplateRouter.assemblePresenter(output: nil)
+        )
     }
 
     func test_同じoutputで2回makeしても組み立てられる() {
         let router = SeatingChartRouter()
-        let gateway = InMemorySeatingTemplateGateway()
+        let gatewayHolder = SeatingChartInteractor()
         let output = TemplateListOutputSpy()
 
-        _ = router.makeTemplateListModule(gateway: gateway, output: output)
-        _ = router.makeTemplateListModule(gateway: gateway, output: output)
+        _ = router.makeTemplateListModule(gatewayHolder: gatewayHolder, output: output)
+        _ = router.makeTemplateListModule(gatewayHolder: gatewayHolder, output: output)
+        _ = router.makeTemplateListPresenter(gatewayHolder: gatewayHolder, output: output)
+        _ = router.makeTemplateListPresenter(gatewayHolder: gatewayHolder, output: output)
     }
 
     func test_一覧組み立ては渡したGatewayインスタンスから一覧を読む() throws {
         let gateway = FetchCountingSeatingTemplateGateway()
-        try gateway.insert(
-            SeatingLayoutTemplate(name: "共有", tables: [], globalColumnCount: 2)
-        )
+        try gateway.insert(name: "共有", tables: [], globalColumnCount: 2)
         XCTAssertEqual(gateway.fetchAllCallCount, 0)
+        let gatewayHolder = SeatingChartInteractor(templateGateway: gateway)
 
         _ = SeatingChartRouter().makeTemplateListModule(
-            gateway: gateway,
+            gatewayHolder: gatewayHolder,
+            output: TemplateListOutputSpy()
+        )
+        _ = SeatingChartRouter().makeTemplateListPresenter(
+            gatewayHolder: gatewayHolder,
             output: TemplateListOutputSpy()
         )
         _ = SeatingTemplateRouter.assembleModule(
@@ -64,7 +78,15 @@ final class SeatingChartRouterTests: XCTestCase {
             output: TemplateListOutputSpy()
         )
 
-        XCTAssertGreaterThanOrEqual(gateway.fetchAllCallCount, 2)
+        XCTAssertGreaterThanOrEqual(gateway.fetchAllCallCount, 3)
+    }
+
+    func test_makeTemplateListSheetはSeatingTemplateViewを包む() {
+        let presenter = SeatingTemplateRouter.assemblePresenter(output: nil)
+
+        let sheet = SeatingChartRouter().makeTemplateListSheet(presenter: presenter)
+
+        XCTAssertTrue(viewTreeContainsTypeName(sheet, "SeatingTemplateView"))
     }
 }
 
@@ -83,18 +105,18 @@ private final class TemplateListOutputSpy: SeatingTemplateModuleOutput {
 }
 
 private final class FetchCountingSeatingTemplateGateway: SeatingTemplateGatewayBase {
-    private var stored: [SeatingLayoutTemplate] = []
+    private var stored: [LayoutTemplateSnapshot] = []
     private(set) var fetchAllCallCount = 0
 
     override func fetchCount() throws -> Int { stored.count }
 
-    override func fetchAll() throws -> [SeatingLayoutTemplate] {
+    override func fetchAll() throws -> [LayoutTemplateSnapshot] {
         fetchAllCallCount += 1
         return stored
     }
 
-    override func insert(_ template: SeatingLayoutTemplate) throws {
-        stored.append(template)
+    override func insert(name: String, tables: [TableTemplate], globalColumnCount: Int) throws {
+        stored.append(LayoutTemplateSnapshot(name: name, tables: tables, globalColumnCount: globalColumnCount))
     }
 }
 

@@ -3,6 +3,7 @@
 //  SakuttoSeatTests
 //
 //  refactor_seating.md Phase 2 / 3（ViewData / Route の回帰）
+//  refactor_templateListView.md Phase 3（テンプレート適用は ID。Gateway は Snapshot insert）
 //
 
 import XCTest
@@ -106,7 +107,7 @@ final class SeatingChartViewDataTests: XCTestCase {
         let gateway = InMemorySeatingTemplateGateway()
         let presenter = makePresenter(names: ["A", "B", "C", "D", "E", "F"], templateGateway: gateway)
         let originalIDs = tableIDs(in: presenter.viewData)
-        let template = SeatingLayoutTemplate(
+        try gateway.insert(
             name: "宴会場",
             tables: [
                 TableTemplate(name: "受付卓", capacity: 3, columnCount: 3, layoutDirection: .left, layoutText: "入り口側"),
@@ -114,9 +115,9 @@ final class SeatingChartViewDataTests: XCTestCase {
             ],
             globalColumnCount: 4
         )
-        try gateway.insert(template)
+        let id = try XCTUnwrap(gateway.fetchAll().first?.id)
 
-        presenter.templateListDidSelect(id: template.id)
+        presenter.templateListDidSelect(id: id)
 
         XCTAssertEqual(tableIDs(in: presenter.viewData), originalIDs)
     }
@@ -124,7 +125,7 @@ final class SeatingChartViewDataTests: XCTestCase {
     func test_didSelectTemplate_会場列数もViewDataに反映される() throws {
         let gateway = InMemorySeatingTemplateGateway()
         let presenter = makePresenter(names: ["A", "B", "C", "D", "E", "F"], templateGateway: gateway)
-        let template = SeatingLayoutTemplate(
+        try gateway.insert(
             name: "宴会場",
             tables: [
                 TableTemplate(name: "受付卓", capacity: 3, columnCount: 3, layoutDirection: .left, layoutText: "入り口側"),
@@ -132,9 +133,9 @@ final class SeatingChartViewDataTests: XCTestCase {
             ],
             globalColumnCount: 4
         )
-        try gateway.insert(template)
+        let id = try XCTUnwrap(gateway.fetchAll().first?.id)
 
-        presenter.templateListDidSelect(id: template.id)
+        presenter.templateListDidSelect(id: id)
 
         XCTAssertEqual(presenter.globalColumnCount, 4)
         XCTAssertEqual(presenter.viewData.globalColumnCount, 4)
@@ -144,9 +145,7 @@ final class SeatingChartViewDataTests: XCTestCase {
     func test_didTapSaveTemplate_上限到達ならテンプレート上限アラートになる() throws {
         let gateway = InMemorySeatingTemplateGateway()
         for index in 1...FeatureLimit.freeTemplateCount {
-            try gateway.insert(
-                SeatingLayoutTemplate(name: "既存\(index)", tables: [], globalColumnCount: 2)
-            )
+            try gateway.insert(name: "既存\(index)", tables: [], globalColumnCount: 2)
         }
         let presenter = SeatingChartPresenter(
             interactor: SeatingChartInteractor(

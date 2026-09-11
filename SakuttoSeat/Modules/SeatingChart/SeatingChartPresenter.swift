@@ -3,7 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_seating.md Phase 4 / Phase 5
-//  refactor_templateListView.md Phase 2（一覧は子 VIPER。選択は ID。閉じるは Output）
+//  refactor_templateListView.md Phase 3（シート組み立ては gatewayHolder。Presenter は Gateway 型を渡さない）
 //
 
 import Combine
@@ -129,7 +129,7 @@ final class SeatingChartPresenter: ObservableObject, SeatingChartPresenterProtoc
             )
         case .templateList:
             return router.makeTemplateListModule(
-                gateway: interactor.currentTemplateGateway(),
+                gatewayHolder: interactor,
                 output: self
             )
         case .saveTemplatePrompt, .alert:

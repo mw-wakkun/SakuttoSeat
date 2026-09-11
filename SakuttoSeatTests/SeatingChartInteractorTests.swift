@@ -3,7 +3,7 @@
 //  SakuttoSeatTests
 //
 //  refactor_seating.md Phase 3（Presenter から移送したドメインロジックの回帰）
-//  refactor_templateListView.md Phase 0（attachTemplateGateway の差し替えを固定）
+//  refactor_templateListView.md Phase 0 / Phase 3（attachTemplateGateway の差し替えを固定。保存は Snapshot insert）
 //
 
 import XCTest
@@ -525,7 +525,7 @@ final class SeatingChartInteractorTests: XCTestCase {
         let gateway = InMemorySeatingTemplateGateway()
         let attendees = makeAttendees(["A", "B", "C", "D", "E", "F"])
         let interactor = SeatingChartInteractor(attendees: attendees, templateGateway: gateway)
-        let template = SeatingLayoutTemplate(
+        try gateway.insert(
             name: "宴会場",
             tables: [
                 TableTemplate(name: "受付卓", capacity: 3, columnCount: 3, layoutDirection: .left, layoutText: "入り口側"),
@@ -533,9 +533,9 @@ final class SeatingChartInteractorTests: XCTestCase {
             ],
             globalColumnCount: 4
         )
-        try gateway.insert(template)
+        let id = try XCTUnwrap(gateway.fetchAll().first?.id)
 
-        let tables = try interactor.loadAndApplyTemplate(id: template.id)
+        let tables = try interactor.loadAndApplyTemplate(id: id)
 
         XCTAssertEqual(interactor.currentVenueSettings().globalColumnCount, 4)
         XCTAssertEqual(tables.map(\.name), ["受付卓", "奥卓"])
@@ -598,14 +598,14 @@ final class SeatingChartInteractorTests: XCTestCase {
         let first = InMemorySeatingTemplateGateway()
         let interactor = makeInteractor(names: ["A"], templateGateway: first)
         try interactor.saveCurrentLayoutAsTemplate(named: "最初")
-        XCTAssertEqual(first.templates.map(\.name), ["最初"])
+        XCTAssertEqual(try first.fetchAll().map(\.name), ["最初"])
 
         let second = InMemorySeatingTemplateGateway()
         interactor.attachTemplateGateway(second)
         try interactor.saveCurrentLayoutAsTemplate(named: "差し替え後")
 
-        XCTAssertEqual(first.templates.map(\.name), ["最初"])
-        XCTAssertEqual(second.templates.map(\.name), ["差し替え後"])
+        XCTAssertEqual(try first.fetchAll().map(\.name), ["最初"])
+        XCTAssertEqual(try second.fetchAll().map(\.name), ["差し替え後"])
     }
 
     func test_currentTemplateGatewayはattachしたインスタンスを返す() {

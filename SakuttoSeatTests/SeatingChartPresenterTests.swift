@@ -3,7 +3,7 @@
 //  SakuttoSeatTests
 //
 //  refactor_seating.md Phase 4（Gateway / Router 仲介の回帰）
-//  refactor_templateListView.md Phase 0 / Phase 2（TemplateList Output は ID。cancel は閉じるから接続）
+//  refactor_templateListView.md Phase 0 / Phase 2 / Phase 3（TemplateList Output は ID。cancel は閉じるから接続）
 //
 
 import XCTest
@@ -68,7 +68,7 @@ final class SeatingChartPresenterTests: XCTestCase {
     func test_テンプレート適用で会場列数がViewDataに反映され先頭へスクロールする() throws {
         let gateway = InMemorySeatingTemplateGateway()
         let presenter = makePresenter(names: ["A", "B", "C", "D", "E", "F"], templateGateway: gateway)
-        let template = SeatingLayoutTemplate(
+        try gateway.insert(
             name: "宴会場",
             tables: [
                 TableTemplate(name: "受付卓", capacity: 3, columnCount: 3, layoutDirection: .left, layoutText: "入り口側"),
@@ -76,10 +76,10 @@ final class SeatingChartPresenterTests: XCTestCase {
             ],
             globalColumnCount: 4
         )
-        try gateway.insert(template)
+        let id = try XCTUnwrap(gateway.fetchAll().first?.id)
         presenter.didTapLoadTemplate()
 
-        presenter.templateListDidSelect(id: template.id)
+        presenter.templateListDidSelect(id: id)
 
         XCTAssertEqual(presenter.globalColumnCount, 4)
         XCTAssertEqual(presenter.viewData.globalColumnCount, 4)
@@ -99,7 +99,7 @@ final class SeatingChartPresenterTests: XCTestCase {
         presenter.didConfirmSaveTemplate(name: "1件目")
         presenter.didConfirmSaveTemplate(name: "2件目")
         presenter.didConfirmSaveTemplate(name: "3件目")
-        XCTAssertEqual(gateway.templates.count, 3)
+        XCTAssertEqual(try gateway.fetchAll().count, 3)
 
         presenter.didTapSaveTemplate()
         XCTAssertEqual(
@@ -116,11 +116,12 @@ final class SeatingChartPresenterTests: XCTestCase {
 
         presenter.didConfirmSaveTemplate(name: "歓迎会")
 
-        XCTAssertEqual(gateway.templates.count, 1)
-        XCTAssertEqual(gateway.templates[0].name, "歓迎会")
-        XCTAssertEqual(gateway.templates[0].globalColumnCount, 3)
-        XCTAssertEqual(gateway.templates[0].tables.map(\.name), ["テーブルA", "テーブルB"])
-        XCTAssertEqual(gateway.templates[0].tables.map(\.capacity), [4, 4])
+        let saved = try gateway.fetchAll()
+        XCTAssertEqual(saved.count, 1)
+        XCTAssertEqual(saved[0].name, "歓迎会")
+        XCTAssertEqual(saved[0].globalColumnCount, 3)
+        XCTAssertEqual(saved[0].tables.map(\.name), ["テーブルA", "テーブルB"])
+        XCTAssertEqual(saved[0].tables.map(\.capacity), [4, 4])
     }
 
     func test_テンプレート保存_名前が空白のみなら保存されない() throws {
@@ -129,7 +130,7 @@ final class SeatingChartPresenterTests: XCTestCase {
 
         presenter.didConfirmSaveTemplate(name: "   ")
 
-        XCTAssertTrue(gateway.templates.isEmpty)
+        XCTAssertTrue(try gateway.fetchAll().isEmpty)
     }
 
     func test_セッション解放フラグはGatewayへ委譲される() {
@@ -217,7 +218,7 @@ final class SeatingChartPresenterTests: XCTestCase {
         let gateway = InMemorySeatingTemplateGateway()
         let presenter = makePresenter(names: ["A", "B", "C", "D", "E", "F"], templateGateway: gateway)
         presenter.didTapLoadTemplate()
-        let template = SeatingLayoutTemplate(
+        try gateway.insert(
             name: "宴会場",
             tables: [
                 TableTemplate(name: "受付卓", capacity: 3, columnCount: 3, layoutDirection: .left, layoutText: "入り口側"),
@@ -225,9 +226,9 @@ final class SeatingChartPresenterTests: XCTestCase {
             ],
             globalColumnCount: 4
         )
-        try gateway.insert(template)
+        let id = try XCTUnwrap(gateway.fetchAll().first?.id)
 
-        presenter.templateListDidSelect(id: template.id)
+        presenter.templateListDidSelect(id: id)
 
         XCTAssertEqual(presenter.globalColumnCount, 4)
         XCTAssertEqual(presenter.viewData.globalColumnCount, 4)

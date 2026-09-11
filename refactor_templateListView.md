@@ -20,7 +20,7 @@ Gateway 化 / 子 VIPER 化）を、FavoriteGroup の完成形に揃えて実施
 | 0 | 準備と回帰テスト（ギャップ埋め） | ✅ 完了（2026-09-11） |
 | 1 | デッド API・コメント偽証・規約穴埋め | ✅ 完了（2026-09-11） |
 | 2 | 子 VIPER 化（ViewData.Row / Route / Entity） | ✅ 完了（2026-09-11） |
-| 3 | Gateway の Snapshot 化と親 Interactor の純化 | 未着手 |
+| 3 | Gateway の Snapshot 化と親 Interactor の純化 | ✅ 完了（2026-09-11） |
 | 4 | シート identity と Router 境界の安定化 | 未着手 |
 | 5 | 再利用部品の揃え（空状態・List・Copy） | 未着手 |
 | 6 | 性能・A11y・i18n・編集モード UX | 未着手 |
@@ -606,6 +606,23 @@ Phase 2 で先行済みのため、ここでは触らない:
   （残ってよいのは Gateway ファイルと `@Model` 定義）。
   `insert(_ template:)` / `delete(id:)` 単数がプロダクトコードから消える。
 - リスク: 中。Gateway 実装 2 系統 + 親テストを同時に更新する。
+
+実装時の決定（2026-09-11）:
+
+- Gateway を FavoriteGroup と同型にした。戻りは `LayoutTemplateSnapshot`。
+  `insert(name:tables:globalColumnCount:)` / `delete(ids:)`。旧 `insert(_ template:)` /
+  `delete(id:)` / `@Model` 戻りは削除。
+- `makeSnapshot()` は Gateway ファイルの `fileprivate` 拡張。`@Model` は Gateway と
+  `@Model` 定義と `modelContainer` 登録に閉じる。
+- InMemory は `Record` + `nextCreatedAt`。`templates` の `@Model` 公開は廃止。
+  テストは `fetchAll()` で断言。
+- `LayoutTemplateSnapshot` を `SeatingTemplateEntity` へ移設（Identifiable / Equatable）。
+  親 Entity からは削除（typealias は残していない）。`TableTemplate` に Equatable を付与。
+- 親 `saveCurrentLayoutAsTemplate` はフィールド insert。`loadAndApplyTemplate` は
+  `fetch(id:)` → Snapshot → `applyTemplate`。Interactor / Presenter から `@Model` 型名は消えた。
+- 親 Router は `makeTemplateListPresenter` / `makeTemplateListSheet` /
+  `makeTemplateListModule` を gatewayHolder 受けに分割。Presenter の `makeRouteSheet` は
+  `makeTemplateListModule(gatewayHolder: interactor, output:)`。identity は Phase 4。
 
 ### Phase 4: シート identity と Router 境界（0.5 日）
 

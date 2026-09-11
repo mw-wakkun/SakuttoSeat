@@ -28,7 +28,7 @@ enum SeatingTemplateCopy {
 // MARK: - ViewData
 
 /// Presenter が生成し、View が消費する表示専用モデル。
-/// Entity（`LayoutTemplateSnapshot` / `SeatingLayoutTemplate`）はここに現れない。
+/// Entity（`LayoutTemplateSnapshot`）はここに現れない。
 nonisolated struct SeatingTemplateViewData: Equatable {
     struct Row: Identifiable, Equatable {
         let id: SeatingTemplateID

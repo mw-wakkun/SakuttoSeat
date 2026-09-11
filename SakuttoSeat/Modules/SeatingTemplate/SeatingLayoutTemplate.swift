@@ -15,7 +15,7 @@ import SwiftData
 //
 // `nonisolated`: 既定の MainActor 隔離だと明示 init を
 // `nonisolated` な Interactor から呼べないため。
-nonisolated struct TableTemplate: Codable {
+nonisolated struct TableTemplate: Codable, Equatable {
     var name: String
     var capacity: Int
     var columnCount: Int

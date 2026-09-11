@@ -81,30 +81,6 @@ enum TemplateSaveError: Error, Equatable {
     case persistenceFailed(message: String)
 }
 
-/// 永続化モデル（SwiftData）を Interactor から隔離するためのスナップショット
-///
-/// `id` は Phase 2 で必須化した。未永続化（`makeLayoutTemplate`）は `UUID()` で埋める。
-/// Equatable / 所在の `SeatingTemplateEntity` 移設は Phase 3。
-/// `nonisolated`: 既定の MainActor 隔離だと `nonisolated` な Interactor から生成できないため。
-nonisolated struct LayoutTemplateSnapshot {
-    let id: UUID
-    let name: String
-    let tables: [TableTemplate]
-    let globalColumnCount: Int
-
-    init(
-        id: UUID = UUID(),
-        name: String,
-        tables: [TableTemplate],
-        globalColumnCount: Int
-    ) {
-        self.id = id
-        self.name = name
-        self.tables = tables
-        self.globalColumnCount = globalColumnCount
-    }
-}
-
 // 参加者モデル
 //
 // `nonisolated`: `SeatingTable`（nonisolated）の Equatable / Hashable 合成に必要。

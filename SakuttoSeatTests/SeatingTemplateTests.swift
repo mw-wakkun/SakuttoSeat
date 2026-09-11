@@ -4,6 +4,7 @@
 //
 //  refactor_templateListView.md Phase 0（Gateway の characterization）
 //  refactor_templateListView.md Phase 2（子 VIPER の一覧・削除・Output・取得失敗）
+//  refactor_templateListView.md Phase 3（Snapshot 戻り / delete(ids:) / insert(fields)。テストは fetchAll で断言）
 //
 
 import SwiftData
@@ -16,8 +17,8 @@ final class SeatingTemplateGatewayTests: XCTestCase {
 
     func test_一覧は新しい順を返す() throws {
         let gateway = InMemorySeatingTemplateGateway()
-        try gateway.insert(makeTemplate(name: "古い", createdAt: Date(timeIntervalSince1970: 1)))
-        try gateway.insert(makeTemplate(name: "新しい", createdAt: Date(timeIntervalSince1970: 2)))
+        try gateway.insert(name: "古い", tables: [], globalColumnCount: 2)
+        try gateway.insert(name: "新しい", tables: [], globalColumnCount: 2)
 
         XCTAssertEqual(try gateway.fetchAll().map(\.name), ["新しい", "古い"])
     }
@@ -26,7 +27,7 @@ final class SeatingTemplateGatewayTests: XCTestCase {
         let gateway = InMemorySeatingTemplateGateway()
         XCTAssertEqual(try gateway.fetchCount(), 0)
 
-        try gateway.insert(makeTemplate(name: "1件目"))
+        try gateway.insert(name: "1件目", tables: [], globalColumnCount: 2)
 
         XCTAssertEqual(try gateway.fetchCount(), 1)
         XCTAssertEqual(try gateway.fetchAll().map(\.name), ["1件目"])
@@ -34,38 +35,60 @@ final class SeatingTemplateGatewayTests: XCTestCase {
 
     func test_ID指定で削除する() throws {
         let gateway = InMemorySeatingTemplateGateway()
-        try gateway.insert(makeTemplate(name: "古い", createdAt: Date(timeIntervalSince1970: 1)))
-        try gateway.insert(makeTemplate(name: "新しい", createdAt: Date(timeIntervalSince1970: 2)))
+        try gateway.insert(name: "古い", tables: [], globalColumnCount: 2)
+        try gateway.insert(name: "新しい", tables: [], globalColumnCount: 2)
         let newerID = try XCTUnwrap(gateway.fetchAll().first?.id)
 
-        try gateway.delete(id: newerID)
+        try gateway.delete(ids: [newerID])
 
         XCTAssertEqual(try gateway.fetchAll().map(\.name), ["古い"])
         XCTAssertEqual(try gateway.fetchCount(), 1)
     }
 
+    func test_複数IDで削除する() throws {
+        let gateway = InMemorySeatingTemplateGateway()
+        try gateway.insert(name: "古い", tables: [], globalColumnCount: 2)
+        try gateway.insert(name: "真ん中", tables: [], globalColumnCount: 2)
+        try gateway.insert(name: "新しい", tables: [], globalColumnCount: 2)
+        let templates = try gateway.fetchAll()
+
+        try gateway.delete(ids: [templates[0].id, templates[2].id])
+
+        XCTAssertEqual(try gateway.fetchAll().map(\.name), ["真ん中"])
+    }
+
     func test_存在しないIDの削除は無視される() throws {
         let gateway = InMemorySeatingTemplateGateway()
-        try gateway.insert(makeTemplate(name: "残る"))
+        try gateway.insert(name: "残る", tables: [], globalColumnCount: 2)
 
-        try gateway.delete(id: UUID())
+        try gateway.delete(ids: [UUID()])
+
+        XCTAssertEqual(try gateway.fetchAll().map(\.name), ["残る"])
+    }
+
+    func test_空のID配列の削除は何もしない() throws {
+        let gateway = InMemorySeatingTemplateGateway()
+        try gateway.insert(name: "残る", tables: [], globalColumnCount: 2)
+
+        try gateway.delete(ids: [])
 
         XCTAssertEqual(try gateway.fetchAll().map(\.name), ["残る"])
     }
 
     func test_ID指定で1件取得する() throws {
         let gateway = InMemorySeatingTemplateGateway()
-        let template = makeTemplate(
+        try gateway.insert(
             name: "宴会場",
             tables: [
                 TableTemplate(name: "受付卓", capacity: 3, columnCount: 3, layoutDirection: .left, layoutText: "入り口側")
-            ]
+            ],
+            globalColumnCount: 2
         )
-        try gateway.insert(template)
 
-        let fetched = try XCTUnwrap(gateway.fetch(id: template.id))
+        let inserted = try XCTUnwrap(gateway.fetchAll().first)
+        let fetched = try XCTUnwrap(gateway.fetch(id: inserted.id))
 
-        XCTAssertEqual(fetched.id, template.id)
+        XCTAssertEqual(fetched.id, inserted.id)
         XCTAssertEqual(fetched.name, "宴会場")
         XCTAssertEqual(fetched.tables.map(\.name), ["受付卓"])
         XCTAssertEqual(fetched.globalColumnCount, 2)
@@ -73,7 +96,7 @@ final class SeatingTemplateGatewayTests: XCTestCase {
 
     func test_存在しないIDの取得はnil() throws {
         let gateway = InMemorySeatingTemplateGateway()
-        try gateway.insert(makeTemplate(name: "残る"))
+        try gateway.insert(name: "残る", tables: [], globalColumnCount: 2)
 
         XCTAssertNil(try gateway.fetch(id: UUID()))
     }
@@ -87,8 +110,8 @@ final class SwiftDataSeatingTemplateGatewayTests: XCTestCase {
     func test_一覧は新しい順を返す() throws {
         let (gateway, container) = try makeSwiftDataGateway()
         _ = container
-        try gateway.insert(makeTemplate(name: "古い", createdAt: Date(timeIntervalSince1970: 1)))
-        try gateway.insert(makeTemplate(name: "新しい", createdAt: Date(timeIntervalSince1970: 2)))
+        try gateway.insert(name: "古い", tables: [], globalColumnCount: 2)
+        try gateway.insert(name: "新しい", tables: [], globalColumnCount: 2)
 
         XCTAssertEqual(try gateway.fetchAll().map(\.name), ["新しい", "古い"])
     }
@@ -98,7 +121,7 @@ final class SwiftDataSeatingTemplateGatewayTests: XCTestCase {
         _ = container
         XCTAssertEqual(try gateway.fetchCount(), 0)
 
-        try gateway.insert(makeTemplate(name: "1件目"))
+        try gateway.insert(name: "1件目", tables: [], globalColumnCount: 2)
 
         XCTAssertEqual(try gateway.fetchCount(), 1)
         XCTAssertEqual(try gateway.fetchAll().map(\.name), ["1件目"])
@@ -107,11 +130,11 @@ final class SwiftDataSeatingTemplateGatewayTests: XCTestCase {
     func test_ID指定で削除する() throws {
         let (gateway, container) = try makeSwiftDataGateway()
         _ = container
-        try gateway.insert(makeTemplate(name: "古い", createdAt: Date(timeIntervalSince1970: 1)))
-        try gateway.insert(makeTemplate(name: "新しい", createdAt: Date(timeIntervalSince1970: 2)))
+        try gateway.insert(name: "古い", tables: [], globalColumnCount: 2)
+        try gateway.insert(name: "新しい", tables: [], globalColumnCount: 2)
         let newerID = try XCTUnwrap(gateway.fetchAll().first?.id)
 
-        try gateway.delete(id: newerID)
+        try gateway.delete(ids: [newerID])
 
         XCTAssertEqual(try gateway.fetchAll().map(\.name), ["古い"])
         XCTAssertEqual(try gateway.fetchCount(), 1)
@@ -120,9 +143,9 @@ final class SwiftDataSeatingTemplateGatewayTests: XCTestCase {
     func test_存在しないIDの削除は無視される() throws {
         let (gateway, container) = try makeSwiftDataGateway()
         _ = container
-        try gateway.insert(makeTemplate(name: "残る"))
+        try gateway.insert(name: "残る", tables: [], globalColumnCount: 2)
 
-        try gateway.delete(id: UUID())
+        try gateway.delete(ids: [UUID()])
 
         XCTAssertEqual(try gateway.fetchAll().map(\.name), ["残る"])
     }
@@ -130,19 +153,19 @@ final class SwiftDataSeatingTemplateGatewayTests: XCTestCase {
     func test_ID指定で1件取得する() throws {
         let (gateway, container) = try makeSwiftDataGateway()
         _ = container
-        let template = makeTemplate(name: "宴会場")
-        try gateway.insert(template)
+        try gateway.insert(name: "宴会場", tables: [], globalColumnCount: 2)
 
-        let fetched = try XCTUnwrap(gateway.fetch(id: template.id))
+        let inserted = try XCTUnwrap(gateway.fetchAll().first)
+        let fetched = try XCTUnwrap(gateway.fetch(id: inserted.id))
 
-        XCTAssertEqual(fetched.id, template.id)
+        XCTAssertEqual(fetched.id, inserted.id)
         XCTAssertEqual(fetched.name, "宴会場")
     }
 
     func test_存在しないIDの取得はnil() throws {
         let (gateway, container) = try makeSwiftDataGateway()
         _ = container
-        try gateway.insert(makeTemplate(name: "残る"))
+        try gateway.insert(name: "残る", tables: [], globalColumnCount: 2)
 
         XCTAssertNil(try gateway.fetch(id: UUID()))
     }
@@ -163,30 +186,29 @@ final class SeatingTemplateInteractorTests: XCTestCase {
 
     func test_一覧は新しい順のスナップショットを返す() throws {
         let gateway = InMemorySeatingTemplateGateway()
-        try gateway.insert(makeTemplate(name: "古い", createdAt: Date(timeIntervalSince1970: 1)))
+        try gateway.insert(name: "古い", tables: [], globalColumnCount: 2)
         try gateway.insert(
-            makeTemplate(
-                name: "新しい",
-                createdAt: Date(timeIntervalSince1970: 2),
-                tables: [
-                    TableTemplate(name: "受付卓", capacity: 3, columnCount: 3, layoutDirection: .none, layoutText: "")
-                ]
-            )
+            name: "新しい",
+            tables: [
+                TableTemplate(name: "受付卓", capacity: 3, columnCount: 3, layoutDirection: .none, layoutText: "")
+            ],
+            globalColumnCount: 2
         )
         let interactor = SeatingTemplateInteractor(templateGateway: gateway)
 
         let templates = try interactor.allTemplates()
+        let fetched = try gateway.fetchAll()
 
         XCTAssertEqual(templates.map(\.name), ["新しい", "古い"])
-        XCTAssertEqual(templates.first?.id, gateway.templates.last?.id)
+        XCTAssertEqual(templates.map(\.id), fetched.map(\.id))
         XCTAssertEqual(templates.first?.tables.map(\.name), ["受付卓"])
         XCTAssertEqual(templates.first?.globalColumnCount, 2)
     }
 
     func test_ID指定で削除する() throws {
         let gateway = InMemorySeatingTemplateGateway()
-        try gateway.insert(makeTemplate(name: "古い", createdAt: Date(timeIntervalSince1970: 1)))
-        try gateway.insert(makeTemplate(name: "新しい", createdAt: Date(timeIntervalSince1970: 2)))
+        try gateway.insert(name: "古い", tables: [], globalColumnCount: 2)
+        try gateway.insert(name: "新しい", tables: [], globalColumnCount: 2)
         let interactor = SeatingTemplateInteractor(templateGateway: gateway)
         let newerID = try XCTUnwrap(interactor.allTemplates().first?.id)
 
@@ -197,9 +219,9 @@ final class SeatingTemplateInteractorTests: XCTestCase {
 
     func test_複数IDで削除する() throws {
         let gateway = InMemorySeatingTemplateGateway()
-        try gateway.insert(makeTemplate(name: "古い", createdAt: Date(timeIntervalSince1970: 1)))
-        try gateway.insert(makeTemplate(name: "真ん中", createdAt: Date(timeIntervalSince1970: 2)))
-        try gateway.insert(makeTemplate(name: "新しい", createdAt: Date(timeIntervalSince1970: 3)))
+        try gateway.insert(name: "古い", tables: [], globalColumnCount: 2)
+        try gateway.insert(name: "真ん中", tables: [], globalColumnCount: 2)
+        try gateway.insert(name: "新しい", tables: [], globalColumnCount: 2)
         let interactor = SeatingTemplateInteractor(templateGateway: gateway)
         let templates = try interactor.allTemplates()
 
@@ -210,7 +232,7 @@ final class SeatingTemplateInteractorTests: XCTestCase {
 
     func test_存在しないIDの削除は無視される() throws {
         let gateway = InMemorySeatingTemplateGateway()
-        try gateway.insert(makeTemplate(name: "残る"))
+        try gateway.insert(name: "残る", tables: [], globalColumnCount: 2)
         let interactor = SeatingTemplateInteractor(templateGateway: gateway)
 
         try interactor.deleteTemplates(ids: [UUID()])
@@ -242,9 +264,9 @@ final class SeatingTemplateInteractorTests: XCTestCase {
 
     func test_attachTemplateGatewayで永続化先を差し替える() throws {
         let first = InMemorySeatingTemplateGateway()
-        try first.insert(makeTemplate(name: "最初"))
+        try first.insert(name: "最初", tables: [], globalColumnCount: 2)
         let second = InMemorySeatingTemplateGateway()
-        try second.insert(makeTemplate(name: "差し替え後"))
+        try second.insert(name: "差し替え後", tables: [], globalColumnCount: 2)
         let interactor = SeatingTemplateInteractor(templateGateway: first)
 
         XCTAssertEqual(try interactor.allTemplates().map(\.name), ["最初"])
@@ -281,12 +303,11 @@ final class SeatingTemplatePresenterTests: XCTestCase {
     func test_onAppearで一覧をViewDataのRowに公開する() throws {
         let gateway = InMemorySeatingTemplateGateway()
         try gateway.insert(
-            makeTemplate(
-                name: "宴会場",
-                tables: [
-                    TableTemplate(name: "受付卓", capacity: 3, columnCount: 3, layoutDirection: .none, layoutText: "")
-                ]
-            )
+            name: "宴会場",
+            tables: [
+                TableTemplate(name: "受付卓", capacity: 3, columnCount: 3, layoutDirection: .none, layoutText: "")
+            ],
+            globalColumnCount: 2
         )
         let output = OutputSpy()
         let presenter = makePresenter(gateway: gateway, output: output)
@@ -309,7 +330,7 @@ final class SeatingTemplatePresenterTests: XCTestCase {
 
     func test_選択はOutputへ通知する() throws {
         let gateway = InMemorySeatingTemplateGateway()
-        try gateway.insert(makeTemplate(name: "宴会場"))
+        try gateway.insert(name: "宴会場", tables: [], globalColumnCount: 2)
         let output = OutputSpy()
         let presenter = makePresenter(gateway: gateway, output: output)
         let id = try XCTUnwrap(gateway.fetchAll().first?.id)
@@ -321,7 +342,7 @@ final class SeatingTemplatePresenterTests: XCTestCase {
 
     func test_選択はGatewayとViewDataを変えずOutputだけに通知する() throws {
         let gateway = InMemorySeatingTemplateGateway()
-        try gateway.insert(makeTemplate(name: "宴会場"))
+        try gateway.insert(name: "宴会場", tables: [], globalColumnCount: 2)
         let output = OutputSpy()
         let presenter = makePresenter(gateway: gateway, output: output)
         let id = try XCTUnwrap(gateway.fetchAll().first?.id)
@@ -353,8 +374,8 @@ final class SeatingTemplatePresenterTests: XCTestCase {
 
     func test_削除は一覧から消す() throws {
         let gateway = InMemorySeatingTemplateGateway()
-        try gateway.insert(makeTemplate(name: "古い", createdAt: Date(timeIntervalSince1970: 1)))
-        try gateway.insert(makeTemplate(name: "新しい", createdAt: Date(timeIntervalSince1970: 2)))
+        try gateway.insert(name: "古い", tables: [], globalColumnCount: 2)
+        try gateway.insert(name: "新しい", tables: [], globalColumnCount: 2)
         let presenter = makePresenter(gateway: gateway, output: OutputSpy())
 
         presenter.didDeleteTemplates(at: IndexSet(integer: 0))
@@ -365,7 +386,7 @@ final class SeatingTemplatePresenterTests: XCTestCase {
 
     func test_範囲外offsetの削除は一覧を変えない() throws {
         let gateway = InMemorySeatingTemplateGateway()
-        try gateway.insert(makeTemplate(name: "残る"))
+        try gateway.insert(name: "残る", tables: [], globalColumnCount: 2)
         let presenter = makePresenter(gateway: gateway, output: OutputSpy())
 
         presenter.didDeleteTemplates(at: IndexSet(integer: 5))
@@ -414,7 +435,7 @@ final class SeatingTemplateRouterTests: XCTestCase {
 
     func test_assemblePresenterは渡したGatewayから一覧を読む() throws {
         let gateway = FetchCountingSeatingTemplateGateway()
-        try gateway.insert(makeTemplate(name: "共有"))
+        try gateway.insert(name: "共有", tables: [], globalColumnCount: 2)
         XCTAssertEqual(gateway.fetchAllCallCount, 0)
 
         let presenter = SeatingTemplateRouter.assemblePresenter(
@@ -467,21 +488,8 @@ final class SeatingTemplateCopyTests: XCTestCase {
 
 // MARK: - Helpers
 
-private func makeTemplate(
-    name: String,
-    createdAt: Date = Date(),
-    tables: [TableTemplate] = []
-) -> SeatingLayoutTemplate {
-    SeatingLayoutTemplate(
-        name: name,
-        tables: tables,
-        globalColumnCount: 2,
-        createdAt: createdAt
-    )
-}
-
 private final class FailingFetchSeatingTemplateGateway: SeatingTemplateGatewayBase {
-    override func fetchAll() throws -> [SeatingLayoutTemplate] {
+    override func fetchAll() throws -> [LayoutTemplateSnapshot] {
         throw NSError(
             domain: "SeatingTemplateTests",
             code: 2,
@@ -491,11 +499,11 @@ private final class FailingFetchSeatingTemplateGateway: SeatingTemplateGatewayBa
 }
 
 private final class FailingDeleteSeatingTemplateGateway: SeatingTemplateGatewayBase {
-    override func fetchAll() throws -> [SeatingLayoutTemplate] {
-        [makeTemplate(name: "宴会場")]
+    override func fetchAll() throws -> [LayoutTemplateSnapshot] {
+        [LayoutTemplateSnapshot(name: "宴会場", tables: [], globalColumnCount: 2)]
     }
 
-    override func delete(id: UUID) throws {
+    override func delete(ids: [SeatingTemplateID]) throws {
         throw NSError(
             domain: "SeatingTemplateTests",
             code: 1,
@@ -505,18 +513,18 @@ private final class FailingDeleteSeatingTemplateGateway: SeatingTemplateGatewayB
 }
 
 private final class FetchCountingSeatingTemplateGateway: SeatingTemplateGatewayBase {
-    private var stored: [SeatingLayoutTemplate] = []
+    private var stored: [LayoutTemplateSnapshot] = []
     private(set) var fetchAllCallCount = 0
 
     override func fetchCount() throws -> Int { stored.count }
 
-    override func fetchAll() throws -> [SeatingLayoutTemplate] {
+    override func fetchAll() throws -> [LayoutTemplateSnapshot] {
         fetchAllCallCount += 1
-        return stored.sorted { $0.createdAt > $1.createdAt }
+        return stored
     }
 
-    override func insert(_ template: SeatingLayoutTemplate) throws {
-        stored.append(template)
+    override func insert(name: String, tables: [TableTemplate], globalColumnCount: Int) throws {
+        stored.append(LayoutTemplateSnapshot(name: name, tables: tables, globalColumnCount: globalColumnCount))
     }
 }
 

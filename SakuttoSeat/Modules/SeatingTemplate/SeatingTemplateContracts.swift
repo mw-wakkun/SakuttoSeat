@@ -2,7 +2,7 @@
 //  SeatingTemplateContracts.swift
 //  SakuttoSeat
 //
-//  refactor_templateListView.md Phase 2（テンプレート一覧の子 VIPER モジュール）
+//  refactor_templateListView.md Phase 2 / Phase 3（テンプレート一覧の子 VIPER モジュール）
 //  一覧・削除は子。保存・読込適用は親。View は ViewData.Row と Route のみ。
 //
 
