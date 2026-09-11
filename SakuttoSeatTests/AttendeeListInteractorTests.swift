@@ -307,7 +307,17 @@ final class AttendeeListInteractorTests: XCTestCase {
         XCTAssertEqual(try second.fetchAll().map(\.name), ["差し替え後"])
         XCTAssertEqual(interactor.allFavorites().map(\.name), ["差し替え後"])
     }
+
+    func test_currentFavoriteGatewayはattachしたインスタンスを返す() {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let interactor = AttendeeListInteractor()
+
+        interactor.attachFavoriteGateway(gateway)
+
+        XCTAssertTrue(interactor.currentFavoriteGateway() === gateway)
+    }
 }
+
 
 /// insert だけ失敗させるテスト用 Gateway
 private final class FailingInsertGroupFavoriteGateway: GroupFavoriteGatewayBase {

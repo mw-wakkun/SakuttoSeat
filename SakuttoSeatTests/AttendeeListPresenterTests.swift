@@ -3,6 +3,7 @@
 //  SakuttoSeatTests
 //
 //  refactor_AttendeeList.md Phase 0 / Phase 1 / Phase 2 / Phase 3 / Phase 4 / Phase 5
+//  refactor_favorite.md Phase 0（お気に入りシートの Gateway 共有を断言）
 //  意図メソッド → ViewData / Route の契約を固定する。
 //
 
@@ -256,6 +257,19 @@ final class AttendeeListPresenterTests: XCTestCase {
         XCTAssertNil(presenter.route)
     }
 
+    func test_お気に入りシートは親と同じGatewayインスタンスで組み立てる() throws {
+        let gateway = FetchCountingGroupFavoriteGateway()
+        try gateway.insert(GroupFavorite(name: "共有", members: ["A"]))
+        let presenter = makePresenter(gateway: gateway)
+        let fetchCountBeforeSheet = gateway.fetchAllCallCount
+
+        presenter.didTapShowFavorites()
+        _ = presenter.makeRouteSheet(.favoriteList)
+
+        XCTAssertEqual(presenter.route, .favoriteList)
+        XCTAssertGreaterThan(gateway.fetchAllCallCount, fetchCountBeforeSheet)
+    }
+
     func test_BulkAddOutputの確定は一括追加してシートを閉じる() {
         let presenter = makePresenter(names: ["A"])
         presenter.didTapBulkAddEntry()
@@ -298,5 +312,22 @@ private final class FailingInsertGroupFavoriteGateway: GroupFavoriteGatewayBase 
             code: 1,
             userInfo: [NSLocalizedDescriptionKey: "書き込みに失敗しました"]
         )
+    }
+}
+
+/// 親シート組み立てが同じ Gateway インスタンスを子へ渡すことを数える
+private final class FetchCountingGroupFavoriteGateway: GroupFavoriteGatewayBase {
+    private var favorites: [GroupFavorite] = []
+    private(set) var fetchAllCallCount = 0
+
+    override func fetchCount() throws -> Int { favorites.count }
+
+    override func fetchAll() throws -> [GroupFavorite] {
+        fetchAllCallCount += 1
+        return favorites.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    override func insert(_ favorite: GroupFavorite) throws {
+        favorites.append(favorite)
     }
 }

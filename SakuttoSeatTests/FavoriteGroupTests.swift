@@ -3,6 +3,10 @@
 //  SakuttoSeatTests
 //
 //  refactor_AttendeeList.md Phase 5（お気に入り一覧子モジュールの回帰）
+//  refactor_favorite.md Phase 0（現状挙動の characterization）
+//
+//  `_既知の課題` が付いたテストは是正対象の挙動を意図的に固定している。
+//  Phase 2 で取得失敗を Route アラートにする際は、該当ケースを同時に更新する。
 //
 
 import XCTest
@@ -64,6 +68,45 @@ final class FavoriteGroupInteractorTests: XCTestCase {
 
         XCTAssertEqual(interactor.allFavorites().map(\.name), ["差し替え後"])
     }
+
+    func test_複数offsetで削除する() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        try gateway.insert(makeFavorite(name: "古い", members: ["A"], createdAt: 1))
+        try gateway.insert(makeFavorite(name: "真ん中", members: ["B"], createdAt: 2))
+        try gateway.insert(makeFavorite(name: "新しい", members: ["C"], createdAt: 3))
+        let interactor = FavoriteGroupInteractor(favoriteGateway: gateway)
+
+        try interactor.deleteFavorites(at: IndexSet([0, 2]))
+
+        XCTAssertEqual(interactor.allFavorites().map(\.name), ["真ん中"])
+    }
+
+    func test_範囲外offsetは無視される() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        try gateway.insert(GroupFavorite(name: "残る", members: ["A"]))
+        let interactor = FavoriteGroupInteractor(favoriteGateway: gateway)
+
+        try interactor.deleteFavorites(at: IndexSet(integer: 5))
+
+        XCTAssertEqual(interactor.allFavorites().map(\.name), ["残る"])
+    }
+
+    func test_削除時の取得失敗はpersistenceFailedになる() {
+        let interactor = FavoriteGroupInteractor(favoriteGateway: FailingFetchGroupFavoriteGateway())
+
+        XCTAssertThrowsError(try interactor.deleteFavorites(at: IndexSet(integer: 0))) { error in
+            XCTAssertEqual(
+                error as? FavoriteSaveError,
+                .persistenceFailed(message: "読み込みに失敗しました")
+            )
+        }
+    }
+
+    func test_取得失敗は空配列になる_既知の課題() {
+        let interactor = FavoriteGroupInteractor(favoriteGateway: FailingFetchGroupFavoriteGateway())
+
+        XCTAssertTrue(interactor.allFavorites().isEmpty)
+    }
 }
 
 // MARK: - Presenter
@@ -120,6 +163,35 @@ final class FavoriteGroupPresenterTests: XCTestCase {
         XCTAssertEqual(output.selectedID, id)
     }
 
+    func test_選択はGatewayとViewDataを変えずOutputだけに通知する() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        try gateway.insert(GroupFavorite(name: "同期", members: ["太郎"]))
+        let output = OutputSpy()
+        let presenter = makePresenter(gateway: gateway, output: output)
+        let id = try XCTUnwrap(gateway.fetchAll().first?.id)
+
+        presenter.didSelectGroup(id: id)
+
+        XCTAssertEqual(output.selectedID, id)
+        XCTAssertEqual(output.cancelCount, 0)
+        XCTAssertEqual(presenter.viewData.groups.map(\.name), ["同期"])
+        XCTAssertEqual(try gateway.fetchAll().map(\.name), ["同期"])
+        XCTAssertNil(presenter.alert)
+    }
+
+    func test_取得失敗は空のViewDataになりアラートは出ない_既知の課題() {
+        let presenter = makePresenter(
+            gateway: FailingFetchGroupFavoriteGateway(),
+            output: OutputSpy()
+        )
+
+        presenter.onAppear()
+
+        XCTAssertTrue(presenter.viewData.isEmpty)
+        XCTAssertTrue(presenter.viewData.groups.isEmpty)
+        XCTAssertNil(presenter.alert)
+    }
+
     func test_削除は一覧から消す() throws {
         let gateway = InMemoryGroupFavoriteGateway()
         try gateway.insert(GroupFavorite(name: "古い", members: ["A"]))
@@ -147,6 +219,22 @@ final class FavoriteGroupPresenterTests: XCTestCase {
         presenter.didTapClose()
 
         XCTAssertEqual(output.cancelCount, 1)
+    }
+}
+
+private func makeFavorite(name: String, members: [String], createdAt: TimeInterval) -> GroupFavorite {
+    let favorite = GroupFavorite(name: name, members: members)
+    favorite.createdAt = Date(timeIntervalSince1970: createdAt)
+    return favorite
+}
+
+private final class FailingFetchGroupFavoriteGateway: GroupFavoriteGatewayBase {
+    override func fetchAll() throws -> [GroupFavorite] {
+        throw NSError(
+            domain: "FavoriteGroupTests",
+            code: 2,
+            userInfo: [NSLocalizedDescriptionKey: "読み込みに失敗しました"]
+        )
     }
 }
 
