@@ -5,6 +5,7 @@
 //  refactor_AttendeeList.md Phase 0 / Phase 3
 //  追加規則・一括パース・置換・お気に入り上限 / 保存 / 読込を固定する。
 //  一覧・削除は FavoriteGroupTests 側。保存結果は gateway.fetchAll() で断言する。
+//  refactor_groupFavorite.md Phase 0（空メンバー保存は拒まない現状を固定）
 //
 
 import XCTest
@@ -220,6 +221,20 @@ final class AttendeeListInteractorTests: XCTestCase {
         XCTAssertEqual(saved.first?.name, "同期")
         XCTAssertEqual(saved.first?.memberNames, ["太郎", "花子"])
         XCTAssertEqual(saved.first?.memberSummary, "太郎, 花子")
+    }
+
+    func test_参加者空でもお気に入り保存は拒まない() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let interactor = AttendeeListInteractor(favoriteGateway: gateway)
+        XCTAssertTrue(interactor.allAttendees().isEmpty)
+
+        try interactor.saveCurrentAsFavorite(named: "空グループ")
+
+        let saved = try gateway.fetchAll()
+        XCTAssertEqual(saved.count, 1)
+        XCTAssertEqual(saved.first?.name, "空グループ")
+        XCTAssertEqual(saved.first?.memberNames, [])
+        XCTAssertEqual(saved.first?.memberSummary, "")
     }
 
     func test_空白のみのグループ名はinvalidNameになる() throws {
