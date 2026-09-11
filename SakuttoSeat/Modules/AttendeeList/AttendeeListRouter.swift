@@ -3,13 +3,13 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/05.
-//  refactor_AttendeeList.md Phase 1（final 化）
+//  refactor_AttendeeList.md Phase 4（遷移・提示・子モジュール組み立て）
 //
 
 import SwiftUI
 
-final class AttendeeListRouter {
-    
+final class AttendeeListRouter: AttendeeListRouterProtocol {
+
     /// モジュールの初期組み立て（アプリ起動時などに使用）
     @MainActor
     static func assembleModule() -> some View {
@@ -22,21 +22,53 @@ final class AttendeeListRouter {
         )
         return AttendeeListView(presenter: presenter)
     }
-    
-    // MARK: - Navigation Methods
-    
-    /// 座席表画面（SeatingChart）を組み立てて返す
+
+    // MARK: - 子モジュールの組み立て
+
     @MainActor
-    func makeSeatingChartView(attendees: [Attendee]) -> AnyView {
-        // mapで名前だけにせず、attendeesをそのまま渡す
-        return SeatingChartRouter.assembleModule(attendees: attendees)
+    func makeSeatingChartModule(attendees: [Attendee]) -> AnyView {
+        SeatingChartRouter.assembleModule(attendees: attendees)
     }
-    
-    /// 番号札画面（SimpleShuffle）を組み立てて返す
+
     @MainActor
-    func makeSimpleShuffleView(attendees: [String]) -> AnyView {
-        let presenter = SimpleShufflePresenter(attendees: attendees)
-        let view = SimpleShuffleView(presenter: presenter)
-        return AnyView(view)
+    func makeSimpleShuffleModule(attendees: [Attendee]) -> AnyView {
+        SimpleShuffleRouter.assembleModule(attendees: attendees)
+    }
+
+    @MainActor
+    func makeFavoriteGroupModule(
+        groups: [FavoriteGroupSnapshot],
+        output: (any FavoriteGroupModuleOutput)?
+    ) -> AnyView {
+        AnyView(
+            FavoriteGroupSheetView(
+                groups: groups,
+                onSelect: { id in
+                    output?.favoriteGroupDidSelect(id: id)
+                },
+                onDelete: { offsets in
+                    output?.favoriteGroupDidDelete(at: offsets)
+                },
+                onClose: {
+                    output?.favoriteGroupDidCancel()
+                }
+            )
+            .presentationDetents([.medium, .large])
+        )
+    }
+
+    @MainActor
+    func makeBulkAddModule(output: (any BulkAddModuleOutput)?) -> AnyView {
+        AnyView(
+            BulkAddSheetView(
+                onConfirm: { text in
+                    output?.bulkAddDidConfirm(text: text)
+                },
+                onCancel: {
+                    output?.bulkAddDidCancel()
+                }
+            )
+            .presentationDetents([.medium, .large])
+        )
     }
 }

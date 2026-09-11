@@ -17,7 +17,7 @@
 | 1 | ファイル分割・デッドコード削除・規約統一 | ✅ 完了（2026-09-11） |
 | 2 | Contracts と ViewData / Route の導入 | ✅ 完了（2026-09-11） |
 | 3 | Presenter → Interactor へのロジック移送・Gateway の正しい配置 | ✅ 完了（2026-09-11） |
-| 4 | Router の実体化・遷移の Presenter 主導化 | 未着手 |
+| 4 | Router の実体化・遷移の Presenter 主導化 | ✅ 完了（2026-09-11） |
 | 5 | 子モジュール切り出し（FavoriteGroup / BulkAdd）と SimpleShuffle の VIPER 化 | 未着手 |
 | 6 | 再利用部品・パフォーマンス・A11y・i18n | 未着手 |
 
@@ -590,27 +590,23 @@ SeatingChart の `safeAreaInset` に合わせ、固定 `Spacer(height: 200/240)`
   Interactor が `SwiftUI` を import していない。
 - リスク: 中。お気に入り読込の置換仕様をテストで固定してから移す。
 
-### Phase 4: Router の実体化と遷移の一本化（0.5 日）
+### Phase 4: Router の実体化と遷移の一本化（0.5 日）— ✅ 完了（2026-09-11）
 
-- `AttendeeListRouterProtocol` を実装。
-- Presenter の `view(for:)` を削除し、View は
+実装時の決定（計画からの差分）:
 
-  ```swift
-  .navigationDestination(item: navigationRouteBinding) { route in
-      presenter.makeRouteView(route)  // 内部で router に委譲
-  }
-  .sheet(item: sheetRouteBinding) { route in
-      presenter.makeRouteSheet(route)
-  }
-  ```
+- `AttendeeListRouter` が `AttendeeListRouterProtocol` に準拠。Presenter の `view(for:)` を削除し、
+  View は `makeRouteView` / `makeRouteSheet` のみを呼ぶ（SeatingChart と同じ形）。
+- 番号札は `SimpleShuffleRouter.assembleModule(attendees:)` へ委譲。本体の VIPER 化は Phase 5。
+  入力は `[Attendee]`（§8.5）。Phase 4 では Router 内で名前配列へ写像する。
+- FavoriteGroup / BulkAdd は Phase 5 まで独立 VIPER にしない。Router が
+  `FavoriteGroupSheetView` / `BulkAddSheetView` を組み立て、Presenter が Output で受ける。
+- 一覧・削除はまだ親 Interactor が持つため、`makeFavoriteGroupModule` は
+  `groups: [FavoriteGroupSnapshot]` を受け取り、Output に `favoriteGroupDidDelete(at:)` を追加した。
+- `AnyView` は Router 境界と Presenter の委譲メソッド（非該当 Route の `EmptyView`）に限定。
+  CTA ボタン背景の型消去は `@ViewBuilder` に置換。
 
-  とする（SeatingChart の `makeRouteSheet` と同じ形）。
-- SimpleShuffle の組み立てを `SimpleShuffleRouter.assembleModule(attendees:)` に委譲
-  （SimpleShuffle 本体の VIPER 化は Phase 5。Phase 4 では Router の箱だけ先に作ってもよい）。
-- `AnyView` は Router 境界に限定し、モジュール内のボタン背景からは排除。
-- 完了条件: View が子モジュール型名を知らない。Presenter が `AnyView` を自分で組み立てない
-  （委譲メソッド 1 本は SeatingChart 踏襲で許容）。
-- リスク: 低〜中。
+完了条件: View が子モジュール型名を知らない。Presenter が `AnyView` を自分で組み立てない。
+リスク: 低〜中。
 
 ### Phase 5: 子モジュール切り出しと SimpleShuffle の VIPER 化（2 日）
 

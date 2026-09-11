@@ -2,7 +2,7 @@
 //  AttendeeListContracts.swift
 //  SakuttoSeat
 //
-//  refactor_AttendeeList.md Phase 2 / Phase 3（層間境界の明示）
+//  refactor_AttendeeList.md Phase 2 / Phase 3 / Phase 4（層間境界の明示）
 //
 
 import SwiftUI
@@ -63,20 +63,27 @@ nonisolated protocol AttendeeListInteractorProtocol: AnyObject {
 /// Protocol 自体には @MainActor を付けない（存在型保持時の deinit 不整合を避ける）。
 /// 各メソッドに @MainActor を付与する。
 ///
-/// Phase 4 で Router が準拠する。Phase 2 では Presenter.view(for:) が暫定的に遷移先を返す。
+/// `AnyView` は Router 境界に限定する。モジュール内の描画分岐では使わない。
 protocol AttendeeListRouterProtocol: AnyObject {
     @MainActor func makeSeatingChartModule(attendees: [Attendee]) -> AnyView
     @MainActor func makeSimpleShuffleModule(attendees: [Attendee]) -> AnyView
-    @MainActor func makeFavoriteGroupModule(output: (any FavoriteGroupModuleOutput)?) -> AnyView
+    /// Phase 5 で子 Interactor が Gateway を持つまでの過渡期。一覧は親が渡す。
+    @MainActor func makeFavoriteGroupModule(
+        groups: [FavoriteGroupSnapshot],
+        output: (any FavoriteGroupModuleOutput)?
+    ) -> AnyView
     @MainActor func makeBulkAddModule(output: (any BulkAddModuleOutput)?) -> AnyView
 }
 
 // MARK: - 子モジュール Output
 //
-// Phase 5 で FavoriteGroup / BulkAdd を切り出すときに結線する。
+// Phase 5 で FavoriteGroup / BulkAdd を独立モジュール化する。
+// Phase 4 では Router が組み立てるシート View と Presenter を結線する。
 
 protocol FavoriteGroupModuleOutput: AnyObject {
     func favoriteGroupDidSelect(id: FavoriteGroupID)
+    /// Phase 5 で子が Gateway を持つまでの過渡期。親 Interactor が削除する。
+    func favoriteGroupDidDelete(at offsets: IndexSet)
     func favoriteGroupDidCancel()
 }
 

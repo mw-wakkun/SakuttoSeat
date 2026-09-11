@@ -2,7 +2,7 @@
 //  AttendeeListPresenterTests.swift
 //  SakuttoSeatTests
 //
-//  refactor_AttendeeList.md Phase 0 / Phase 1 / Phase 2 / Phase 3
+//  refactor_AttendeeList.md Phase 0 / Phase 1 / Phase 2 / Phase 3 / Phase 4
 //  意図メソッド → ViewData / Route の契約を固定する。
 //
 
@@ -251,6 +251,75 @@ final class AttendeeListPresenterTests: XCTestCase {
 
         XCTAssertEqual(names(of: presenter), ["A"])
         XCTAssertEqual(presenter.route, .favoriteList)
+    }
+
+    // MARK: - 子モジュール Output（Phase 4）
+
+    func test_FavoriteGroupOutputの選択はリストを置換してシートを閉じる() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        try gateway.insert(GroupFavorite(name: "新メンバ", members: ["新1", "新2"]))
+        let presenter = makePresenter(names: ["旧"], gateway: gateway)
+        presenter.didTapShowFavorites()
+
+        presenter.favoriteGroupDidSelect(id: presenter.viewData.favoriteGroups[0].id)
+
+        XCTAssertEqual(names(of: presenter), ["新1", "新2"])
+        XCTAssertNil(presenter.route)
+    }
+
+    func test_FavoriteGroupOutputの削除は一覧から消す() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let presenter = makePresenter(gateway: gateway)
+        presenter.didConfirmSaveFavorite(name: "古い")
+        presenter.didConfirmSaveFavorite(name: "新しい")
+        presenter.didTapShowFavorites()
+
+        presenter.favoriteGroupDidDelete(at: IndexSet(integer: 0))
+
+        XCTAssertEqual(presenter.viewData.favoriteGroups.map(\.name), ["古い"])
+        XCTAssertEqual(presenter.route, .favoriteList)
+    }
+
+    func test_FavoriteGroupOutputのキャンセルはシートを閉じる() {
+        let presenter = makePresenter()
+        presenter.didTapShowFavorites()
+
+        presenter.favoriteGroupDidCancel()
+
+        XCTAssertNil(presenter.route)
+    }
+
+    func test_BulkAddOutputの確定は一括追加してシートを閉じる() {
+        let presenter = makePresenter(names: ["A"])
+        presenter.didTapBulkAddEntry()
+
+        presenter.bulkAddDidConfirm(text: "B,C")
+
+        XCTAssertEqual(names(of: presenter), ["A", "B", "C"])
+        XCTAssertNil(presenter.route)
+    }
+
+    func test_BulkAddOutputのキャンセルはシートを閉じる() {
+        let presenter = makePresenter()
+        presenter.didTapBulkAddEntry()
+
+        presenter.bulkAddDidCancel()
+
+        XCTAssertNil(presenter.route)
+    }
+
+    func test_makeRouteViewは座席表と番号札を組み立てる() {
+        let presenter = makePresenter(names: ["A"])
+
+        _ = presenter.makeRouteView(.seatingChart)
+        _ = presenter.makeRouteView(.simpleShuffle)
+    }
+
+    func test_makeRouteSheetはお気に入りと一括追加を組み立てる() {
+        let presenter = makePresenter(names: ["A"])
+
+        _ = presenter.makeRouteSheet(.favoriteList)
+        _ = presenter.makeRouteSheet(.bulkAdd)
     }
 }
 

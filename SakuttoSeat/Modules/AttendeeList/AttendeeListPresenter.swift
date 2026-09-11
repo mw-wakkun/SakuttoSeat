@@ -3,7 +3,8 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/05.
-//  refactor_AttendeeList.md Phase 3（永続化は Interactor。ViewData 更新は publishState のみ）
+//  refactor_AttendeeList.md Phase 3 / Phase 4
+//  永続化は Interactor。遷移先の組み立ては Router へ委譲。
 //
 
 import Combine
@@ -139,15 +140,29 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
         route = nil
     }
 
-    // MARK: - ナビゲーション（Phase 4 で Router へ委譲）
-
-    func view(for route: AttendeeListRoute) -> AnyView {
+    /// ナビゲーション先を Router 経由で組み立てる（View から子モジュール型名を排除）
+    func makeRouteView(_ route: AttendeeListRoute) -> AnyView {
         switch route {
         case .seatingChart:
-            return router.makeSeatingChartView(attendees: interactor.allAttendees())
+            return router.makeSeatingChartModule(attendees: interactor.allAttendees())
         case .simpleShuffle:
-            return router.makeSimpleShuffleView(attendees: interactor.allAttendees().map(\.name))
+            return router.makeSimpleShuffleModule(attendees: interactor.allAttendees())
         case .favoriteList, .bulkAdd, .saveFavoritePrompt, .alert:
+            return AnyView(EmptyView())
+        }
+    }
+
+    /// シート内容を Router 経由で組み立てる（SeatingChart の `makeRouteSheet` と同じ形）
+    func makeRouteSheet(_ route: AttendeeListRoute) -> AnyView {
+        switch route {
+        case .favoriteList:
+            return router.makeFavoriteGroupModule(
+                groups: viewData.favoriteGroups,
+                output: self
+            )
+        case .bulkAdd:
+            return router.makeBulkAddModule(output: self)
+        case .seatingChart, .simpleShuffle, .saveFavoritePrompt, .alert:
             return AnyView(EmptyView())
         }
     }
@@ -159,5 +174,31 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
             attendees: interactor.allAttendees(),
             favoriteGroups: interactor.allFavorites()
         )
+    }
+}
+
+// MARK: - 子モジュール Output
+
+extension AttendeeListPresenter: FavoriteGroupModuleOutput {
+    func favoriteGroupDidSelect(id: FavoriteGroupID) {
+        didSelectFavoriteGroup(id: id)
+    }
+
+    func favoriteGroupDidDelete(at offsets: IndexSet) {
+        didDeleteFavoriteGroups(at: offsets)
+    }
+
+    func favoriteGroupDidCancel() {
+        dismissRoute()
+    }
+}
+
+extension AttendeeListPresenter: BulkAddModuleOutput {
+    func bulkAddDidConfirm(text: String) {
+        didTapBulkAdd(text: text)
+    }
+
+    func bulkAddDidCancel() {
+        dismissRoute()
     }
 }

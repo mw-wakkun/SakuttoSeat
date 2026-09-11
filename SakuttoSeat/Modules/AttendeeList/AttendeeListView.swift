@@ -3,7 +3,7 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/05.
-//  refactor_AttendeeList.md Phase 2（route / viewData への集約）
+//  refactor_AttendeeList.md Phase 2 / Phase 4（route / viewData 集約。遷移は Presenter → Router）
 //
 
 import SwiftUI
@@ -15,8 +15,6 @@ struct AttendeeListView: View {
     @State private var newName = ""
     /// 保存アラートの TextField 用（route が `.saveFavoritePrompt` のときだけ使う）
     @State private var groupName = ""
-    /// 一括追加は Phase 5 で子モジュールへ移すまでの一時入力
-    @State private var bulkInputText = ""
     @FocusState private var isTextFieldFocused: Bool
 
     /// SwiftData の制約上、実 Gateway は初回 `onAppear` で渡す（SeatingChart と同じ過渡期）。
@@ -87,7 +85,7 @@ struct AttendeeListView: View {
                 }
             )
             .sheet(item: sheetRouteBinding) { route in
-                sheetContent(for: route)
+                presenter.makeRouteSheet(route)
             }
             .onAppear {
                 presenter.attachFavoriteGateway(SwiftDataGroupFavoriteGateway(context: modelContext))
@@ -98,7 +96,7 @@ struct AttendeeListView: View {
                 isTextFieldFocused = false
             }
             .navigationDestination(item: navigationRouteBinding) { route in
-                presenter.view(for: route)
+                presenter.makeRouteView(route)
             }
         }
     }
@@ -200,118 +198,6 @@ private extension AttendeeListView {
         case .saveFailed(let message):
             Text(message)
         }
-    }
-}
-
-// MARK: - サブビュー（お気に入り関連・一括追加）
-// Phase 5 で FavoriteGroup / BulkAdd 子モジュールへ切り出す。
-
-private extension AttendeeListView {
-    @ViewBuilder
-    func sheetContent(for route: AttendeeListRoute) -> some View {
-        switch route {
-        case .favoriteList:
-            favoriteGroupSheetView
-        case .bulkAdd:
-            bulkAddSheetView
-        case .seatingChart, .simpleShuffle, .saveFavoritePrompt, .alert:
-            EmptyView()
-        }
-    }
-
-    var bulkAddSheetView: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("改行またはカンマ（、）区切りで参加者名を入力・ペーストしてください。")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                TextEditor(text: $bulkInputText)
-                    .padding(8)
-                    .background(Color(.secondarySystemBackground))
-                    .cornerRadius(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                    )
-            }
-            .padding()
-            .navigationTitle("参加者の一括追加")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("キャンセル") {
-                        bulkInputText = ""
-                        presenter.dismissRoute()
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("追加") {
-                        presenter.didTapBulkAdd(text: bulkInputText)
-                        bulkInputText = ""
-                    }
-                    .disabled(bulkInputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-    }
-
-    var favoriteGroupSheetView: some View {
-        NavigationStack {
-            Group {
-                List {
-                    if presenter.viewData.favoriteGroups.isEmpty {
-                        Section {
-                            VStack(spacing: 16) {
-                                Image(systemName: "star.slash")
-                                    .font(.system(size: 50))
-                                    .foregroundColor(.gray.opacity(0.5))
-                                Text("登録されているグループはありません")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 120)
-                            .listRowInsets(EdgeInsets())
-                        }
-                    } else {
-                        Section {
-                            ForEach(presenter.viewData.favoriteGroups) { group in
-                                Button(action: {
-                                    presenter.didSelectFavoriteGroup(id: group.id)
-                                }) {
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text(group.name)
-                                            .font(.headline)
-                                            .foregroundColor(.primary)
-                                        Text(group.memberSummary)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(1)
-                                    }
-                                }
-                            }
-                            .onDelete { offsets in
-                                presenter.didDeleteFavoriteGroups(at: offsets)
-                            }
-                        }
-                    }
-                }
-                .listStyle(.plain)
-            }
-            .navigationTitle("お気に入りグループ")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    EditButton()
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("閉じる") { presenter.dismissRoute() }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
     }
 }
 
@@ -417,11 +303,13 @@ private extension AttendeeListView {
         .foregroundColor(isPrimary ? .white : .blue)
         .frame(maxWidth: .infinity)
         .frame(height: 56)
-        .background(
-            isPrimary ?
-            AnyView(Color.sakuttoGradient) :
-                AnyView(Color.blue.opacity(0.1))
-        )
+        .background {
+            if isPrimary {
+                Color.sakuttoGradient
+            } else {
+                Color.blue.opacity(0.1)
+            }
+        }
         .cornerRadius(15)
         .shadow(
             color: (isPrimary ? Color.sakuttoBlueStart : Color.blue).opacity(0.3),
