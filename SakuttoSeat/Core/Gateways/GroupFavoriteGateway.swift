@@ -4,8 +4,9 @@
 //
 //  refactor_seating.md Phase 4
 //  refactor_favorite.md Phase 3（Snapshot 戻り / fetch(id:) / delete(ids:) / insert(name:members:)）
+//  refactor_groupFavorite.md Phase 1（@Model の住所は Core/Persistence。型名は変えない）
 //
-//  画面 = FavoriteGroup、永続化 = GroupFavorite。@Model はこのファイル内に閉じる。
+//  画面 = FavoriteGroup、永続化 = GroupFavorite。@Model は Core/Persistence。
 //  Protocol existential をクラスが保持すると deinit で malloc abort するため、
 //  Interactor は具象基底クラスだけを保持する。
 //

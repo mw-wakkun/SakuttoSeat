@@ -35,6 +35,7 @@ struct SakuttoSeatApp: App {
                     SessionRewardedAd.shared.preload()
                 }
         }
+        // GroupFavorite は Core/Persistence。画面モジュール（FavoriteGroup）ではない。
         .modelContainer(for: [GroupFavorite.self, SeatingLayoutTemplate.self])
     }
 }

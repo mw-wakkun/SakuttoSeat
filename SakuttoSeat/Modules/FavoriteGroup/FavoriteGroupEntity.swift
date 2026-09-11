@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_favorite.md Phase 2（共有型の所在。画面 = FavoriteGroup、永続化 = GroupFavorite）
+//  refactor_groupFavorite.md Phase 1（@Model の住所は Core/Persistence。型名は変えない）
 //
 
 import Foundation

@@ -3,8 +3,8 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/24.
-//  永続化モデル（SwiftData）。画面モジュール名は FavoriteGroup。
-//  Snapshot への変換は GroupFavoriteGateway が担う。
+//  永続化モデル（SwiftData）。VIPER 画面モジュールではない。
+//  画面名は FavoriteGroup。Snapshot 変換は GroupFavoriteGateway。
 //
 
 import Foundation
