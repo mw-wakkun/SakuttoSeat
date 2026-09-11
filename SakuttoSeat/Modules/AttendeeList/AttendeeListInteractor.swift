@@ -3,27 +3,39 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/05.
-//  refactor_AttendeeList.md Phase 1（規約統一・API 対称化）
-//  Phase 2: InteractorProtocol を Contracts へ移設
+//  refactor_AttendeeList.md Phase 3（お気に入り永続化・一括置換を Interactor へ）
 //
 
 import Foundation
 
 nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
-    // このモジュール用のメモリ内参加者ストレージ
     private var attendees: [Attendee] = []
+    /// Protocol existential は保持しない（deinit の malloc abort 回避）
+    private var favoriteGateway: GroupFavoriteGatewayBase
 
-    // MARK: - 公開 API
+    init(favoriteGateway: GroupFavoriteGatewayBase = InMemoryGroupFavoriteGateway()) {
+        self.favoriteGateway = favoriteGateway
+    }
+
+    // MARK: - 参加者
+
     func allAttendees() -> [Attendee] {
-        return attendees
+        attendees
     }
 
     func add(name: String) -> [Attendee] {
-        let trimmedName = trimmed(name)
-        guard !trimmedName.isEmpty else { return attendees }
+        appendUniqueNames([name])
+        return attendees
+    }
 
-        let unique = generateUniqueName(from: trimmedName)
-        attendees.append(Attendee(name: unique))
+    func add(fromText text: String) -> [Attendee] {
+        appendUniqueNames(splitRawNames(from: text))
+        return attendees
+    }
+
+    func replaceAll(names: [String]) -> [Attendee] {
+        attendees.removeAll()
+        appendUniqueNames(names)
         return attendees
     }
 
@@ -52,28 +64,109 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
         return attendees
     }
 
-    func add(fromText text: String) -> [Attendee] {
-        let names = splitRawNames(from: text)
-        for name in names {
-            _ = add(name: name)
+    // MARK: - お気に入り
+
+    func attachFavoriteGateway(_ gateway: GroupFavoriteGatewayBase) {
+        favoriteGateway = gateway
+    }
+
+    func favoriteSaveAvailability() -> FavoriteSaveAvailability {
+        let currentCount = (try? favoriteGateway.fetchCount()) ?? 0
+        if currentCount < FeatureLimit.freeFavoriteGroupCount {
+            return .available
         }
-        return attendees
+        return .limitReached(currentCount: currentCount, limit: FeatureLimit.freeFavoriteGroupCount)
+    }
+
+    func saveCurrentAsFavorite(named name: String) throws {
+        switch favoriteSaveAvailability() {
+        case .limitReached(let currentCount, let limit):
+            throw FavoriteSaveError.limitReached(currentCount: currentCount, limit: limit)
+        case .available:
+            break
+        }
+
+        let trimmedName = trimmed(name)
+        guard !trimmedName.isEmpty else {
+            throw FavoriteSaveError.invalidName
+        }
+
+        let favorite = GroupFavorite(name: trimmedName, members: attendees.map(\.name))
+        do {
+            try favoriteGateway.insert(favorite)
+        } catch {
+            throw FavoriteSaveError.persistenceFailed(message: error.localizedDescription)
+        }
+    }
+
+    func allFavorites() -> [FavoriteGroupSnapshot] {
+        let favorites = (try? favoriteGateway.fetchAll()) ?? []
+        return favorites.map { favorite in
+            FavoriteGroupSnapshot(
+                id: favorite.id,
+                name: favorite.name,
+                memberNames: favorite.members,
+                memberSummary: favorite.members.joined(separator: ", ")
+            )
+        }
+    }
+
+    func deleteFavorites(at offsets: IndexSet) throws {
+        let currentList: [GroupFavorite]
+        do {
+            currentList = try favoriteGateway.fetchAll()
+        } catch {
+            throw FavoriteSaveError.persistenceFailed(message: error.localizedDescription)
+        }
+
+        do {
+            try favoriteGateway.delete(atOffsets: offsets, in: currentList)
+        } catch {
+            throw FavoriteSaveError.persistenceFailed(message: error.localizedDescription)
+        }
+    }
+
+    func loadFavorite(id: FavoriteGroupID) throws -> [Attendee] {
+        let favorites: [GroupFavorite]
+        do {
+            favorites = try favoriteGateway.fetchAll()
+        } catch {
+            throw FavoriteSaveError.persistenceFailed(message: error.localizedDescription)
+        }
+
+        guard let favorite = favorites.first(where: { $0.id == id }) else {
+            throw FavoriteSaveError.notFound
+        }
+        return replaceAll(names: favorite.members)
     }
 
     // MARK: - プライベートヘルパー
+
     /// 先頭・末尾の空白と改行を除去する
     private func trimmed(_ name: String) -> String {
-        return name.trimmingCharacters(in: .whitespacesAndNewlines)
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// 一括追加・置換で名前集合を一度だけ作り、ユニーク名を O(n) に近づける
+    private func appendUniqueNames(_ names: [String]) {
+        var usedNames = Set(attendees.map(\.name))
+        for name in names {
+            let trimmedName = trimmed(name)
+            guard !trimmedName.isEmpty else { continue }
+            let unique = generateUniqueName(from: trimmedName, usedNames: &usedNames)
+            attendees.append(Attendee(name: unique))
+        }
     }
 
     /// 必要に応じて末尾に (2), (3), ... を付与してユニーク名を生成する
-    private func generateUniqueName(from base: String) -> String {
+    private func generateUniqueName(from base: String, usedNames: inout Set<String>) -> String {
         var finalName = base
         var count = 2
-        while attendees.contains(where: { $0.name == finalName }) {
+        while usedNames.contains(finalName) {
             finalName = "\(base)(\(count))"
             count += 1
         }
+        usedNames.insert(finalName)
         return finalName
     }
 

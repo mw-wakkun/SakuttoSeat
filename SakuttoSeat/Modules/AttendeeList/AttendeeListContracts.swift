@@ -2,7 +2,7 @@
 //  AttendeeListContracts.swift
 //  SakuttoSeat
 //
-//  refactor_AttendeeList.md Phase 2（層間境界の明示）
+//  refactor_AttendeeList.md Phase 2 / Phase 3（層間境界の明示）
 //
 
 import SwiftUI
@@ -34,20 +34,28 @@ protocol AttendeeListPresenterProtocol: AnyObject {
     func didTapSimpleShuffle()
     func dismissRoute()
 
-    /// Phase 3 で Interactor へ移す。過渡期は Presenter が Gateway を保持する。
+    /// View は SwiftData の `ModelContext` だけを渡し、Gateway の保持は Interactor に委譲する。
     func attachFavoriteGateway(_ gateway: GroupFavoriteGatewayBase)
 }
 
 // MARK: - Presenter -> Interactor
 
-/// Phase 3 でお気に入り永続化・一括置換・上限判定をここに追加する。
 nonisolated protocol AttendeeListInteractorProtocol: AnyObject {
     func allAttendees() -> [Attendee]
     func add(name: String) -> [Attendee]
     func add(fromText text: String) -> [Attendee]
+    func replaceAll(names: [String]) -> [Attendee]
     func remove(atOffsets offsets: IndexSet) -> [Attendee]
     func removeAll() -> [Attendee]
     func shuffle() -> [Attendee]
+
+    func favoriteSaveAvailability() -> FavoriteSaveAvailability
+    func saveCurrentAsFavorite(named name: String) throws
+    func allFavorites() -> [FavoriteGroupSnapshot]
+    func deleteFavorites(at offsets: IndexSet) throws
+    func loadFavorite(id: FavoriteGroupID) throws -> [Attendee]
+
+    func attachFavoriteGateway(_ gateway: GroupFavoriteGatewayBase)
 }
 
 // MARK: - Presenter -> Router

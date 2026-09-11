@@ -2,7 +2,7 @@
 //  AttendeeListPresenterTests.swift
 //  SakuttoSeatTests
 //
-//  refactor_AttendeeList.md Phase 0 / Phase 1 / Phase 2
+//  refactor_AttendeeList.md Phase 0 / Phase 1 / Phase 2 / Phase 3
 //  意図メソッド → ViewData / Route の契約を固定する。
 //
 
@@ -229,5 +229,38 @@ final class AttendeeListPresenterTests: XCTestCase {
         XCTAssertTrue(try gateway.fetchAll().isEmpty)
         XCTAssertTrue(presenter.viewData.favoriteGroups.isEmpty)
         XCTAssertNil(presenter.route)
+    }
+
+    func test_お気に入り保存失敗はアラートになる() {
+        let presenter = makePresenter(names: ["A"], gateway: FailingInsertGroupFavoriteGateway())
+
+        presenter.didConfirmSaveFavorite(name: "同期")
+
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.saveFailed(message: "書き込みに失敗しました"))
+        )
+        XCTAssertTrue(presenter.viewData.favoriteGroups.isEmpty)
+    }
+
+    func test_存在しないお気に入りを選んでもリストとRouteは変わらない() {
+        let presenter = makePresenter(names: ["A"])
+        presenter.didTapShowFavorites()
+
+        presenter.didSelectFavoriteGroup(id: UUID())
+
+        XCTAssertEqual(names(of: presenter), ["A"])
+        XCTAssertEqual(presenter.route, .favoriteList)
+    }
+}
+
+/// insert だけ失敗させるテスト用 Gateway
+private final class FailingInsertGroupFavoriteGateway: GroupFavoriteGatewayBase {
+    override func insert(_ favorite: GroupFavorite) throws {
+        throw NSError(
+            domain: "AttendeeListTests",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "書き込みに失敗しました"]
+        )
     }
 }

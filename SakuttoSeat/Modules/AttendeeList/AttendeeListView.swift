@@ -19,7 +19,8 @@ struct AttendeeListView: View {
     @State private var bulkInputText = ""
     @FocusState private var isTextFieldFocused: Bool
 
-    /// Phase 3 で assemble / Interactor へ移す。View は Entity / `@Query` を持たない。
+    /// SwiftData の制約上、実 Gateway は初回 `onAppear` で渡す（SeatingChart と同じ過渡期）。
+    /// View は Entity / `@Query` を持たない。保持は Interactor。
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {

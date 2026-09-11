@@ -2,7 +2,8 @@
 //  AttendeeListInteractorTests.swift
 //  SakuttoSeatTests
 //
-//  refactor_AttendeeList.md Phase 0（現状の挙動を固定する回帰テスト）
+//  refactor_AttendeeList.md Phase 0 / Phase 3
+//  追加規則・一括パース・置換・お気に入り上限 / 保存 / 読込 / 削除を固定する。
 //
 
 import XCTest
@@ -122,5 +123,177 @@ final class AttendeeListInteractorTests: XCTestCase {
         let single = AttendeeListInteractor()
         _ = single.add(name: "A")
         XCTAssertEqual(names(of: single.shuffle()), ["A"])
+    }
+
+    // MARK: - 一括置換
+
+    func test_replaceAllは参加者を完全置換する() {
+        let interactor = AttendeeListInteractor()
+        _ = interactor.add(fromText: "旧1,旧2")
+
+        let attendees = interactor.replaceAll(names: ["新1", "新2", "新3"])
+
+        XCTAssertEqual(names(of: attendees), ["新1", "新2", "新3"])
+        XCTAssertEqual(names(of: interactor.allAttendees()), ["新1", "新2", "新3"])
+    }
+
+    func test_replaceAllは空配列でリストを空にする() {
+        let interactor = AttendeeListInteractor()
+        _ = interactor.add(fromText: "残したくない")
+
+        let attendees = interactor.replaceAll(names: [])
+
+        XCTAssertTrue(attendees.isEmpty)
+    }
+
+    func test_replaceAllは空白のみをスキップし同名はユニーク化する() {
+        let interactor = AttendeeListInteractor()
+
+        let attendees = interactor.replaceAll(names: ["A", "  ", "A", "B"])
+
+        XCTAssertEqual(names(of: attendees), ["A", "A(2)", "B"])
+    }
+
+    // MARK: - お気に入り
+
+    func test_お気に入り保存可否は無料枠3件まで() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let interactor = AttendeeListInteractor(favoriteGateway: gateway)
+        _ = interactor.add(name: "A")
+
+        XCTAssertEqual(interactor.favoriteSaveAvailability(), .available)
+
+        try interactor.saveCurrentAsFavorite(named: "1")
+        try interactor.saveCurrentAsFavorite(named: "2")
+        try interactor.saveCurrentAsFavorite(named: "3")
+
+        XCTAssertEqual(
+            interactor.favoriteSaveAvailability(),
+            .limitReached(
+                currentCount: FeatureLimit.freeFavoriteGroupCount,
+                limit: FeatureLimit.freeFavoriteGroupCount
+            )
+        )
+        XCTAssertThrowsError(try interactor.saveCurrentAsFavorite(named: "4")) { error in
+            XCTAssertEqual(
+                error as? FavoriteSaveError,
+                .limitReached(
+                    currentCount: FeatureLimit.freeFavoriteGroupCount,
+                    limit: FeatureLimit.freeFavoriteGroupCount
+                )
+            )
+        }
+    }
+
+    func test_現在の参加者をお気に入りに保存する() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let interactor = AttendeeListInteractor(favoriteGateway: gateway)
+        _ = interactor.add(fromText: "太郎,花子")
+
+        try interactor.saveCurrentAsFavorite(named: "  同期  ")
+
+        let saved = try gateway.fetchAll()
+        XCTAssertEqual(saved.count, 1)
+        XCTAssertEqual(saved.first?.name, "同期")
+        XCTAssertEqual(saved.first?.members, ["太郎", "花子"])
+        XCTAssertEqual(interactor.allFavorites().map(\.name), ["同期"])
+        XCTAssertEqual(interactor.allFavorites().first?.memberSummary, "太郎, 花子")
+    }
+
+    func test_空白のみのグループ名はinvalidNameになる() {
+        let interactor = AttendeeListInteractor()
+        _ = interactor.add(name: "A")
+
+        XCTAssertThrowsError(try interactor.saveCurrentAsFavorite(named: "   ")) { error in
+            XCTAssertEqual(error as? FavoriteSaveError, .invalidName)
+        }
+        XCTAssertTrue(interactor.allFavorites().isEmpty)
+    }
+
+    func test_保存失敗はpersistenceFailedになる() {
+        let interactor = AttendeeListInteractor(favoriteGateway: FailingInsertGroupFavoriteGateway())
+        _ = interactor.add(name: "A")
+
+        XCTAssertThrowsError(try interactor.saveCurrentAsFavorite(named: "同期")) { error in
+            XCTAssertEqual(
+                error as? FavoriteSaveError,
+                .persistenceFailed(message: "書き込みに失敗しました")
+            )
+        }
+    }
+
+    func test_お気に入り読込で参加者リストを置換する() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        try gateway.insert(GroupFavorite(name: "新メンバ", members: ["新1", "新2", "新3"]))
+        let interactor = AttendeeListInteractor(favoriteGateway: gateway)
+        _ = interactor.add(fromText: "旧1,旧2")
+
+        let loaded = try interactor.loadFavorite(id: gateway.favorites[0].id)
+
+        XCTAssertEqual(names(of: loaded), ["新1", "新2", "新3"])
+        XCTAssertEqual(names(of: interactor.allAttendees()), ["新1", "新2", "新3"])
+    }
+
+    func test_メンバーが空のお気に入りを読むとリストが空になる() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        try gateway.insert(GroupFavorite(name: "空", members: []))
+        let interactor = AttendeeListInteractor(favoriteGateway: gateway)
+        _ = interactor.add(name: "残したくない")
+
+        let loaded = try interactor.loadFavorite(id: gateway.favorites[0].id)
+
+        XCTAssertTrue(loaded.isEmpty)
+    }
+
+    func test_存在しないお気に入りの読込はnotFoundになる() {
+        let interactor = AttendeeListInteractor()
+
+        XCTAssertThrowsError(try interactor.loadFavorite(id: UUID())) { error in
+            XCTAssertEqual(error as? FavoriteSaveError, .notFound)
+        }
+    }
+
+    func test_お気に入りをoffset指定で削除する() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let interactor = AttendeeListInteractor(favoriteGateway: gateway)
+        _ = interactor.add(name: "A")
+        try interactor.saveCurrentAsFavorite(named: "古い")
+        try interactor.saveCurrentAsFavorite(named: "新しい")
+
+        let before = interactor.allFavorites()
+        XCTAssertEqual(before.count, 2)
+        let removedName = before[0].name
+
+        try interactor.deleteFavorites(at: IndexSet(integer: 0))
+
+        let after = interactor.allFavorites()
+        XCTAssertEqual(after.count, 1)
+        XCTAssertNotEqual(after.first?.name, removedName)
+    }
+
+    func test_attachFavoriteGatewayで永続化先を差し替える() throws {
+        let first = InMemoryGroupFavoriteGateway()
+        let second = InMemoryGroupFavoriteGateway()
+        let interactor = AttendeeListInteractor(favoriteGateway: first)
+        _ = interactor.add(name: "A")
+        try interactor.saveCurrentAsFavorite(named: "最初")
+
+        interactor.attachFavoriteGateway(second)
+        try interactor.saveCurrentAsFavorite(named: "差し替え後")
+
+        XCTAssertEqual(try first.fetchAll().map(\.name), ["最初"])
+        XCTAssertEqual(try second.fetchAll().map(\.name), ["差し替え後"])
+        XCTAssertEqual(interactor.allFavorites().map(\.name), ["差し替え後"])
+    }
+}
+
+/// insert だけ失敗させるテスト用 Gateway
+private final class FailingInsertGroupFavoriteGateway: GroupFavoriteGatewayBase {
+    override func insert(_ favorite: GroupFavorite) throws {
+        throw NSError(
+            domain: "AttendeeListTests",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "書き込みに失敗しました"]
+        )
     }
 }

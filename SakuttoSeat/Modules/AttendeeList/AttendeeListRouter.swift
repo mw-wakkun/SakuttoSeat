@@ -13,6 +13,7 @@ final class AttendeeListRouter {
     /// モジュールの初期組み立て（アプリ起動時などに使用）
     @MainActor
     static func assembleModule() -> some View {
+        // assemble 時点は In-Memory。実画面は View 初回 onAppear で SwiftData Gateway を渡す。
         let interactor = AttendeeListInteractor()
         let router = AttendeeListRouter()
         let presenter = AttendeeListPresenter(

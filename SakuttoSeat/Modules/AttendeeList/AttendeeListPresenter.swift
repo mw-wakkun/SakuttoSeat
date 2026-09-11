@@ -3,7 +3,7 @@
 //  SakuttoSeat
 //
 //  Created by masafumi wakugawa on 2026/05/05.
-//  refactor_AttendeeList.md Phase 2（ViewData / Route の導入）
+//  refactor_AttendeeList.md Phase 3（永続化は Interactor。ViewData 更新は publishState のみ）
 //
 
 import Combine
@@ -16,9 +16,6 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
 
     private let interactor: AttendeeListInteractor
     private let router: AttendeeListRouter
-    /// Protocol existential を MainActor クラスが保持すると deinit で malloc abort するため具象基底で保持する。
-    /// Phase 3 で Interactor へ移す。
-    private var favoriteGateway: GroupFavoriteGatewayBase = GroupFavoriteGatewayBase()
 
     init(interactor: AttendeeListInteractor, router: AttendeeListRouter) {
         self.interactor = interactor
@@ -30,7 +27,7 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
     nonisolated deinit {}
 
     func attachFavoriteGateway(_ gateway: GroupFavoriteGatewayBase) {
-        favoriteGateway = gateway
+        interactor.attachFavoriteGateway(gateway)
         publishState()
     }
 
@@ -65,7 +62,7 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
     }
 
     func didTapSaveFavorite() {
-        switch favoriteSaveAvailability() {
+        switch interactor.favoriteSaveAvailability() {
         case .available:
             route = .saveFavoritePrompt
         case .limitReached(let currentCount, let limit):
@@ -74,21 +71,20 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
     }
 
     func didConfirmSaveFavorite(name: String) {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty else {
-            route = nil
-            return
-        }
-
-        let memberNames = interactor.allAttendees().map(\.name)
-        let newFavorite = GroupFavorite(name: trimmedName, members: memberNames)
         do {
-            try favoriteGateway.insert(newFavorite)
-            print("お気に入りグループを保存しました: \(trimmedName), メンバー数: \(memberNames.count)")
+            try interactor.saveCurrentAsFavorite(named: name)
             route = nil
             publishState()
+        } catch let error as FavoriteSaveError {
+            switch error {
+            case .limitReached(let currentCount, let limit):
+                route = .alert(.favoriteLimitReached(currentCount: currentCount, limit: limit))
+            case .invalidName, .notFound:
+                route = nil
+            case .persistenceFailed(let message):
+                route = .alert(.saveFailed(message: message))
+            }
         } catch {
-            print("お気に入りグループの保存に失敗しました: \(error)")
             route = .alert(.saveFailed(message: error.localizedDescription))
         }
     }
@@ -99,24 +95,31 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
     }
 
     func didSelectFavoriteGroup(id: FavoriteGroupID) {
-        guard let snapshot = viewData.favoriteGroups.first(where: { $0.id == id }) else { return }
-
-        _ = interactor.removeAll()
-        for name in snapshot.memberNames {
-            _ = interactor.add(name: name)
+        do {
+            _ = try interactor.loadFavorite(id: id)
+            route = nil
+            publishState()
+        } catch FavoriteSaveError.notFound {
+            return
+        } catch let error as FavoriteSaveError {
+            if case .persistenceFailed(let message) = error {
+                route = .alert(.saveFailed(message: message))
+            }
+        } catch {
+            route = .alert(.saveFailed(message: error.localizedDescription))
         }
-
-        route = nil
-        publishState()
     }
 
     func didDeleteFavoriteGroups(at offsets: IndexSet) {
-        guard let currentList = try? favoriteGateway.fetchAll() else { return }
         do {
-            try favoriteGateway.delete(atOffsets: offsets, in: currentList)
+            try interactor.deleteFavorites(at: offsets)
             publishState()
+        } catch let error as FavoriteSaveError {
+            if case .persistenceFailed(let message) = error {
+                route = .alert(.saveFailed(message: message))
+            }
         } catch {
-            print("お気に入りグループの削除に失敗しました: \(error)")
+            route = .alert(.saveFailed(message: error.localizedDescription))
         }
     }
 
@@ -151,30 +154,10 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
 
     // MARK: - Private
 
-    private func favoriteSaveAvailability() -> FavoriteSaveAvailability {
-        let currentCount = (try? favoriteGateway.fetchCount()) ?? 0
-        if currentCount < FeatureLimit.freeFavoriteGroupCount {
-            return .available
-        }
-        return .limitReached(currentCount: currentCount, limit: FeatureLimit.freeFavoriteGroupCount)
-    }
-
     private func publishState() {
         viewData = AttendeeListViewDataBuilder.build(
             attendees: interactor.allAttendees(),
-            favoriteGroups: favoriteSnapshots()
+            favoriteGroups: interactor.allFavorites()
         )
-    }
-
-    private func favoriteSnapshots() -> [FavoriteGroupSnapshot] {
-        let favorites = (try? favoriteGateway.fetchAll()) ?? []
-        return favorites.map { favorite in
-            FavoriteGroupSnapshot(
-                id: favorite.id,
-                name: favorite.name,
-                memberNames: favorite.members,
-                memberSummary: favorite.members.joined(separator: ", ")
-            )
-        }
     }
 }

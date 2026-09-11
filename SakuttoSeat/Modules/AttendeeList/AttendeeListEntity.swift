@@ -28,8 +28,16 @@ nonisolated struct FavoriteGroupSnapshot: Identifiable, Equatable {
     let memberSummary: String
 }
 
-/// お気に入り保存の可否。`TemplateSaveAvailability` と同型（Phase 3 で Interactor に移す）
+/// お気に入り保存の可否。`TemplateSaveAvailability` と同型
 nonisolated enum FavoriteSaveAvailability: Equatable {
     case available
     case limitReached(currentCount: Int, limit: Int)
+}
+
+/// お気に入り保存・読込・削除の失敗理由
+nonisolated enum FavoriteSaveError: Error, Equatable {
+    case limitReached(currentCount: Int, limit: Int)
+    case invalidName
+    case notFound
+    case persistenceFailed(message: String)
 }
