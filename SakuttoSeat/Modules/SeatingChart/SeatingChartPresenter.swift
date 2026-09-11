@@ -1,3 +1,11 @@
+//
+//  SeatingChartPresenter.swift
+//  SakuttoSeat
+//
+//  refactor_seating.md Phase 4 / Phase 5
+//  refactor_templateListView.md Phase 1（`templateListDidCancel` は本番未接続。消さない）
+//
+
 import Combine
 import Foundation
 import SwiftUI
@@ -189,6 +197,8 @@ extension SeatingChartPresenter: TemplateListModuleOutput {
         didSelectTemplate(template)
     }
 
+    /// `_既知の課題`: 本番未接続。閉じるは View の `dismiss()`、スワイプは親の sheet Binding。
+    /// Phase 2 で閉じるボタンから呼ぶ。消さない。
     func templateListDidCancel() {
         route = nil
     }

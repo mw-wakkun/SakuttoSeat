@@ -18,7 +18,7 @@ Gateway 化 / 子 VIPER 化）を、FavoriteGroup の完成形に揃えて実施
 | Phase | 内容 | 状態 |
 | --- | --- | --- |
 | 0 | 準備と回帰テスト（ギャップ埋め） | ✅ 完了（2026-09-11） |
-| 1 | デッド API・コメント偽証・規約穴埋め | 未着手 |
+| 1 | デッド API・コメント偽証・規約穴埋め | ✅ 完了（2026-09-11） |
 | 2 | 子 VIPER 化（ViewData.Row / Route / Entity） | 未着手 |
 | 3 | Gateway の Snapshot 化と親 Interactor の純化 | 未着手 |
 | 4 | シート identity と Router 境界の安定化 | 未着手 |
@@ -529,6 +529,15 @@ Gateway と親のテンプレ経路を厚くする。
 
 Phase 1 で Copy / EmptyStateView を旧 View に入れない。
 入れても Phase 2 で View を置き換えるため二重作業になる。
+
+実装時の決定（2026-09-11）:
+
+- `SeatingTemplateListView` / `SeatingChartRouter` ヘッダに「一覧は未 VIPER。FavoriteGroup 完成形へ移す対象」を明記。
+- 空状態の「お気に入り画面と同様」コメントは偽証だったため、自前 VStack / EmptyStateView は Phase 2 と書き直した（UI は未変更）。
+- `templateListDidCancel` は Presenter / Contracts に本番未接続と書いた。実装は残した。
+- `LayoutTemplateSnapshot.id` は足していない。コメントで Phase 3 と固定。
+- `SeatingLayoutTemplate` に「永続化モデル。画面型は `SeatingTemplate*`」を固定。型名はリネームしていない。
+- 親 CTA「お気に入り」は変えていない。Copy / EmptyStateView / 子 VIPER ファイルは未導入。
 
 ### Phase 2: 子 VIPER 化（ViewData.Row / Route / Entity）（1.5 日）
 

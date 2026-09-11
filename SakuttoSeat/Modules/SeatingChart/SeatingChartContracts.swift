@@ -85,6 +85,7 @@ protocol SeatingChartRouterProtocol: AnyObject {
         featureUnlock: FeatureUnlockState,
         output: (any VenueSettingsModuleOutput)?
     ) -> AnyView
+    /// 一覧は未 VIPER。FavoriteGroup 完成形へ移す対象（refactor_templateListView.md Phase 2）。
     @MainActor func makeTemplateListModule(output: (any TemplateListModuleOutput)?) -> AnyView
 }
 
@@ -92,6 +93,8 @@ protocol SeatingChartRouterProtocol: AnyObject {
 //
 // TableEdit / VenueSettings の Output は各モジュールの Contracts で定義する。
 
+/// テンプレート一覧シートの Output。入力は `@Model`（Phase 2 で ID 化する）。
+/// `templateListDidCancel` は本番未接続（Phase 2 で閉じるボタンから呼ぶ）。
 protocol TemplateListModuleOutput: AnyObject {
     func templateListDidSelect(template: SeatingLayoutTemplate)
     func templateListDidCancel()

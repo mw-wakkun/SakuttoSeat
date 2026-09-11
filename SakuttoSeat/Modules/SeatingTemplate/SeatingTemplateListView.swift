@@ -4,8 +4,11 @@
 //
 //  Created by masafumi wakugawa on 2026/08/15.
 //  refactor_favorite.md Phase 5（行 UI とシートクロムを共有部品へ。@Query は触らない）
-//  refactor_templateListView.md Phase 0
-//  `_既知の課題`: 削除は `modelContext.delete` であり Gateway を通らない。子 VIPER 化は Phase 2。
+//  refactor_templateListView.md Phase 0 / Phase 1
+//
+//  一覧は未 VIPER。FavoriteGroup 完成形へ移す対象（refactor_templateListView.md）。
+//  `@Query` / `@Model` / `ModelContext` を View が持つ。子 5 層は Phase 2 で新設する。
+//  `_既知の課題`: 削除は `modelContext.delete` であり Gateway を通らない。
 //
 
 import SwiftUI
@@ -27,9 +30,8 @@ struct SeatingTemplateListView: View {
         NavigationStack {
             Group {
                 if templates.isEmpty {
-                    // お気に入り画面と同様の、空状態のUI
+                    // 空状態は自前 VStack。EmptyStateView 接続は Phase 2（FavoriteGroup 完成形へ揃える）。
                     VStack(spacing: 16) {
-                        // テンプレート用のアイコン（お好みで "folder" などに変更してください）
                         Image(systemName: "square.grid.2x2")
                             .font(.system(size: 64))
                             .foregroundColor(.gray.opacity(0.4))

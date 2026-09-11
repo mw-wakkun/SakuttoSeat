@@ -81,6 +81,9 @@ enum TemplateSaveError: Error, Equatable {
 }
 
 /// 永続化モデル（SwiftData）を Interactor から隔離するためのスナップショット
+///
+/// `id` は Phase 3 で必須化する（本計画ではまだ足さない。呼び出しが同時に割れるため）。
+/// Equatable / `nonisolated` も Phase 3 で兄弟型に揃える。所在は `SeatingTemplateEntity` へ移す。
 struct LayoutTemplateSnapshot {
     let name: String
     let tables: [TableTemplate]
