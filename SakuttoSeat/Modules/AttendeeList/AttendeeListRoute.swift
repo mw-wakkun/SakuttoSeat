@@ -66,6 +66,7 @@ nonisolated enum AttendeeListAlert: Equatable, Identifiable, Hashable {
     case confirmReset
     case favoriteLimitReached(currentCount: Int, limit: Int)
     case saveFailed(message: String)
+    case adNotReady
 
     var id: String {
         switch self {
@@ -75,6 +76,8 @@ nonisolated enum AttendeeListAlert: Equatable, Identifiable, Hashable {
             return "favoriteLimitReached"
         case .saveFailed:
             return "saveFailed"
+        case .adNotReady:
+            return "adNotReady"
         }
     }
 }

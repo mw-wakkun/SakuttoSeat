@@ -16,9 +16,15 @@ final class AttendeeListRouter: AttendeeListRouterProtocol {
 
     /// 座席表子モジュールへ渡す。Presenter の公開面には出さない。
     private let templateGateway: SeatingTemplateGatewayBase
+    /// Protocol existential は保持しない（deinit の malloc abort 回避）
+    private let rewardedAd: RewardedAdGatewayBase
 
-    init(templateGateway: SeatingTemplateGatewayBase = InMemorySeatingTemplateGateway()) {
+    init(
+        templateGateway: SeatingTemplateGatewayBase = InMemorySeatingTemplateGateway(),
+        rewardedAd: RewardedAdGatewayBase = RewardedAdGatewayBase()
+    ) {
         self.templateGateway = templateGateway
+        self.rewardedAd = rewardedAd
     }
 
     /// モジュールの初期組み立て（アプリ起動時などに使用）。
@@ -29,7 +35,10 @@ final class AttendeeListRouter: AttendeeListRouterProtocol {
         templateGateway: SeatingTemplateGatewayBase = InMemorySeatingTemplateGateway()
     ) -> some View {
         let interactor = AttendeeListInteractor(favoriteGateway: favoriteGateway)
-        let router = AttendeeListRouter(templateGateway: templateGateway)
+        let router = AttendeeListRouter(
+            templateGateway: templateGateway,
+            rewardedAd: SessionRewardedAd.shared
+        )
         let presenter = AttendeeListPresenter(
             interactor: interactor,
             router: router
@@ -71,5 +80,15 @@ final class AttendeeListRouter: AttendeeListRouterProtocol {
     @MainActor
     func makeBulkAddModule(output: (any BulkAddModuleOutput)?) -> AnyView {
         BulkAddRouter.assembleModule(output: output)
+    }
+
+    @MainActor
+    func waitUntilPresentable() async {
+        await ShareSheetPresenter.waitUntilPresentable()
+    }
+
+    @MainActor
+    func presentRewardedAd() async throws {
+        try await rewardedAd.present()
     }
 }

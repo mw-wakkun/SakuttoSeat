@@ -27,6 +27,14 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
     /// `didTapShowFavorites` のたびに新規 assemble、閉じたら破棄（テストの Gateway 差し替え後の stale を防ぐ）。
     private(set) var favoriteGroupPresenter: FavoriteGroupPresenter?
 
+    /// 上限到達後に名前確定済みなら、視聴成功後にその名前で保存する。
+    private var pendingFavoriteName: String?
+
+    /// 広告待ちなど、画面寿命を超えて走らないようにする非同期作業。
+    private var runningTask: Task<Void, Never>?
+    /// 閉じたあとに完了した広告待ちが副作用を残さないための世代。
+    private var runningTaskID = UUID()
+
     init(interactor: AttendeeListInteractor, router: AttendeeListRouter) {
         self.interactor = interactor
         self.router = router
@@ -78,19 +86,64 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
     func didConfirmSaveFavorite(name: String) {
         do {
             try interactor.saveCurrentAsFavorite(named: name)
+            pendingFavoriteName = nil
             setRoute(nil)
             publishState()
         } catch let error as FavoriteSaveError {
             switch error {
             case .limitReached(let currentCount, let limit):
+                pendingFavoriteName = name
                 setRoute(.alert(.favoriteLimitReached(currentCount: currentCount, limit: limit)))
             case .invalidName, .notFound:
+                pendingFavoriteName = nil
                 setRoute(nil)
             case .persistenceFailed(let message):
+                pendingFavoriteName = nil
                 setRoute(.alert(.saveFailed(message: message)))
             }
         } catch {
+            pendingFavoriteName = nil
             setRoute(.alert(.saveFailed(message: error.localizedDescription)))
+        }
+    }
+
+    /// 上限アラートで「動画を見て1枠追加（今回だけ）」を選んだとき
+    func didConfirmWatchAd() {
+        // Binding の dismissRoute より先でも後でも名前を残す。ここでは dismissRoute を使わない。
+        setRoute(nil)
+        startRunningTask { [weak self] in
+            await self?.confirmWatchAd()
+        }
+    }
+
+    /// 上限アラートの OK。Binding より先に来ても確定済み名前とバイパスを捨てる。
+    func didCancelFavoriteLimit() {
+        cancelRunningTask()
+        pendingFavoriteName = nil
+        interactor.revokeOneTimeFavoriteSaveBypass()
+        setRoute(nil)
+    }
+
+    /// 広告提示の結果を1回限り許可 / 保存へ写す。View は `didConfirmWatchAd` 経由。テストはここを await する。
+    func confirmWatchAd() async {
+        let taskID = runningTaskID
+        do {
+            await router.waitUntilPresentable()
+            guard isCurrentTask(taskID) else { return }
+            try await router.presentRewardedAd()
+            guard isCurrentTask(taskID) else { return }
+            interactor.grantOneTimeFavoriteSaveBypass()
+            if let pendingFavoriteName {
+                self.pendingFavoriteName = nil
+                didConfirmSaveFavorite(name: pendingFavoriteName)
+            } else {
+                setRoute(.saveFavoritePrompt)
+            }
+        } catch RewardedAdError.notReady {
+            guard isCurrentTask(taskID) else { return }
+            setRoute(.alert(.adNotReady))
+        } catch {
+            // notEarned / failed / キャンセル: 上限はバイパスしない
         }
     }
 
@@ -115,7 +168,20 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
     }
 
     func dismissRoute() {
+        let keepPendingFavoriteName = isFavoriteLimitAlert
+        cancelRunningTask()
+        if !keepPendingFavoriteName {
+            pendingFavoriteName = nil
+            interactor.revokeOneTimeFavoriteSaveBypass()
+        }
         setRoute(nil)
+    }
+
+    /// シートや画面が閉じられたときに、広告待ちなどの非同期作業を破棄する。
+    func cancelRunningTask() {
+        runningTask?.cancel()
+        runningTask = nil
+        runningTaskID = UUID()
     }
 
     /// ナビゲーション先を Router 経由で組み立てる（View から子モジュール型名を排除）
@@ -167,6 +233,25 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
             favoriteGroupPresenter = nil
         }
         route = newRoute
+    }
+
+    private func startRunningTask(_ operation: @escaping @MainActor () async -> Void) {
+        runningTask?.cancel()
+        runningTaskID = UUID()
+        runningTask = Task { @MainActor in
+            await operation()
+        }
+    }
+
+    private func isCurrentTask(_ taskID: UUID) -> Bool {
+        runningTaskID == taskID && !Task.isCancelled
+    }
+
+    /// SwiftUI の Alert Binding はボタン action より先に閉じることがある。
+    /// 上限アラート閉鎖だけでは確定済み名前を捨てない（視聴成功後の自動保存用）。
+    private var isFavoriteLimitAlert: Bool {
+        if case .alert(.favoriteLimitReached) = route { return true }
+        return false
     }
 }
 

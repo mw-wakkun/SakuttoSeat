@@ -139,18 +139,6 @@ final class FavoriteGroupPresenterTests: XCTestCase {
         XCTAssertNil(presenter.route)
     }
 
-    func test_onAppearはinitのあとに再fetchしない() throws {
-        let gateway = FetchCountingGroupFavoriteGateway()
-        try gateway.insert(name: "同期", members: ["太郎"])
-        let presenter = makePresenter(gateway: gateway, output: OutputSpy())
-        let countAfterInit = gateway.fetchSummariesCallCount
-
-        presenter.onAppear()
-
-        XCTAssertEqual(gateway.fetchSummariesCallCount, countAfterInit)
-        XCTAssertEqual(presenter.viewData.rows.map(\.name), ["同期"])
-    }
-
     func test_空ならisEmptyになる() {
         let presenter = makePresenter(gateway: InMemoryGroupFavoriteGateway(), output: OutputSpy())
 

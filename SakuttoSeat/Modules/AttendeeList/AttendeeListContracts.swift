@@ -30,6 +30,8 @@ protocol AttendeeListPresenterProtocol: AnyObject {
     func didConfirmReset()
     func didTapSaveFavorite()
     func didConfirmSaveFavorite(name: String)
+    func didConfirmWatchAd()
+    func didCancelFavoriteLimit()
     func didTapShowFavorites()
     func didTapBulkAddEntry()
     func didTapSeatingChart()
@@ -48,6 +50,8 @@ nonisolated protocol AttendeeListInteractorProtocol: AnyObject {
     func removeAll() -> [Attendee]
 
     func favoriteSaveAvailability() -> FavoriteSaveAvailability
+    func grantOneTimeFavoriteSaveBypass()
+    func revokeOneTimeFavoriteSaveBypass()
     func saveCurrentAsFavorite(named name: String) throws
     func loadFavorite(id: FavoriteGroupID) throws -> [Attendee]
 
@@ -70,4 +74,6 @@ protocol AttendeeListRouterProtocol: AnyObject {
     ) -> FavoriteGroupPresenter
     @MainActor func makeFavoriteGroupSheet(presenter: FavoriteGroupPresenter) -> AnyView
     @MainActor func makeBulkAddModule(output: (any BulkAddModuleOutput)?) -> AnyView
+    @MainActor func waitUntilPresentable() async
+    @MainActor func presentRewardedAd() async throws
 }

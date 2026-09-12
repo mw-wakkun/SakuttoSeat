@@ -93,15 +93,20 @@ nonisolated final class RewardedAdGatewayImpl: RewardedAdGatewayBase, FullScreen
 
         isReady = false
 
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            withPresentationLock {
-                _ = presentation.beginPresenting()
-                presentContinuation = continuation
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                withPresentationLock {
+                    _ = presentation.beginPresenting()
+                    presentContinuation = continuation
+                }
+                rewardedAd.present(from: topViewController) { [weak self] in
+                    // 同期的にフラグを立てる。MainActor hop しない（報酬競合の修正）。
+                    self?.markEarnedSynchronously()
+                }
             }
-            rewardedAd.present(from: topViewController) { [weak self] in
-                // 同期的にフラグを立てる。MainActor hop しない（報酬競合の修正）。
-                self?.markEarnedSynchronously()
-            }
+        } onCancel: { [self] in
+            let (completion, continuation) = consumeContinuationAfter { $0.abortIfPresenting() }
+            resume(continuation, with: completion)
         }
     }
 

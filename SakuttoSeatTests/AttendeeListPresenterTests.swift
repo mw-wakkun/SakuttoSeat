@@ -18,28 +18,48 @@ final class AttendeeListPresenterTests: XCTestCase {
 
     private func makePresenter(
         names: [String] = [],
-        gateway: GroupFavoriteGatewayBase = InMemoryGroupFavoriteGateway()
+        gateway: GroupFavoriteGatewayBase = InMemoryGroupFavoriteGateway(),
+        rewardedAd: RewardedAdGatewayBase = RewardedAdGatewayBase()
     ) -> AttendeeListPresenter {
         makePresenter(
             names: names,
-            interactor: AttendeeListInteractor(favoriteGateway: gateway)
+            interactor: AttendeeListInteractor(favoriteGateway: gateway),
+            rewardedAd: rewardedAd
         )
     }
 
     private func makePresenter(
         names: [String] = [],
-        interactor: AttendeeListInteractor
+        interactor: AttendeeListInteractor,
+        rewardedAd: RewardedAdGatewayBase = RewardedAdGatewayBase()
     ) -> AttendeeListPresenter {
         if !names.isEmpty {
             _ = interactor.add(fromText: names.joined(separator: ","))
         }
-        let presenter = AttendeeListPresenter(interactor: interactor, router: AttendeeListRouter())
+        let presenter = AttendeeListPresenter(
+            interactor: interactor,
+            router: AttendeeListRouter(rewardedAd: rewardedAd)
+        )
         presenter.onAppear()
         return presenter
     }
 
     private func names(of presenter: AttendeeListPresenter) -> [String] {
         presenter.viewData.rows.map(\.name)
+    }
+
+    /// View 経路の unstructured Task が終わるまで待つ。
+    private func waitUntil(
+        timeoutNanoseconds: UInt64 = 1_000_000_000,
+        _ condition: @MainActor () -> Bool
+    ) async {
+        let started = DispatchTime.now().uptimeNanoseconds
+        while !condition() {
+            if DispatchTime.now().uptimeNanoseconds - started >= timeoutNanoseconds {
+                return
+            }
+            await Task.yield()
+        }
     }
 
     // MARK: - 参加者 / ViewData
@@ -55,7 +75,7 @@ final class AttendeeListPresenterTests: XCTestCase {
         XCTAssertFalse(presenter.viewData.isEmpty)
     }
 
-    func test_onAppearでInteractorの一覧をViewDataに公開する() {
+    func test_initでInteractorの一覧をViewDataに公開する() {
         let presenter = makePresenter(names: ["A", "B"])
 
         XCTAssertEqual(names(of: presenter), ["A", "B"])
@@ -159,6 +179,228 @@ final class AttendeeListPresenterTests: XCTestCase {
 
         XCTAssertEqual(presenter.route, .saveFavoritePrompt)
         XCTAssertTrue(presenter.route?.presentsAsAlert == true)
+    }
+
+    func test_視聴成功なら1回限り保存でき次は再び上限になる() async throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let presenter = makePresenter(names: ["A"], gateway: gateway, rewardedAd: fake)
+        for index in 1...FeatureLimit.freeFavoriteGroupCount {
+            presenter.didConfirmSaveFavorite(name: "グループ\(index)")
+        }
+
+        await presenter.confirmWatchAd()
+
+        XCTAssertEqual(presenter.route, .saveFavoritePrompt)
+        presenter.didConfirmSaveFavorite(name: "追加枠")
+
+        XCTAssertEqual(try gateway.fetchSummaries().count, FeatureLimit.freeFavoriteGroupCount + 1)
+        XCTAssertNil(presenter.route)
+        XCTAssertEqual(fake.presentCallCount, 1)
+
+        presenter.didTapSaveFavorite()
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.favoriteLimitReached(
+                currentCount: FeatureLimit.freeFavoriteGroupCount + 1,
+                limit: FeatureLimit.freeFavoriteGroupCount
+            ))
+        )
+    }
+
+    func test_視聴未準備ならアラートになり上限はバイパスしない() async throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let fake = RewardedAdGatewayFake(outcome: .notReady)
+        let presenter = makePresenter(names: ["A"], gateway: gateway, rewardedAd: fake)
+        for index in 1...FeatureLimit.freeFavoriteGroupCount {
+            presenter.didConfirmSaveFavorite(name: "グループ\(index)")
+        }
+
+        await presenter.confirmWatchAd()
+
+        XCTAssertEqual(presenter.route, .alert(.adNotReady))
+        XCTAssertEqual(fake.presentCallCount, 1)
+
+        presenter.didConfirmSaveFavorite(name: "追加枠")
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.favoriteLimitReached(
+                currentCount: FeatureLimit.freeFavoriteGroupCount,
+                limit: FeatureLimit.freeFavoriteGroupCount
+            ))
+        )
+        XCTAssertEqual(try gateway.fetchSummaries().count, FeatureLimit.freeFavoriteGroupCount)
+    }
+
+    func test_視聴未獲得と失敗では上限をバイパスしない() async throws {
+        for outcome in [RewardedAdGatewayFake.Outcome.notEarned, .failed("network")] {
+            let gateway = InMemoryGroupFavoriteGateway()
+            let fake = RewardedAdGatewayFake(outcome: outcome)
+            let presenter = makePresenter(names: ["A"], gateway: gateway, rewardedAd: fake)
+            for index in 1...FeatureLimit.freeFavoriteGroupCount {
+                presenter.didConfirmSaveFavorite(name: "グループ\(index)")
+            }
+
+            await presenter.confirmWatchAd()
+
+            XCTAssertNil(presenter.route, "outcome: \(outcome)")
+            presenter.didConfirmSaveFavorite(name: "追加枠")
+            XCTAssertEqual(
+                presenter.route,
+                .alert(.favoriteLimitReached(
+                    currentCount: FeatureLimit.freeFavoriteGroupCount,
+                    limit: FeatureLimit.freeFavoriteGroupCount
+                )),
+                "outcome: \(outcome)"
+            )
+            XCTAssertEqual(
+                try gateway.fetchSummaries().count,
+                FeatureLimit.freeFavoriteGroupCount,
+                "outcome: \(outcome)"
+            )
+            XCTAssertEqual(fake.presentCallCount, 1, "outcome: \(outcome)")
+        }
+    }
+
+    func test_確定済み名前は視聴成功後に保存する() async throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let presenter = makePresenter(names: ["A"], gateway: gateway, rewardedAd: fake)
+        for index in 1...FeatureLimit.freeFavoriteGroupCount {
+            presenter.didConfirmSaveFavorite(name: "グループ\(index)")
+        }
+
+        presenter.didConfirmSaveFavorite(name: "追加枠")
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.favoriteLimitReached(
+                currentCount: FeatureLimit.freeFavoriteGroupCount,
+                limit: FeatureLimit.freeFavoriteGroupCount
+            ))
+        )
+
+        await presenter.confirmWatchAd()
+
+        XCTAssertEqual(try gateway.fetchSummaries().map(\.name).first, "追加枠")
+        XCTAssertEqual(try gateway.fetchSummaries().count, FeatureLimit.freeFavoriteGroupCount + 1)
+        XCTAssertNil(presenter.route)
+        XCTAssertEqual(fake.presentCallCount, 1)
+    }
+
+    func test_didConfirmWatchAdはBindingのdismissが先でも確定済み名前で保存する() async throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let presenter = makePresenter(names: ["A"], gateway: gateway, rewardedAd: fake)
+        for index in 1...FeatureLimit.freeFavoriteGroupCount {
+            presenter.didConfirmSaveFavorite(name: "グループ\(index)")
+        }
+
+        presenter.didConfirmSaveFavorite(name: "追加枠")
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.favoriteLimitReached(
+                currentCount: FeatureLimit.freeFavoriteGroupCount,
+                limit: FeatureLimit.freeFavoriteGroupCount
+            ))
+        )
+
+        presenter.dismissRoute()
+        presenter.didConfirmWatchAd()
+
+        await waitUntil {
+            (try? gateway.fetchSummaries().count) == FeatureLimit.freeFavoriteGroupCount + 1
+        }
+
+        XCTAssertEqual(try gateway.fetchSummaries().map(\.name).first, "追加枠")
+        XCTAssertEqual(try gateway.fetchSummaries().count, FeatureLimit.freeFavoriteGroupCount + 1)
+        XCTAssertNil(presenter.route)
+        XCTAssertEqual(fake.presentCallCount, 1)
+    }
+
+    func test_didConfirmWatchAdのView経路は名前未確定ならプロンプトを出す() async throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let presenter = makePresenter(names: ["A"], gateway: gateway, rewardedAd: fake)
+        for index in 1...FeatureLimit.freeFavoriteGroupCount {
+            presenter.didConfirmSaveFavorite(name: "グループ\(index)")
+        }
+
+        presenter.didConfirmWatchAd()
+
+        await waitUntil { presenter.route == .saveFavoritePrompt }
+
+        XCTAssertEqual(presenter.route, .saveFavoritePrompt)
+        XCTAssertEqual(fake.presentCallCount, 1)
+        XCTAssertEqual(try gateway.fetchSummaries().count, FeatureLimit.freeFavoriteGroupCount)
+    }
+
+    func test_上限アラートのキャンセルは確定済み名前を捨てる() async throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let presenter = makePresenter(names: ["A"], gateway: gateway, rewardedAd: fake)
+        for index in 1...FeatureLimit.freeFavoriteGroupCount {
+            presenter.didConfirmSaveFavorite(name: "グループ\(index)")
+        }
+
+        presenter.didConfirmSaveFavorite(name: "追加枠")
+        presenter.didCancelFavoriteLimit()
+
+        await presenter.confirmWatchAd()
+
+        XCTAssertEqual(presenter.route, .saveFavoritePrompt)
+        XCTAssertEqual(try gateway.fetchSummaries().count, FeatureLimit.freeFavoriteGroupCount)
+        XCTAssertFalse(try gateway.fetchSummaries().map(\.name).contains("追加枠"))
+    }
+
+    func test_保存プロンプトを閉じるとバイパスを取り消す() async throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let presenter = makePresenter(names: ["A"], gateway: gateway, rewardedAd: fake)
+        for index in 1...FeatureLimit.freeFavoriteGroupCount {
+            presenter.didConfirmSaveFavorite(name: "グループ\(index)")
+        }
+
+        await presenter.confirmWatchAd()
+        XCTAssertEqual(presenter.route, .saveFavoritePrompt)
+
+        presenter.dismissRoute()
+
+        presenter.didConfirmSaveFavorite(name: "追加枠")
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.favoriteLimitReached(
+                currentCount: FeatureLimit.freeFavoriteGroupCount,
+                limit: FeatureLimit.freeFavoriteGroupCount
+            ))
+        )
+        XCTAssertEqual(try gateway.fetchSummaries().count, FeatureLimit.freeFavoriteGroupCount)
+    }
+
+    func test_ルートを閉じると広告待ちの許可は破棄される() async throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let hanging = RewardedAdGatewayHangingFake()
+        let presenter = makePresenter(names: ["A"], gateway: gateway, rewardedAd: hanging)
+        for index in 1...FeatureLimit.freeFavoriteGroupCount {
+            presenter.didConfirmSaveFavorite(name: "グループ\(index)")
+        }
+
+        presenter.didConfirmSaveFavorite(name: "追加枠")
+        presenter.didConfirmWatchAd()
+        await hanging.waitUntilPresentStarted()
+        presenter.dismissRoute()
+
+        await waitUntil { presenter.route == nil }
+
+        XCTAssertNil(presenter.route)
+        presenter.didConfirmSaveFavorite(name: "追加枠")
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.favoriteLimitReached(
+                currentCount: FeatureLimit.freeFavoriteGroupCount,
+                limit: FeatureLimit.freeFavoriteGroupCount
+            ))
+        )
+        XCTAssertEqual(try gateway.fetchSummaries().count, FeatureLimit.freeFavoriteGroupCount)
     }
 
     func test_お気に入りが上限に達するとアラートになる() {
@@ -304,20 +546,6 @@ final class AttendeeListPresenterTests: XCTestCase {
         presenter.bulkAddDidCancel()
 
         XCTAssertNil(presenter.route)
-    }
-
-    func test_makeRouteViewは座席表と番号札を組み立てる() {
-        let presenter = makePresenter(names: ["A"])
-
-        _ = presenter.makeRouteView(.seatingChart)
-        _ = presenter.makeRouteView(.simpleShuffle)
-    }
-
-    func test_makeRouteSheetはお気に入りと一括追加を組み立てる() {
-        let presenter = makePresenter(names: ["A"])
-
-        _ = presenter.makeRouteSheet(.favoriteList)
-        _ = presenter.makeRouteSheet(.bulkAdd)
     }
 
     // MARK: - シート identity（Phase 4）

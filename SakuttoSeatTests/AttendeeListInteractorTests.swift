@@ -190,6 +190,115 @@ final class AttendeeListInteractorTests: XCTestCase {
         }
     }
 
+    func test_1回限りのバイパスは上限超過の保存を1件だけ許す() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let interactor = AttendeeListInteractor(favoriteGateway: gateway)
+        _ = interactor.add(name: "A")
+        try interactor.saveCurrentAsFavorite(named: "1")
+        try interactor.saveCurrentAsFavorite(named: "2")
+        try interactor.saveCurrentAsFavorite(named: "3")
+
+        interactor.grantOneTimeFavoriteSaveBypass()
+
+        XCTAssertEqual(interactor.favoriteSaveAvailability(), .available)
+        try interactor.saveCurrentAsFavorite(named: "4")
+        XCTAssertEqual(try gateway.fetchSummaries().count, FeatureLimit.freeFavoriteGroupCount + 1)
+
+        XCTAssertEqual(
+            interactor.favoriteSaveAvailability(),
+            .limitReached(
+                currentCount: FeatureLimit.freeFavoriteGroupCount + 1,
+                limit: FeatureLimit.freeFavoriteGroupCount
+            )
+        )
+        XCTAssertThrowsError(try interactor.saveCurrentAsFavorite(named: "5")) { error in
+            XCTAssertEqual(
+                error as? FavoriteSaveError,
+                .limitReached(
+                    currentCount: FeatureLimit.freeFavoriteGroupCount + 1,
+                    limit: FeatureLimit.freeFavoriteGroupCount
+                )
+            )
+        }
+    }
+
+    func test_バイパス付与後に無料枠内で保存してもフラグを消費する() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let interactor = AttendeeListInteractor(favoriteGateway: gateway)
+        _ = interactor.add(name: "A")
+        try interactor.saveCurrentAsFavorite(named: "1")
+        try interactor.saveCurrentAsFavorite(named: "2")
+        try interactor.saveCurrentAsFavorite(named: "3")
+
+        interactor.grantOneTimeFavoriteSaveBypass()
+        let idToDelete = try XCTUnwrap(gateway.fetchSummaries().first?.id)
+        try gateway.delete(ids: [idToDelete])
+
+        try interactor.saveCurrentAsFavorite(named: "枠内")
+        XCTAssertEqual(try gateway.fetchSummaries().count, FeatureLimit.freeFavoriteGroupCount)
+        XCTAssertEqual(
+            interactor.favoriteSaveAvailability(),
+            .limitReached(
+                currentCount: FeatureLimit.freeFavoriteGroupCount,
+                limit: FeatureLimit.freeFavoriteGroupCount
+            )
+        )
+        XCTAssertThrowsError(try interactor.saveCurrentAsFavorite(named: "超過")) { error in
+            XCTAssertEqual(
+                error as? FavoriteSaveError,
+                .limitReached(
+                    currentCount: FeatureLimit.freeFavoriteGroupCount,
+                    limit: FeatureLimit.freeFavoriteGroupCount
+                )
+            )
+        }
+    }
+
+    func test_バイパスはrevokeで取り消せる() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let interactor = AttendeeListInteractor(favoriteGateway: gateway)
+        try interactor.saveCurrentAsFavorite(named: "1")
+        try interactor.saveCurrentAsFavorite(named: "2")
+        try interactor.saveCurrentAsFavorite(named: "3")
+
+        interactor.grantOneTimeFavoriteSaveBypass()
+        XCTAssertEqual(interactor.favoriteSaveAvailability(), .available)
+        interactor.revokeOneTimeFavoriteSaveBypass()
+
+        XCTAssertEqual(
+            interactor.favoriteSaveAvailability(),
+            .limitReached(
+                currentCount: FeatureLimit.freeFavoriteGroupCount,
+                limit: FeatureLimit.freeFavoriteGroupCount
+            )
+        )
+        XCTAssertThrowsError(try interactor.saveCurrentAsFavorite(named: "4")) { error in
+            XCTAssertEqual(
+                error as? FavoriteSaveError,
+                .limitReached(
+                    currentCount: FeatureLimit.freeFavoriteGroupCount,
+                    limit: FeatureLimit.freeFavoriteGroupCount
+                )
+            )
+        }
+    }
+
+    func test_バイパス中の不正名では許可を消費しない() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let interactor = AttendeeListInteractor(favoriteGateway: gateway)
+        try interactor.saveCurrentAsFavorite(named: "1")
+        try interactor.saveCurrentAsFavorite(named: "2")
+        try interactor.saveCurrentAsFavorite(named: "3")
+
+        interactor.grantOneTimeFavoriteSaveBypass()
+        XCTAssertThrowsError(try interactor.saveCurrentAsFavorite(named: "   ")) { error in
+            XCTAssertEqual(error as? FavoriteSaveError, .invalidName)
+        }
+
+        try interactor.saveCurrentAsFavorite(named: "4")
+        XCTAssertEqual(Set(try gateway.fetchSummaries().map(\.name)), Set(["1", "2", "3", "4"]))
+    }
+
     func test_現在の参加者をお気に入りに保存する() throws {
         let gateway = InMemoryGroupFavoriteGateway()
         let interactor = AttendeeListInteractor(favoriteGateway: gateway)

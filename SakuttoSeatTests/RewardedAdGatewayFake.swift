@@ -56,6 +56,7 @@ nonisolated final class RewardedAdGatewayFake: RewardedAdGatewayBase {
 
 /// 広告提示中に画面が閉じられたときの破棄を検証するためのハング Fake。
 final class RewardedAdGatewayHangingFake: RewardedAdGatewayBase {
+    private let lock = NSLock()
     private var presentContinuation: CheckedContinuation<Void, Error>?
     private var startedContinuation: CheckedContinuation<Void, Never>?
     private var didStartPresenting = false
@@ -70,8 +71,7 @@ final class RewardedAdGatewayHangingFake: RewardedAdGatewayBase {
 
     @MainActor
     func finishSuccessfully() {
-        presentContinuation?.resume(returning: ())
-        presentContinuation = nil
+        resumePresent(success: true)
     }
 
     @MainActor
@@ -79,8 +79,26 @@ final class RewardedAdGatewayHangingFake: RewardedAdGatewayBase {
         didStartPresenting = true
         startedContinuation?.resume()
         startedContinuation = nil
-        try await withCheckedThrowingContinuation { continuation in
-            presentContinuation = continuation
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                self.lock.lock()
+                self.presentContinuation = continuation
+                self.lock.unlock()
+            }
+        } onCancel: {
+            self.resumePresent(success: false)
+        }
+    }
+
+    private func resumePresent(success: Bool) {
+        lock.lock()
+        let continuation = presentContinuation
+        presentContinuation = nil
+        lock.unlock()
+        if success {
+            continuation?.resume(returning: ())
+        } else {
+            continuation?.resume(throwing: CancellationError())
         }
     }
 }

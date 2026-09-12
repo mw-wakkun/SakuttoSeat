@@ -17,6 +17,8 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
     private var attendees: [Attendee] = []
     /// Protocol existential は保持しない（deinit の malloc abort 回避）
     private var favoriteGateway: GroupFavoriteGatewayBase
+    /// リワード視聴成功で付与する、上限超過の1回限り許可。永続解放ではない。
+    private var allowsOneTimeLimitBypass = false
 
     init(favoriteGateway: GroupFavoriteGatewayBase = InMemoryGroupFavoriteGateway()) {
         self.favoriteGateway = favoriteGateway
@@ -71,6 +73,9 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
     }
 
     func favoriteSaveAvailability() -> FavoriteSaveAvailability {
+        if allowsOneTimeLimitBypass {
+            return .available
+        }
         let currentCount = (try? favoriteGateway.fetchCount()) ?? 0
         if currentCount < FeatureLimit.freeFavoriteGroupCount {
             return .available
@@ -78,12 +83,24 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
         return .limitReached(currentCount: currentCount, limit: FeatureLimit.freeFavoriteGroupCount)
     }
 
+    /// 広告視聴成功後に呼ぶ。上限そのものは変えず、次の1回の保存だけ許可する。
+    func grantOneTimeFavoriteSaveBypass() {
+        allowsOneTimeLimitBypass = true
+    }
+
+    /// 保存成功・キャンセルで1回限り許可を捨てる。無料枠内の保存でも消費する。
+    func revokeOneTimeFavoriteSaveBypass() {
+        allowsOneTimeLimitBypass = false
+    }
+
     func saveCurrentAsFavorite(named name: String) throws {
-        switch favoriteSaveAvailability() {
-        case .limitReached(let currentCount, let limit):
-            throw FavoriteSaveError.limitReached(currentCount: currentCount, limit: limit)
-        case .available:
-            break
+        let currentCount = (try? favoriteGateway.fetchCount()) ?? 0
+        let isOverFreeLimit = currentCount >= FeatureLimit.freeFavoriteGroupCount
+        if isOverFreeLimit && !allowsOneTimeLimitBypass {
+            throw FavoriteSaveError.limitReached(
+                currentCount: currentCount,
+                limit: FeatureLimit.freeFavoriteGroupCount
+            )
         }
 
         let trimmedName = trimmed(name)
@@ -96,6 +113,8 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
         } catch {
             throw FavoriteSaveError.persistenceFailed(message: error.localizedDescription)
         }
+
+        allowsOneTimeLimitBypass = false
     }
 
     func loadFavorite(id: FavoriteGroupID) throws -> [Attendee] {

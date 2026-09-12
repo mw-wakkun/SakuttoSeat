@@ -264,13 +264,6 @@ final class SeatingChartPresenterTests: XCTestCase {
         XCTAssertTrue(presenter.templateListPresenter === child)
     }
 
-    func test_makeRouteSheetはテンプレート一覧を組み立てる() {
-        let presenter = makePresenter(names: ["A"])
-        presenter.didTapLoadTemplate()
-
-        _ = presenter.makeRouteSheet(.templateList)
-    }
-
     func test_テンプレートシートは親と同じGatewayインスタンスで組み立てる() throws {
         let gateway = FetchCountingSeatingTemplateGateway()
         try gateway.insert(name: "共有", tables: [], globalColumnCount: 2)

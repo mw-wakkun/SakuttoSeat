@@ -132,6 +132,8 @@ private extension AttendeeListView {
             return String(localized: "お気に入り上限")
         case .saveFailed:
             return String(localized: "保存に失敗しました")
+        case .adNotReady:
+            return RewardedAdCopy.notReadyTitle
         case .none:
             return ""
         }
@@ -156,7 +158,14 @@ private extension AttendeeListView {
             Button("全員削除", role: .destructive) {
                 presenter.didConfirmReset()
             }
-        case .favoriteLimitReached, .saveFailed:
+        case .favoriteLimitReached:
+            Button("OK", role: .cancel) {
+                presenter.didCancelFavoriteLimit()
+            }
+            Button(String(localized: "動画を見て1枠追加（今回だけ）")) {
+                presenter.didConfirmWatchAd()
+            }
+        case .saveFailed, .adNotReady:
             Button("OK", role: .cancel) { }
         }
     }
@@ -169,6 +178,8 @@ private extension AttendeeListView {
             Text("保存できるグループは最大\(limit)個までとなっています（現在\(currentCount)個）。新しいグループを保存するには、お気に入り一覧から既存のグループを削除してください。")
         case .saveFailed(let message):
             Text(message)
+        case .adNotReady:
+            Text(RewardedAdCopy.notReadyMessage)
         }
     }
 }

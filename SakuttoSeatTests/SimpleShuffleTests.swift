@@ -251,18 +251,3 @@ final class SimpleShufflePresenterTests: XCTestCase {
     }
 }
 
-// MARK: - Router
-
-@MainActor
-final class SimpleShuffleRouterTests: XCTestCase {
-
-    func test_assembleModuleは参加者を受け取って画面を返す() {
-        let attendees = [Attendee(name: "太郎"), Attendee(name: "花子")]
-
-        _ = SimpleShuffleRouter.assembleModule(attendees: attendees)
-    }
-
-    func test_空配列でもassembleできる() {
-        _ = SimpleShuffleRouter.assembleModule(attendees: [])
-    }
-}

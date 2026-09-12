@@ -399,6 +399,17 @@
         }
       }
     },
+    "動画を見て1枠追加（今回だけ）" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "動画を見て1枠追加（今回だけ）"
+          }
+        }
+      }
+    },
     "動画を視聴して解放" : {
 
     },

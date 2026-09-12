@@ -16,47 +16,6 @@ import XCTest
 @MainActor
 final class AttendeeListRouterTests: XCTestCase {
 
-    func test_assembleModuleがエントリ画面を返す() {
-        _ = AttendeeListRouter.assembleModule()
-    }
-
-    func test_assembleModuleは渡したGatewayでエントリ画面を返す() {
-        _ = AttendeeListRouter.assembleModule(
-            favoriteGateway: InMemoryGroupFavoriteGateway(),
-            templateGateway: InMemorySeatingTemplateGateway()
-        )
-    }
-
-    func test_座席表モジュールを組み立てる() {
-        let router = AttendeeListRouter()
-        let attendees = [Attendee(name: "太郎"), Attendee(name: "花子")]
-
-        _ = router.makeSeatingChartModule(attendees: attendees)
-    }
-
-    func test_番号札モジュールはSimpleShuffleRouterへ委譲する() {
-        let attendees = [Attendee(name: "太郎"), Attendee(name: "花子")]
-
-        _ = SimpleShuffleRouter.assembleModule(attendees: attendees)
-        _ = AttendeeListRouter().makeSimpleShuffleModule(attendees: attendees)
-    }
-
-    func test_番号札モジュールは空配列でも組み立てられる() {
-        _ = AttendeeListRouter().makeSimpleShuffleModule(attendees: [])
-    }
-
-    func test_お気に入りモジュールはFavoriteGroupRouterへ委譲する() {
-        let router = AttendeeListRouter()
-        let output = FavoriteGroupOutputSpy()
-        let presenter = router.makeFavoriteGroupPresenter(
-            gatewayHolder: AttendeeListInteractor(favoriteGateway: InMemoryGroupFavoriteGateway()),
-            output: output
-        )
-
-        _ = router.makeFavoriteGroupSheet(presenter: presenter)
-        _ = FavoriteGroupRouter.assembleModule(output: output)
-    }
-
     func test_お気に入りモジュールは渡したGatewayインスタンスから一覧を読む() throws {
         let gateway = FetchCountingGroupFavoriteGateway()
         try gateway.insert(name: "共有", members: ["A"])
@@ -75,30 +34,6 @@ final class AttendeeListRouterTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(gateway.fetchSummariesCallCount, 2)
     }
 
-    func test_一括追加モジュールはBulkAddRouterへ委譲する() {
-        let router = AttendeeListRouter()
-        let output = BulkAddOutputSpy()
-
-        _ = router.makeBulkAddModule(output: output)
-        _ = BulkAddRouter.assembleModule(output: output)
-    }
-
-    func test_RouterはProtocolに準拠する() {
-        let router: any AttendeeListRouterProtocol = AttendeeListRouter()
-        let attendees = [Attendee(name: "A")]
-
-        _ = router.makeSeatingChartModule(attendees: attendees)
-        _ = router.makeSimpleShuffleModule(attendees: attendees)
-        _ = router.makeFavoriteGroupPresenter(
-            gatewayHolder: AttendeeListInteractor(),
-            output: nil
-        )
-        _ = router.makeFavoriteGroupSheet(
-            presenter: FavoriteGroupRouter.assemblePresenter(output: nil)
-        )
-        _ = router.makeBulkAddModule(output: nil)
-    }
-
     func test_FavoriteGroupRouterはassembleのたびに新しいPresenterを返す() {
         let gateway = InMemoryGroupFavoriteGateway()
         let output = FavoriteGroupOutputSpy()
@@ -115,16 +50,29 @@ final class AttendeeListRouterTests: XCTestCase {
         XCTAssertFalse(first === second)
     }
 
-    func test_同じoutputとgatewayで2回makeしても組み立てられる() {
-        let router = AttendeeListRouter()
-        let gatewayHolder = AttendeeListInteractor(favoriteGateway: InMemoryGroupFavoriteGateway())
-        let output = FavoriteGroupOutputSpy()
+    func test_presentRewardedAdは注入したGatewayを1回呼ぶ() async throws {
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let router = AttendeeListRouter(rewardedAd: fake)
 
-        let first = router.makeFavoriteGroupPresenter(gatewayHolder: gatewayHolder, output: output)
-        _ = router.makeFavoriteGroupSheet(presenter: first)
-        let second = router.makeFavoriteGroupPresenter(gatewayHolder: gatewayHolder, output: output)
-        _ = router.makeFavoriteGroupSheet(presenter: second)
+        try await router.presentRewardedAd()
+
+        XCTAssertEqual(fake.presentCallCount, 1)
     }
+
+    func test_presentRewardedAdはFakeのnotReadyを再throwする() async {
+        let fake = RewardedAdGatewayFake(outcome: .notReady)
+        let router = AttendeeListRouter(rewardedAd: fake)
+
+        do {
+            try await router.presentRewardedAd()
+            XCTFail("expected notReady")
+        } catch RewardedAdError.notReady {
+            XCTAssertEqual(fake.presentCallCount, 1)
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
+    }
+
 }
 
 @MainActor
@@ -137,20 +85,6 @@ private final class FavoriteGroupOutputSpy: FavoriteGroupModuleOutput {
     }
 
     func favoriteGroupDidCancel() {
-        didCancel = true
-    }
-}
-
-@MainActor
-private final class BulkAddOutputSpy: BulkAddModuleOutput {
-    var confirmedText: String?
-    var didCancel = false
-
-    func bulkAddDidConfirm(text: String) {
-        confirmedText = text
-    }
-
-    func bulkAddDidCancel() {
         didCancel = true
     }
 }

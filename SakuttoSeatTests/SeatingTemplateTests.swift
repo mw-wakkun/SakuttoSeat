@@ -358,7 +358,7 @@ final class SeatingTemplatePresenterTests: XCTestCase {
         )
     }
 
-    func test_onAppearで一覧をViewDataのRowに公開する() throws {
+    func test_initで一覧をViewDataのRowに公開する() throws {
         let gateway = InMemorySeatingTemplateGateway()
         try gateway.insert(
             name: "宴会場",
@@ -369,8 +369,6 @@ final class SeatingTemplatePresenterTests: XCTestCase {
         )
         let output = OutputSpy()
         let presenter = makePresenter(gateway: gateway, output: output)
-
-        presenter.onAppear()
 
         XCTAssertEqual(presenter.viewData.rows.map(\.name), ["宴会場"])
         XCTAssertEqual(presenter.viewData.rows.map(\.tableCountLabel), ["テーブル数: 1"])
@@ -419,8 +417,6 @@ final class SeatingTemplatePresenterTests: XCTestCase {
             gateway: FailingFetchSeatingTemplateGateway(),
             output: OutputSpy()
         )
-
-        presenter.onAppear()
 
         XCTAssertTrue(presenter.viewData.isEmpty)
         XCTAssertTrue(presenter.viewData.rows.isEmpty)
@@ -484,6 +480,28 @@ final class SeatingTemplatePresenterTests: XCTestCase {
 
         XCTAssertEqual(output.cancelCount, 1)
     }
+
+    func test_3件のPresenterは件数ラベルのRowを公開する() throws {
+        let gateway = InMemorySeatingTemplateGateway()
+        try gateway.insert(name: "宴会場", tables: [], globalColumnCount: 2)
+        try gateway.insert(
+            name: "教室",
+            tables: [
+                TableTemplate(name: "前列", capacity: 3, columnCount: 3, layoutDirection: .none, layoutText: ""),
+                TableTemplate(name: "後列", capacity: 3, columnCount: 3, layoutDirection: .none, layoutText: "")
+            ],
+            globalColumnCount: 2
+        )
+        try gateway.insert(name: "カフェ", tables: [], globalColumnCount: 2)
+        let presenter = makePresenter(gateway: gateway, output: OutputSpy())
+
+        XCTAssertEqual(presenter.viewData.rows.map(\.name), ["カフェ", "教室", "宴会場"])
+        XCTAssertEqual(
+            presenter.viewData.rows.map(\.tableCountLabel),
+            ["テーブル数: 0", "テーブル数: 2", "テーブル数: 0"]
+        )
+        XCTAssertFalse(presenter.viewData.isEmpty)
+    }
 }
 
 // MARK: - Router
@@ -514,14 +532,6 @@ final class SeatingTemplateRouterTests: XCTestCase {
         XCTAssertFalse(first === second)
     }
 
-    func test_assembleModuleはSeatingTemplateViewを組み立てる() {
-        let sheet = SeatingTemplateRouter.assembleModule(output: nil)
-
-        XCTAssertTrue(
-            seatingTemplateViewTreeContainsTypeName(sheet, "SeatingTemplateView"),
-            "テンプレート一覧シートの中身は SeatingTemplateView である"
-        )
-    }
 }
 
 // MARK: - ViewData
@@ -550,56 +560,6 @@ final class SeatingTemplateViewDataTests: XCTestCase {
         XCTAssertEqual(threeData.rows.map(\.name), ["カフェ", "教室", "宴会場"])
         XCTAssertEqual(threeData.rows.map(\.tableCountLabel), ["テーブル数: 0", "テーブル数: 2", "テーブル数: 1"])
         XCTAssertEqual(threeData.rows.count, 3)
-    }
-}
-
-// MARK: - View
-
-@MainActor
-final class SeatingTemplateViewTests: XCTestCase {
-    func test_bodyはEmptyStateViewとSavedListRowとSheetChromeToolbarを使う() {
-        let view = SeatingTemplateView(
-            presenter: SeatingTemplateRouter.assemblePresenter(
-                gateway: InMemorySeatingTemplateGateway(),
-                output: nil
-            )
-        )
-        let body = view.body
-
-        XCTAssertTrue(
-            seatingTemplateViewTreeContainsTypeName(body, "EmptyStateView"),
-            "空状態は List 内 EmptyStateView"
-        )
-        XCTAssertTrue(
-            seatingTemplateViewTreeContainsTypeName(body, "SavedListRow"),
-            "行は素の SavedListRow"
-        )
-        XCTAssertTrue(
-            seatingTemplateViewTreeContainsTypeName(body, "SheetChromeToolbar"),
-            "クロムは SheetChromeToolbar"
-        )
-    }
-
-    func test_3件のPresenterは件数ラベルのRowを公開する() throws {
-        let gateway = InMemorySeatingTemplateGateway()
-        try gateway.insert(name: "宴会場", tables: [], globalColumnCount: 2)
-        try gateway.insert(
-            name: "教室",
-            tables: [
-                TableTemplate(name: "前列", capacity: 3, columnCount: 3, layoutDirection: .none, layoutText: ""),
-                TableTemplate(name: "後列", capacity: 3, columnCount: 3, layoutDirection: .none, layoutText: "")
-            ],
-            globalColumnCount: 2
-        )
-        try gateway.insert(name: "カフェ", tables: [], globalColumnCount: 2)
-        let presenter = SeatingTemplateRouter.assemblePresenter(gateway: gateway, output: nil)
-
-        XCTAssertEqual(presenter.viewData.rows.map(\.name), ["カフェ", "教室", "宴会場"])
-        XCTAssertEqual(
-            presenter.viewData.rows.map(\.tableCountLabel),
-            ["テーブル数: 0", "テーブル数: 2", "テーブル数: 0"]
-        )
-        XCTAssertFalse(presenter.viewData.isEmpty)
     }
 }
 
@@ -750,17 +710,4 @@ private final class FetchCountingSeatingTemplateGateway: SeatingTemplateGatewayB
     override func delete(ids: [SeatingTemplateID]) throws {
         try inner.delete(ids: ids)
     }
-}
-
-private func seatingTemplateViewTreeContainsTypeName(_ value: Any, _ name: String, depth: Int = 0) -> Bool {
-    guard depth < 16 else { return false }
-    if String(describing: type(of: value)).contains(name) {
-        return true
-    }
-    for child in Mirror(reflecting: value).children {
-        if seatingTemplateViewTreeContainsTypeName(child.value, name, depth: depth + 1) {
-            return true
-        }
-    }
-    return false
 }

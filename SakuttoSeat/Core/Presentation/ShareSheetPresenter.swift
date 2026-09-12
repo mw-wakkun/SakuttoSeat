@@ -39,16 +39,24 @@ enum ShareSheetPresenter {
     static func waitUntilPresentable(timeoutNanoseconds: UInt64 = 2_000_000_000) async {
         let started = DispatchTime.now().uptimeNanoseconds
         while DispatchTime.now().uptimeNanoseconds - started < timeoutNanoseconds {
+            if Task.isCancelled { return }
             if isRootPresentable() {
                 return
             }
-            try? await Task.sleep(nanoseconds: 50_000_000)
+            do {
+                try await Task.sleep(nanoseconds: 50_000_000)
+            } catch {
+                return
+            }
         }
     }
 
     private static func isRootPresentable() -> Bool {
-        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = scene.windows.first(where: \.isKeyWindow),
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene else {
+            // シーンなし（ユニットテスト）＝待つ対象がない
+            return true
+        }
+        guard let window = scene.windows.first(where: \.isKeyWindow),
               let root = window.rootViewController else {
             return false
         }
