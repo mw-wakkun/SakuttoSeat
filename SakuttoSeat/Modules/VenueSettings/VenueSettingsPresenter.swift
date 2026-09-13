@@ -123,8 +123,7 @@ final class VenueSettingsPresenter: ObservableObject, VenueSettingsPresenterProt
         VenueSettingsViewData(
             selectedColumnCount: interactor.selectedColumnCount,
             selectableRange: interactor.selectableRange,
-            noticeText: "※1〜\(FeatureLimit.freeColumnCount)列は無料で即時利用できます。"
-                + "\(FeatureLimit.freeColumnCount + 1)列以上は動画広告視聴による解放が必要です。",
+            noticeText: VenueExpansionCopy.venueNotice,
             requiresUnlock: interactor.applyRequirement() == .rewardedAd
         )
     }

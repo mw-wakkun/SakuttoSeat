@@ -62,13 +62,13 @@ struct VenueSettingsView: View {
                 Text(RewardedAdCopy.notReadyMessage)
             }
             .alert(
-                "\(FeatureLimit.freeColumnCount + 1)列以上はアンロックが必要です",
+                VenueExpansionCopy.venueUnlockTitle,
                 isPresented: requireUnlockBinding
             ) {
-                Button("キャンセル", role: .cancel) { }
-                Button("動画を視聴して解放") { presenter.didConfirmWatchAd() }
+                Button(VenueExpansionCopy.later, role: .cancel) { }
+                Button(VenueExpansionCopy.venueUnlockPrimary) { presenter.didConfirmWatchAd() }
             } message: {
-                Text("\(FeatureLimit.freeColumnCount + 1)列以降のレイアウトを利用するには動画広告の視聴が必要です。")
+                Text(VenueExpansionCopy.venueUnlockMessage)
             }
         }
         .presentationDetents([.medium])

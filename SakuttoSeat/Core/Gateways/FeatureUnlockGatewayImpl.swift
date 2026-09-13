@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_seating.md Phase 3（セッション解放状態の所在）
+//  v2.1（列数解放から会場サイズ一式の解放へ。フラグは増やさない）
 //
 //  Protocol existential を MainActor クラスが保持すると deinit で malloc abort するため、
 //  Interactor は具象クラスだけを保持する。
@@ -22,7 +23,7 @@ nonisolated final class FeatureUnlockState: FeatureUnlockGateway {
     }
 }
 
-/// アプリ起動中だけ有効な列数解放状態。画面を pop しても同一セッションなら維持する。
+/// アプリ起動中だけ有効な会場サイズ解放状態。画面を pop しても同一セッションなら維持する。
 enum SessionFeatureUnlock {
     static let shared = FeatureUnlockState()
 }

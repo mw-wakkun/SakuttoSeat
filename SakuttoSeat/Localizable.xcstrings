@@ -13,12 +13,6 @@
     "%lld列" : {
 
     },
-    "%lld列以上はアンロックが必要です" : {
-
-    },
-    "%lld列以降のレイアウトを利用するには動画広告の視聴が必要です。" : {
-
-    },
     "2名以上で席順をシャッフルできます" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -153,6 +147,9 @@
           }
         }
       }
+    },
+    "これ以上は追加できません" : {
+
     },
     "サクッと席決め" : {
       "extractionState" : "manual",
@@ -399,9 +396,6 @@
         }
       }
     },
-    "動画を視聴して解放" : {
-
-    },
     "動画を見て1枠追加（今回だけ）" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -412,6 +406,9 @@
           }
         }
       }
+    },
+    "動画を見ると人数を追加できます" : {
+
     },
     "参加者がいません" : {
       "extractionState" : "manual",
@@ -576,6 +573,17 @@
         }
       }
     },
+    "座席表を全画面で表示します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "座席表を全画面で表示します"
+          }
+        }
+      }
+    },
     "指定なし" : {
 
     },
@@ -618,6 +626,17 @@
         }
       }
     },
+    "画面をタップして終了" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画面をタップして終了"
+          }
+        }
+      }
+    },
     "番号札" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -640,6 +659,17 @@
         }
       }
     },
+    "番号札を全画面で表示します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "番号札を全画面で表示します"
+          }
+        }
+      }
+    },
     "番号札画面を開きます" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -658,6 +688,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "番席"
+          }
+        }
+      }
+    },
+    "発表" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "発表"
+          }
+        }
+      }
+    },
+    "発表を終了" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "発表を終了"
           }
         }
       }

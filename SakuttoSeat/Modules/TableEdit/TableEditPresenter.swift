@@ -12,6 +12,7 @@ import Foundation
 @MainActor
 final class TableEditPresenter: ObservableObject, TableEditPresenterProtocol {
     @Published private(set) var viewData: TableEditViewData
+    @Published var route: TableEditRoute?
 
     /// protocol existential を MainActor クラスが保持すると deinit で malloc abort するため具象型で保持する。
     private let interactor: TableEditInteractor
@@ -54,7 +55,20 @@ final class TableEditPresenter: ObservableObject, TableEditPresenterProtocol {
     }
 
     func didTapSave() {
-        output?.tableEditDidCommit(interactor.makeUpdateRequest())
+        if interactor.needsSeatShortageConfirmation() {
+            route = .seatShortage
+            return
+        }
+        commit()
+    }
+
+    func didConfirmApplyDespiteSeatShortage() {
+        route = nil
+        commit()
+    }
+
+    func dismissRoute() {
+        route = nil
     }
 
     func didTapDelete() {
@@ -63,6 +77,10 @@ final class TableEditPresenter: ObservableObject, TableEditPresenterProtocol {
 
     func didTapCancel() {
         output?.tableEditDidCancel()
+    }
+
+    private func commit() {
+        output?.tableEditDidCommit(interactor.makeUpdateRequest())
     }
 
     private func publishState() {

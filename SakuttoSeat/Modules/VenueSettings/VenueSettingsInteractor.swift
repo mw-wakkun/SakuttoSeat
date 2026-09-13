@@ -9,7 +9,7 @@
 import Foundation
 
 nonisolated final class VenueSettingsInteractor: VenueSettingsInteractorProtocol {
-    let selectableRange: ClosedRange<Int> = 1...10
+    let selectableRange: ClosedRange<Int> = 1...FeatureLimit.maxColumnCount
 
     /// Protocol existential は保持しない（deinit の malloc abort 回避）
     private let featureUnlock: FeatureUnlockState
@@ -17,7 +17,7 @@ nonisolated final class VenueSettingsInteractor: VenueSettingsInteractorProtocol
 
     init(currentColumnCount: Int, featureUnlock: FeatureUnlockState) {
         self.featureUnlock = featureUnlock
-        self.selectedColumnCount = min(max(currentColumnCount, 1), 10)
+        self.selectedColumnCount = min(max(currentColumnCount, 1), FeatureLimit.maxColumnCount)
     }
 
     var isSessionUnlocked: Bool {
@@ -30,7 +30,7 @@ nonisolated final class VenueSettingsInteractor: VenueSettingsInteractorProtocol
         return selectedColumnCount
     }
 
-    /// 無料枠以内、またはセッション解放済みなら広告不要
+    /// 会場拡張の要否。無料列以内、またはセッション解放済みなら広告不要。
     func applyRequirement() -> UnlockRequirement {
         if selectedColumnCount <= FeatureLimit.freeColumnCount {
             return .none

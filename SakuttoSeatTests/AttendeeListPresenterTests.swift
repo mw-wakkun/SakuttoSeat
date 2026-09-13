@@ -19,11 +19,12 @@ final class AttendeeListPresenterTests: XCTestCase {
     private func makePresenter(
         names: [String] = [],
         gateway: GroupFavoriteGatewayBase = InMemoryGroupFavoriteGateway(),
+        featureUnlock: FeatureUnlockState = FeatureUnlockState(),
         rewardedAd: RewardedAdGatewayBase = RewardedAdGatewayBase()
     ) -> AttendeeListPresenter {
         makePresenter(
             names: names,
-            interactor: AttendeeListInteractor(favoriteGateway: gateway),
+            interactor: AttendeeListInteractor(favoriteGateway: gateway, featureUnlock: featureUnlock),
             rewardedAd: rewardedAd
         )
     }
@@ -611,5 +612,261 @@ final class AttendeeListPresenterTests: XCTestCase {
         presenter.didTapShowFavorites()
 
         XCTAssertEqual(presenter.favoriteGroupPresenter?.viewData.rows.map(\.name), ["差し替え後"])
+    }
+
+    // MARK: - 人数上限（v2.1）
+
+    private func numberedNames(_ count: Int, prefix: String = "P") -> [String] {
+        (1...count).map { "\(prefix)\($0)" }
+    }
+
+    func test_40人で未解放の追加は解放ダイアログになり名前は入らない() {
+        let presenter = makePresenter(names: numberedNames(FeatureLimit.freeAttendeeCount))
+
+        XCTAssertEqual(presenter.viewData.addControl, .needsUnlock)
+        let accepted = presenter.didTapAdd(name: "41人目")
+
+        XCTAssertFalse(accepted)
+        XCTAssertEqual(names(of: presenter).count, FeatureLimit.freeAttendeeCount)
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.attendeeUnlock(overflowTotal: nil, remainingFree: nil, remainingHard: nil))
+        )
+    }
+
+    func test_人数解放の視聴成功で待っていた名前が入る() async {
+        let unlock = FeatureUnlockState()
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let presenter = makePresenter(
+            names: numberedNames(FeatureLimit.freeAttendeeCount),
+            featureUnlock: unlock,
+            rewardedAd: fake
+        )
+        _ = presenter.didTapAdd(name: "41人目")
+
+        await presenter.confirmWatchVenueAd()
+
+        XCTAssertTrue(unlock.isSessionUnlocked)
+        XCTAssertTrue(names(of: presenter).contains("41人目"))
+        XCTAssertEqual(names(of: presenter).count, FeatureLimit.freeAttendeeCount + 1)
+        XCTAssertEqual(presenter.viewData.addControl, .available)
+        XCTAssertNil(presenter.route)
+        XCTAssertEqual(fake.presentCallCount, 1)
+    }
+
+    func test_人数解放の視聴失敗では名前もフラグも動かない() async {
+        let unlock = FeatureUnlockState()
+        let fake = RewardedAdGatewayFake(outcome: .notEarned)
+        let presenter = makePresenter(
+            names: numberedNames(FeatureLimit.freeAttendeeCount),
+            featureUnlock: unlock,
+            rewardedAd: fake
+        )
+        _ = presenter.didTapAdd(name: "41人目")
+
+        await presenter.confirmWatchVenueAd()
+
+        XCTAssertFalse(unlock.isSessionUnlocked)
+        XCTAssertFalse(names(of: presenter).contains("41人目"))
+        XCTAssertEqual(fake.presentCallCount, 1)
+    }
+
+    func test_120人の次はハード上限でpresentしない() async {
+        let unlock = FeatureUnlockState(isSessionUnlocked: true)
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let presenter = makePresenter(
+            names: numberedNames(FeatureLimit.maxAttendeeCount),
+            featureUnlock: unlock,
+            rewardedAd: fake
+        )
+
+        XCTAssertEqual(presenter.viewData.addControl, .hardLimited)
+        _ = presenter.didTapAdd(name: "121人目")
+
+        XCTAssertEqual(presenter.route, .alert(.attendeeHardLimit))
+        XCTAssertEqual(names(of: presenter).count, FeatureLimit.maxAttendeeCount)
+        XCTAssertEqual(fake.presentCallCount, 0)
+    }
+
+    func test_120人でもお気に入り一覧は開く() {
+        let presenter = makePresenter(
+            names: numberedNames(FeatureLimit.maxAttendeeCount),
+            featureUnlock: FeatureUnlockState(isSessionUnlocked: true)
+        )
+
+        presenter.didTapShowFavorites()
+
+        XCTAssertEqual(presenter.route, .favoriteList)
+        XCTAssertNotNil(presenter.favoriteGroupPresenter)
+    }
+
+    func test_120人では一括入力は開かずハード上限になる() {
+        let presenter = makePresenter(
+            names: numberedNames(FeatureLimit.maxAttendeeCount),
+            featureUnlock: FeatureUnlockState(isSessionUnlocked: true)
+        )
+
+        presenter.didTapBulkAddEntry()
+
+        XCTAssertEqual(presenter.route, .alert(.attendeeHardLimit))
+    }
+
+    func test_溢れ文言は無料枠と絶対上限で出し分ける() {
+        XCTAssertEqual(
+            VenueExpansionCopy.attendeeOverflowMessage(triedCount: 2, remainingFree: 1, remainingHard: 81),
+            "2人のうち、1人までは無料で追加できます。動画を1本見ると、残りもすべて追加されます。"
+        )
+        XCTAssertEqual(
+            VenueExpansionCopy.attendeeOverflowMessage(triedCount: 90, remainingFree: 1, remainingHard: 81),
+            "90人のうち、1人までは無料で追加できます。動画を1本見ると、上限（\(FeatureLimit.maxAttendeeCount)人）まで追加されます。"
+        )
+        XCTAssertEqual(
+            VenueExpansionCopy.attendeeOverflowMessage(triedCount: 20, remainingFree: 0, remainingHard: 80),
+            "無料枠（\(FeatureLimit.freeAttendeeCount)人）を使い切っています。動画を1本見ると、追加しようとする全員を登録できます。"
+        )
+        XCTAssertEqual(
+            VenueExpansionCopy.attendeeOverflowMessage(triedCount: 81, remainingFree: 0, remainingHard: 80),
+            "無料枠（\(FeatureLimit.freeAttendeeCount)人）を使い切っています。動画を1本見ると、上限（\(FeatureLimit.maxAttendeeCount)人）まで追加できます。"
+        )
+        XCTAssertEqual(
+            VenueExpansionCopy.attendeeHardLimitOverflowMessage(triedCount: 3, remainingHard: 2),
+            "3人のうち、2人まで追加できます。上限（\(FeatureLimit.maxAttendeeCount)人）を超える分は追加できません。"
+        )
+    }
+
+    func test_解放後に上限を跨ぐ一括追加は入れる人数を案内する() {
+        let presenter = makePresenter(
+            names: numberedNames(FeatureLimit.maxAttendeeCount - 2),
+            featureUnlock: FeatureUnlockState(isSessionUnlocked: true)
+        )
+
+        presenter.didTapBulkAdd(text: "余り1,余り2,余り3")
+
+        XCTAssertEqual(names(of: presenter).count, FeatureLimit.maxAttendeeCount)
+        XCTAssertTrue(names(of: presenter).contains("余り1"))
+        XCTAssertTrue(names(of: presenter).contains("余り2"))
+        XCTAssertFalse(names(of: presenter).contains("余り3"))
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.attendeeHardLimitOverflow(triedCount: 3, remainingHard: 2))
+        )
+    }
+
+    func test_一括追加で無料枠に一部入ったときは残り無料人数を案内する() {
+        let presenter = makePresenter(names: numberedNames(FeatureLimit.freeAttendeeCount - 1))
+
+        presenter.didTapBulkAdd(text: "余り1,余り2")
+
+        XCTAssertEqual(names(of: presenter).count, FeatureLimit.freeAttendeeCount)
+        XCTAssertTrue(names(of: presenter).contains("余り1"))
+        XCTAssertFalse(names(of: presenter).contains("余り2"))
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.attendeeUnlock(overflowTotal: 2, remainingFree: 1, remainingHard: 81))
+        )
+    }
+
+    func test_上限を超える一括追加は視聴後に120人まで入りハード上限アラートは出さない() async {
+        let unlock = FeatureUnlockState()
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let presenter = makePresenter(
+            names: numberedNames(FeatureLimit.freeAttendeeCount),
+            featureUnlock: unlock,
+            rewardedAd: fake
+        )
+        let overflowCount = FeatureLimit.maxAttendeeCount - FeatureLimit.freeAttendeeCount + 1
+        let overflowNames = numberedNames(overflowCount, prefix: "追加")
+
+        presenter.didTapBulkAdd(text: overflowNames.joined(separator: ","))
+
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.attendeeUnlock(
+                overflowTotal: overflowCount,
+                remainingFree: 0,
+                remainingHard: FeatureLimit.maxAttendeeCount - FeatureLimit.freeAttendeeCount
+            ))
+        )
+
+        await presenter.confirmWatchVenueAd()
+
+        XCTAssertTrue(unlock.isSessionUnlocked)
+        XCTAssertEqual(names(of: presenter).count, FeatureLimit.maxAttendeeCount)
+        XCTAssertTrue(names(of: presenter).contains("追加1"))
+        XCTAssertFalse(names(of: presenter).contains("追加\(overflowCount)"))
+        XCTAssertNil(presenter.route)
+    }
+
+    func test_一括追加の溢れは視聴成功後に入り失敗後は残る() async {
+        let unlock = FeatureUnlockState()
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let presenter = makePresenter(
+            names: numberedNames(FeatureLimit.freeAttendeeCount),
+            featureUnlock: unlock,
+            rewardedAd: fake
+        )
+
+        presenter.didTapBulkAdd(text: "余り1,余り2")
+
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.attendeeUnlock(overflowTotal: 2, remainingFree: 0, remainingHard: 80))
+        )
+        XCTAssertEqual(names(of: presenter).count, FeatureLimit.freeAttendeeCount)
+
+        await presenter.confirmWatchVenueAd()
+
+        XCTAssertTrue(unlock.isSessionUnlocked)
+        XCTAssertTrue(names(of: presenter).contains("余り1"))
+        XCTAssertTrue(names(of: presenter).contains("余り2"))
+        XCTAssertEqual(names(of: presenter).count, FeatureLimit.freeAttendeeCount + 2)
+
+        let racedUnlock = FeatureUnlockState()
+        let racedFake = RewardedAdGatewayFake(outcome: .success)
+        let raced = makePresenter(
+            names: numberedNames(FeatureLimit.freeAttendeeCount),
+            featureUnlock: racedUnlock,
+            rewardedAd: racedFake
+        )
+        raced.didTapBulkAdd(text: "競合1,競合2")
+        raced.dismissRoute()
+        await raced.confirmWatchVenueAd()
+        XCTAssertTrue(racedUnlock.isSessionUnlocked)
+        XCTAssertTrue(names(of: raced).contains("競合1"))
+        XCTAssertTrue(names(of: raced).contains("競合2"))
+
+        let failedUnlock = FeatureUnlockState()
+        let failedFake = RewardedAdGatewayFake(outcome: .failed("network"))
+        let failed = makePresenter(
+            names: numberedNames(FeatureLimit.freeAttendeeCount),
+            featureUnlock: failedUnlock,
+            rewardedAd: failedFake
+        )
+        failed.didTapBulkAdd(text: "残りA,残りB")
+        await failed.confirmWatchVenueAd()
+
+        XCTAssertFalse(failedUnlock.isSessionUnlocked)
+        XCTAssertFalse(names(of: failed).contains("残りA"))
+        XCTAssertEqual(failedFake.presentCallCount, 1)
+    }
+
+    func test_会場拡張フラグではお気に入り4枠目は保存できない() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        let unlock = FeatureUnlockState(isSessionUnlocked: true)
+        let presenter = makePresenter(names: ["A"], gateway: gateway, featureUnlock: unlock)
+        for index in 1...FeatureLimit.freeFavoriteGroupCount {
+            presenter.didConfirmSaveFavorite(name: "グループ\(index)")
+        }
+
+        presenter.didTapSaveFavorite()
+
+        XCTAssertEqual(
+            presenter.route,
+            .alert(.favoriteLimitReached(
+                currentCount: FeatureLimit.freeFavoriteGroupCount,
+                limit: FeatureLimit.freeFavoriteGroupCount
+            ))
+        )
+        XCTAssertEqual(try gateway.fetchSummaries().count, FeatureLimit.freeFavoriteGroupCount)
     }
 }

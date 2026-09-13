@@ -17,14 +17,18 @@ final class SeatingChartPresenterTests: XCTestCase {
     private func makePresenter(
         names: [String],
         featureUnlock: FeatureUnlockState? = nil,
-        templateGateway: SeatingTemplateGatewayBase = InMemorySeatingTemplateGateway()
+        templateGateway: SeatingTemplateGatewayBase = InMemorySeatingTemplateGateway(),
+        rewardedAd: RewardedAdGatewayBase = RewardedAdGatewayBase()
     ) -> SeatingChartPresenter {
         let interactor = SeatingChartInteractor(
             attendees: names.map { Attendee(name: $0) },
             featureUnlock: featureUnlock,
             templateGateway: templateGateway
         )
-        return SeatingChartPresenter(interactor: interactor, router: SeatingChartRouter())
+        return SeatingChartPresenter(
+            interactor: interactor,
+            router: SeatingChartRouter(rewardedAd: rewardedAd)
+        )
     }
 
     private func firstTableID(in presenter: SeatingChartPresenter) -> TableID {
@@ -153,6 +157,72 @@ final class SeatingChartPresenterTests: XCTestCase {
 
         XCTAssertEqual(presenter.share.route, .selection)
         XCTAssertNil(presenter.route, "共有は親の route を使わない")
+    }
+
+    func test_発表は空のテーブルでは開けない() {
+        let presenter = makePresenter(names: ["A"])
+        let tableIDs = presenter.viewData.rows.flatMap(\.items).compactMap { item -> TableID? in
+            if case .table(let table) = item { return table.id }
+            return nil
+        }
+        tableIDs.forEach { presenter.didRequestDeleteTable(id: $0) }
+        XCTAssertFalse(presenter.viewData.isShareEnabled)
+
+        presenter.didTapPresent()
+
+        XCTAssertNil(presenter.route)
+    }
+
+    func test_発表Routeはシートでもアラートでもない() {
+        let snapshot = SeatingChartViewData.empty
+        let route = SeatingChartRoute.presentation(id: UUID(), snapshot: snapshot)
+
+        XCTAssertTrue(route.presentsAsFullScreenCover)
+        XCTAssertFalse(route.presentsAsSheet)
+        XCTAssertFalse(route.presentsAsAlert)
+    }
+
+    func test_発表はタップ時点のスナップショットをCover用Routeに載せる() {
+        let presenter = makePresenter(names: ["太郎", "花子"])
+        let snapshot = presenter.viewData
+
+        presenter.didTapPresent()
+
+        guard case .presentation(_, let presented) = presenter.route else {
+            return XCTFail("発表 Route が開くべき")
+        }
+        XCTAssertEqual(presented, snapshot)
+        XCTAssertTrue(presenter.route?.presentsAsFullScreenCover == true)
+        XCTAssertFalse(presenter.route?.presentsAsSheet == true)
+        presenter.dismissRoute()
+    }
+
+    func test_発表中は共有もシャッフルも出さない() {
+        let presenter = makePresenter(names: ["太郎", "花子"])
+        presenter.didTapPresent()
+        let opened = presenter.route
+        let viewData = presenter.viewData
+
+        presenter.didTapShare()
+        presenter.didTapShuffle()
+        presenter.didTapSettings()
+
+        XCTAssertEqual(presenter.route, opened)
+        XCTAssertNil(presenter.share.route)
+        XCTAssertEqual(presenter.viewData, viewData)
+        presenter.dismissRoute()
+    }
+
+    func test_発表を閉じると通常操作に戻る() {
+        let presenter = makePresenter(names: ["太郎"])
+        presenter.didTapPresent()
+        XCTAssertNotNil(presenter.route)
+
+        presenter.dismissRoute()
+
+        XCTAssertNil(presenter.route)
+        presenter.didTapShare()
+        XCTAssertEqual(presenter.share.route, .selection)
     }
 
     func test_会場設定の適用結果がOutput経由で会場列数に反映される() {
@@ -343,6 +413,74 @@ final class SeatingChartPresenterTests: XCTestCase {
         presenter.didTapLoadTemplate()
 
         XCTAssertEqual(presenter.templateListPresenter?.viewData.rows.map(\.name), ["差し替え後"])
+    }
+
+    // MARK: - 卓追加の会場拡張（v2.1）
+
+    private func tableCount(in presenter: SeatingChartPresenter) -> Int {
+        presenter.viewData.rows.flatMap(\.items).filter { item in
+            if case .table = item { return true }
+            return false
+        }.count
+    }
+
+    func test_座席表入場だけでは会場拡張ダイアログを出さない() {
+        let attendees = (1...FeatureLimit.freeAttendeeCount).map { "P\($0)" }
+        let presenter = makePresenter(names: attendees)
+
+        XCTAssertNil(presenter.route)
+        XCTAssertEqual(tableCount(in: presenter), FeatureLimit.freeTableCount)
+        XCTAssertTrue(presenter.viewData.showsAddTableUnlockBadge)
+    }
+
+    func test_11卓目は未解放なら解放ダイアログでpresentしない() {
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let presenter = makePresenter(names: ["A"], rewardedAd: fake)
+        for _ in 1..<FeatureLimit.freeTableCount {
+            presenter.didTapAddTable()
+        }
+        XCTAssertEqual(tableCount(in: presenter), FeatureLimit.freeTableCount)
+        XCTAssertTrue(presenter.viewData.showsAddTableUnlockBadge)
+
+        presenter.didTapAddTable()
+
+        XCTAssertEqual(presenter.route, .alert(.venueUnlock))
+        XCTAssertEqual(tableCount(in: presenter), FeatureLimit.freeTableCount)
+        XCTAssertEqual(fake.presentCallCount, 0)
+    }
+
+    func test_卓追加の視聴成功で1卓足されて解放される() async {
+        let unlock = FeatureUnlockState()
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let presenter = makePresenter(names: ["A"], featureUnlock: unlock, rewardedAd: fake)
+        for _ in 1..<FeatureLimit.freeTableCount {
+            presenter.didTapAddTable()
+        }
+        presenter.didTapAddTable()
+
+        await presenter.confirmWatchVenueAd()
+
+        XCTAssertTrue(unlock.isSessionUnlocked)
+        XCTAssertEqual(tableCount(in: presenter), FeatureLimit.freeTableCount + 1)
+        XCTAssertFalse(presenter.viewData.showsAddTableUnlockBadge)
+        XCTAssertNil(presenter.route)
+        XCTAssertEqual(fake.presentCallCount, 1)
+    }
+
+    func test_40卓では追加カードが消えpresentしない() {
+        let unlock = FeatureUnlockState(isSessionUnlocked: true)
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let presenter = makePresenter(names: ["A"], featureUnlock: unlock, rewardedAd: fake)
+        for _ in 1..<FeatureLimit.maxTableCount {
+            presenter.didTapAddTable()
+        }
+
+        XCTAssertEqual(tableCount(in: presenter), FeatureLimit.maxTableCount)
+        XCTAssertEqual(presenter.viewData.tableLimitCaption, VenueExpansionCopy.tableLimitCaption)
+        XCTAssertFalse(presenter.viewData.rows.flatMap(\.items).contains { $0.id == "add-button" })
+        presenter.didTapAddTable()
+        XCTAssertEqual(presenter.route, .alert(.tableHardLimit))
+        XCTAssertEqual(fake.presentCallCount, 0)
     }
 }
 

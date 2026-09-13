@@ -34,6 +34,17 @@ struct TableEditView: View {
                     Button("キャンセル") { presenter.didTapCancel() }
                 }
             }
+            .alert(
+                VenueExpansionCopy.seatShortageTitle,
+                isPresented: seatShortageBinding
+            ) {
+                Button(VenueExpansionCopy.seatShortageCancel, role: .cancel) { }
+                Button(VenueExpansionCopy.seatShortagePrimary, role: .destructive) {
+                    presenter.didConfirmApplyDespiteSeatShortage()
+                }
+            } message: {
+                Text(VenueExpansionCopy.seatShortageMessage)
+            }
         }
         .presentationDetents([.medium, .large])
     }
@@ -192,6 +203,17 @@ private extension TableEditView {
         Binding(
             get: { presenter.viewData.applyToAllTables },
             set: { presenter.didToggleApplyToAllTables($0) }
+        )
+    }
+
+    var seatShortageBinding: Binding<Bool> {
+        Binding(
+            get: { presenter.route == .seatShortage },
+            set: { isPresented in
+                if !isPresented, presenter.route == .seatShortage {
+                    presenter.dismissRoute()
+                }
+            }
         )
     }
 }

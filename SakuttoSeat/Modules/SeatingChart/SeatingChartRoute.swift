@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_seating.md Phase 2（ルーティング定義）
+//  v2.1 Phase 3（発表は sheet ではない fullScreenCover）
 //
 
 import Foundation
@@ -15,6 +16,8 @@ enum SeatingChartRoute: Identifiable, Equatable {
     case templateList
     case saveTemplatePrompt
     case alert(SeatingChartAlert)
+    /// 発表モード。シートではない。`id` で Cover の identity を分ける。
+    case presentation(id: UUID, snapshot: SeatingChartViewData)
 
     var id: String {
         switch self {
@@ -28,6 +31,8 @@ enum SeatingChartRoute: Identifiable, Equatable {
             return "saveTemplatePrompt"
         case .alert(let alert):
             return "alert-\(alert.id)"
+        case .presentation(let id, _):
+            return "presentation-\(id.uuidString)"
         }
     }
 
@@ -36,9 +41,15 @@ enum SeatingChartRoute: Identifiable, Equatable {
         switch self {
         case .tableEdit, .venueSettings, .templateList:
             return true
-        case .saveTemplatePrompt, .alert:
+        case .saveTemplatePrompt, .alert, .presentation:
             return false
         }
+    }
+
+    /// `.fullScreenCover(item:)` で提示するケースか
+    var presentsAsFullScreenCover: Bool {
+        if case .presentation = self { return true }
+        return false
     }
 
     /// `.alert` で提示するケースか（TextField 付きの保存プロンプトを含む）
@@ -73,6 +84,10 @@ enum SeatingChartCanvasEvent: Equatable, Identifiable {
 enum SeatingChartAlert: Equatable, Identifiable {
     case templateLimitReached(currentCount: Int, limit: Int)
     case saveFailed(message: String)
+    case venueUnlock
+    case tableHardLimit
+    case totalSeatHardLimit
+    case adNotReady
 
     var id: String {
         switch self {
@@ -80,6 +95,14 @@ enum SeatingChartAlert: Equatable, Identifiable {
             return "templateLimitReached"
         case .saveFailed:
             return "saveFailed"
+        case .venueUnlock:
+            return "venueUnlock"
+        case .tableHardLimit:
+            return "tableHardLimit"
+        case .totalSeatHardLimit:
+            return "totalSeatHardLimit"
+        case .adNotReady:
+            return "adNotReady"
         }
     }
 }

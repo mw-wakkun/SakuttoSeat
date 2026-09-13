@@ -36,6 +36,33 @@ final class SeatingChartRouterTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(gateway.fetchSummariesCallCount, 3)
     }
 
+    func test_makePresentationCoverは発表キャンバスを返す() {
+        let viewData = SeatingChartViewDataBuilder.build(
+            tables: [
+                SeatingTable(name: "A卓", capacity: 2, assignedMembers: [
+                    SeatingMember(id: UUID(), name: "太郎")
+                ])
+            ],
+            globalColumnCount: 2
+        )
+
+        let cover = SeatingChartRouter().makePresentationCover(
+            subject: .seatingChart(viewData),
+            onDismiss: {}
+        )
+
+        XCTAssertNotNil(cover)
+    }
+
+    func test_presentRewardedAdは注入したGatewayを1回呼ぶ() async throws {
+        let fake = RewardedAdGatewayFake(outcome: .success)
+        let router = SeatingChartRouter(rewardedAd: fake)
+
+        try await router.presentRewardedAd()
+
+        XCTAssertEqual(fake.presentCallCount, 1)
+    }
+
     func test_makeTemplateListPresenterはassembleのたびに新しいPresenterを返す() {
         let gatewayHolder = SeatingChartInteractor()
         let output = TemplateListOutputSpy()

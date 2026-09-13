@@ -5,6 +5,7 @@
 //  Created by masafumi wakugawa on 2026/05/06.
 //  refactor_Ad.md Phase 5（バナー余白は AdBannerContainer 内。上下とも同じトークン）
 //  View は ModelContext / Gateway を知らない。assemble 時点で注入済み。
+//  v2.1 Phase 3（発表はナビ左。Cover 中はバナー inset を外す）
 //
 
 import SwiftUI
@@ -50,8 +51,16 @@ struct SeatingChartView: View {
                                                 presenter.didTapAddTable()
                                             }) {
                                                 VStack {
-                                                    Image(systemName: "plus.circle.fill")
-                                                        .font(.largeTitle)
+                                                    ZStack(alignment: .bottomTrailing) {
+                                                        Image(systemName: "plus.circle.fill")
+                                                            .font(.largeTitle)
+                                                        if presenter.viewData.showsAddTableUnlockBadge {
+                                                            Image(systemName: "play.rectangle.fill")
+                                                                .font(.caption)
+                                                                .foregroundStyle(.secondary)
+                                                                .offset(x: 6, y: 4)
+                                                        }
+                                                    }
                                                     Text("テーブル追加")
                                                 }
                                                 .frame(maxWidth: .infinity)
@@ -71,6 +80,13 @@ struct SeatingChartView: View {
                                     }
                                 }
                                 .frame(maxWidth: .infinity, alignment: .top)
+                            }
+
+                            if let caption = presenter.viewData.tableLimitCaption {
+                                Text(caption)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity)
                             }
                         }
                         .padding(.top, 8)
@@ -102,12 +118,27 @@ struct SeatingChartView: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            bottomChromeBar
+            if !isPresenting {
+                bottomChromeBar
+            }
         }
         .background(Color(.systemBackground))
+        .background {
+            InteractivePopGestureController(isEnabled: !isPresenting)
+        }
         .navigationTitle("座席表")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    presenter.didTapPresent()
+                } label: {
+                    Image(systemName: "rectangle.inset.filled")
+                }
+                .disabled(!presenter.viewData.isShareEnabled)
+                .accessibilityLabel(PresentationCopy.presentAccessibilityLabel)
+                .accessibilityHint(PresentationCopy.presentAccessibilityHint)
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { presenter.didTapSettings() }) {
                     Image(systemName: "gearshape")
@@ -116,6 +147,9 @@ struct SeatingChartView: View {
         }
         .sheet(item: sheetRouteBinding) { route in
             presenter.makeRouteSheet(route)
+        }
+        .fullScreenCover(item: presentationRouteBinding) { route in
+            presenter.makePresentationCover(route)
         }
         .shareFlow(presenter.share)
         .alert("レイアウトを保存", isPresented: savePromptBinding) {
@@ -144,6 +178,24 @@ struct SeatingChartView: View {
 // MARK: - Route Bindings
 
 private extension SeatingChartView {
+    var isPresenting: Bool {
+        presenter.route?.presentsAsFullScreenCover == true
+    }
+
+    var presentationRouteBinding: Binding<SeatingChartRoute?> {
+        Binding(
+            get: {
+                guard let route = presenter.route, route.presentsAsFullScreenCover else { return nil }
+                return route
+            },
+            set: { newValue in
+                if newValue == nil, presenter.route?.presentsAsFullScreenCover == true {
+                    presenter.dismissRoute()
+                }
+            }
+        )
+    }
+
     var sheetRouteBinding: Binding<SeatingChartRoute?> {
         Binding(
             get: {
@@ -183,6 +235,12 @@ private extension SeatingChartView {
             return "テンプレート上限"
         case .saveFailed:
             return "保存に失敗しました"
+        case .venueUnlock:
+            return VenueExpansionCopy.venueUnlockTitle
+        case .tableHardLimit, .totalSeatHardLimit:
+            return VenueExpansionCopy.hardLimitTitle
+        case .adNotReady:
+            return RewardedAdCopy.notReadyTitle
         case .none:
             return ""
         }
@@ -202,8 +260,13 @@ private extension SeatingChartView {
     @ViewBuilder
     func alertButtons(for alert: SeatingChartAlert) -> some View {
         switch alert {
-        case .templateLimitReached, .saveFailed:
-            Button("OK", role: .cancel) { }
+        case .templateLimitReached, .saveFailed, .tableHardLimit, .totalSeatHardLimit, .adNotReady:
+            Button(VenueExpansionCopy.ok, role: .cancel) { }
+        case .venueUnlock:
+            Button(VenueExpansionCopy.later, role: .cancel) { }
+            Button(VenueExpansionCopy.venueUnlockPrimary) {
+                presenter.didConfirmWatchVenueAd()
+            }
         }
     }
 
@@ -213,6 +276,14 @@ private extension SeatingChartView {
             Text("保存できるテンプレートは最大\(limit)個までとなっています（現在\(currentCount)個）。新しいテンプレートを保存するには、テンプレート読込一覧から既存のテンプレートを削除してください。")
         case .saveFailed(let message):
             Text(message)
+        case .venueUnlock:
+            Text(VenueExpansionCopy.venueUnlockMessage)
+        case .tableHardLimit:
+            Text(VenueExpansionCopy.tableHardLimitMessage)
+        case .totalSeatHardLimit:
+            Text(VenueExpansionCopy.totalSeatHardLimitMessage)
+        case .adNotReady:
+            Text(RewardedAdCopy.notReadyMessage)
         }
     }
 }

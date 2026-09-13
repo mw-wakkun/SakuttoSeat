@@ -17,11 +17,25 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
     private var attendees: [Attendee] = []
     /// Protocol existential は保持しない（deinit の malloc abort 回避）
     private var favoriteGateway: GroupFavoriteGatewayBase
+    /// 会場サイズ解放。お気に入り4枠目の1回バイパスとは独立。
+    private let featureUnlock: FeatureUnlockState
     /// リワード視聴成功で付与する、上限超過の1回限り許可。永続解放ではない。
     private var allowsOneTimeLimitBypass = false
 
-    init(favoriteGateway: GroupFavoriteGatewayBase = InMemoryGroupFavoriteGateway()) {
+    init(
+        favoriteGateway: GroupFavoriteGatewayBase = InMemoryGroupFavoriteGateway(),
+        featureUnlock: FeatureUnlockState = FeatureUnlockState()
+    ) {
         self.favoriteGateway = favoriteGateway
+        self.featureUnlock = featureUnlock
+    }
+
+    var isSessionUnlocked: Bool {
+        featureUnlock.isSessionUnlocked
+    }
+
+    func grantSessionUnlock() {
+        featureUnlock.grantSessionUnlock()
     }
 
     // MARK: - 参加者
@@ -38,6 +52,18 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
     func add(fromText text: String) -> [Attendee] {
         appendUniqueNames(splitRawNames(from: text))
         return attendees
+    }
+
+    func attendeeCapacityDecision(addingCount: Int) -> CapacityDecision {
+        capacityDecision(forProposedCount: attendees.count + addingCount)
+    }
+
+    func applyAttendeeAppend(_ names: [String]) -> AttendeeAppendResult {
+        appendCapped(names)
+    }
+
+    func applyAttendeeAppendFromText(_ text: String) -> AttendeeAppendResult {
+        appendCapped(splitRawNames(from: text))
     }
 
     func replaceAll(names: [String]) -> [Attendee] {
@@ -117,7 +143,7 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
         allowsOneTimeLimitBypass = false
     }
 
-    func loadFavorite(id: FavoriteGroupID) throws -> [Attendee] {
+    func loadFavorite(id: FavoriteGroupID) throws -> AttendeeAppendResult {
         let favorite: FavoriteGroupSnapshot?
         do {
             favorite = try favoriteGateway.fetch(id: id)
@@ -128,7 +154,8 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
         guard let favorite else {
             throw FavoriteSaveError.notFound
         }
-        return replaceAll(names: favorite.memberNames)
+        attendees.removeAll()
+        return appendCapped(favorite.memberNames)
     }
 
     // MARK: - プライベートヘルパー
@@ -168,6 +195,47 @@ nonisolated final class AttendeeListInteractor: AttendeeListInteractorProtocol {
         }
         nextIndexByBase[base] = index + 1
         return candidate
+    }
+
+    private func capacityDecision(forProposedCount proposed: Int) -> CapacityDecision {
+        if proposed > FeatureLimit.maxAttendeeCount {
+            return .blockedHardLimit(.attendee)
+        }
+        if proposed > FeatureLimit.freeAttendeeCount && !featureUnlock.isSessionUnlocked {
+            return .requiresUnlock
+        }
+        return .allowed
+    }
+
+    /// 無料枠または絶対上限まで先に入れ、溢れた名前を返す。
+    private func appendCapped(_ names: [String]) -> AttendeeAppendResult {
+        let trimmedNames = names.map { trimmed($0) }.filter { !$0.isEmpty }
+        let remainingFreeAtStart = featureUnlock.isSessionUnlocked
+            ? max(0, FeatureLimit.maxAttendeeCount - attendees.count)
+            : max(0, FeatureLimit.freeAttendeeCount - attendees.count)
+        let roomToMax = max(0, FeatureLimit.maxAttendeeCount - attendees.count)
+        let allowedNow = min(remainingFreeAtStart, roomToMax)
+
+        let accepted = Array(trimmedNames.prefix(allowedNow))
+        let overflow = Array(trimmedNames.dropFirst(allowedNow))
+        appendUniqueNames(accepted)
+
+        let decision: CapacityDecision
+        if overflow.isEmpty {
+            decision = .allowed
+        } else if attendees.count >= FeatureLimit.maxAttendeeCount {
+            decision = .blockedHardLimit(.attendee)
+        } else {
+            decision = .requiresUnlock
+        }
+        return AttendeeAppendResult(
+            attendees: attendees,
+            overflowNames: overflow,
+            decision: decision,
+            triedCount: trimmedNames.count,
+            remainingFreeAtStart: remainingFreeAtStart,
+            remainingHardAtStart: roomToMax
+        )
     }
 
     /// テキストを改行とカンマ（半角/全角）で分割し、トリム済みの空でない名前のみを返す

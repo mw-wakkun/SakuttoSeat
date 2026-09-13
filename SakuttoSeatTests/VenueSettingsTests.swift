@@ -132,7 +132,8 @@ final class VenueSettingsPresenterTests: XCTestCase {
         presenter.didChangeSelection(FeatureLimit.freeColumnCount + 1)
 
         XCTAssertEqual(presenter.viewData.selectedColumnCount, FeatureLimit.freeColumnCount + 1)
-        XCTAssertEqual(presenter.viewData.selectableRange, 1...10)
+        XCTAssertEqual(presenter.viewData.selectableRange, 1...FeatureLimit.maxColumnCount)
+        XCTAssertEqual(presenter.viewData.noticeText, VenueExpansionCopy.venueNotice)
         XCTAssertTrue(presenter.viewData.requiresUnlock)
 
         presenter.didChangeSelection(FeatureLimit.freeColumnCount)

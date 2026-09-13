@@ -34,10 +34,10 @@ struct SeatingChartSnapshotView: View {
     }
 
     /// 出力幅の算出に使うレイアウト定数（`ImageExportRenderer` と共有する唯一の定義）
-    static let tableWidth: CGFloat = 140
-    static let tableSpacing: CGFloat = 16
-    static let contentPadding: CGFloat = 32
-    static let highResContentPadding: CGFloat = 8
+    nonisolated static let tableWidth: CGFloat = 140
+    nonisolated static let tableSpacing: CGFloat = 16
+    nonisolated static let contentPadding: CGFloat = 32
+    nonisolated static let highResContentPadding: CGFloat = 8
 
     /// 会場列数ぶんのテーブルが収まる幅。高さは `ImageRenderer` に実測させる。
     static func intrinsicWidth(columnCount: Int, layout: Layout = .standard) -> CGFloat {

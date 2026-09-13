@@ -340,6 +340,28 @@ final class SeatingChartInteractorTests: XCTestCase {
         XCTAssertEqual(assignedIDs(tables), Set(attendees.map(\.id)))
     }
 
+    func test_テーブル更新_不足分の追加卓は会場デフォルトの定員と列数で作る() {
+        let attendees = makeAttendees(["A", "B", "C", "D"])
+        let interactor = SeatingChartInteractor(attendees: attendees)
+        XCTAssertEqual(interactor.currentTables().count, 1)
+
+        let tables = interactor.updateTable(
+            tableUpdate(
+                id: interactor.currentTables()[0].id,
+                name: "テーブルA",
+                capacity: 1,
+                columnCount: 1
+            )
+        )
+
+        XCTAssertEqual(tables.count, 2)
+        XCTAssertEqual(tables[0].capacity, 1)
+        XCTAssertEqual(tables[0].columnCount, 1)
+        XCTAssertEqual(tables[1].capacity, VenueSettings.default.defaultCapacity)
+        XCTAssertEqual(tables[1].columnCount, VenueSettings.default.defaultColumnCount)
+        XCTAssertEqual(assignedIDs(tables), Set(attendees.map(\.id)))
+    }
+
     func test_テーブル更新_定員が変わらない場合はテーブル構成が維持される() {
         let interactor = makeInteractor(names: ["A", "B", "C"])
         _ = interactor.addTable()
@@ -635,6 +657,66 @@ final class SeatingChartInteractorTests: XCTestCase {
             XCTAssertEqual(error as? VenueSettingsError, .unlockRequired(requested: 4))
         }
         XCTAssertEqual(interactor.currentVenueSettings().globalColumnCount, 2)
+    }
+
+    func test_卓10は広告不要で11卓目は未解放なら広告() {
+        let interactor = makeInteractor(names: ["A"])
+        for _ in 1..<FeatureLimit.freeTableCount {
+            _ = interactor.addTable()
+        }
+        XCTAssertEqual(interactor.currentTables().count, FeatureLimit.freeTableCount)
+        XCTAssertEqual(interactor.tableAddDecision(additionalCapacity: nil), .requiresUnlock)
+
+        _ = interactor.addTable()
+
+        XCTAssertEqual(interactor.currentTables().count, FeatureLimit.freeTableCount)
+        interactor.grantSessionUnlock()
+        XCTAssertEqual(interactor.tableAddDecision(additionalCapacity: nil), .allowed)
+        _ = interactor.addTable()
+        XCTAssertEqual(interactor.currentTables().count, FeatureLimit.freeTableCount + 1)
+    }
+
+    func test_卓40の次と総席数160超はハード上限() {
+        let unlock = FeatureUnlockState(isSessionUnlocked: true)
+        let interactor = makeInteractor(names: ["A"], featureUnlock: unlock)
+        for _ in 1..<FeatureLimit.maxTableCount {
+            _ = interactor.addTable()
+        }
+        XCTAssertEqual(interactor.currentTables().count, FeatureLimit.maxTableCount)
+        XCTAssertEqual(interactor.tableAddDecision(additionalCapacity: nil), .blockedHardLimit(.table))
+        _ = interactor.addTable()
+        XCTAssertEqual(interactor.currentTables().count, FeatureLimit.maxTableCount)
+
+        var settings = VenueSettings.default
+        settings.defaultCapacity = 8
+        let seatLimited = SeatingChartInteractor(
+            attendees: [Attendee(name: "A")],
+            venueSettings: settings,
+            featureUnlock: unlock
+        )
+        let maxBySeats = FeatureLimit.maxTotalSeatCount / 8
+        for _ in 1..<maxBySeats {
+            _ = seatLimited.addTable(capacity: 8, columnCount: 2)
+        }
+        XCTAssertEqual(seatLimited.currentTotalSeatCount, maxBySeats * 8)
+        XCTAssertEqual(seatLimited.tableAddDecision(additionalCapacity: 8), .blockedHardLimit(.totalSeat))
+        _ = seatLimited.addTable(capacity: 8, columnCount: 2)
+        XCTAssertEqual(seatLimited.currentTotalSeatCount, maxBySeats * 8)
+    }
+
+    func test_初期テーブル生成は入場時に広告判定せず内部キャップで切る() {
+        var settings = VenueSettings.default
+        settings.defaultCapacity = 8
+        let attendees = (1...200).map { Attendee(name: "P\($0)") }
+        let interactor = SeatingChartInteractor(
+            attendees: attendees,
+            venueSettings: settings,
+            featureUnlock: FeatureUnlockState(isSessionUnlocked: true)
+        )
+
+        XCTAssertEqual(interactor.currentTables().count, FeatureLimit.maxTotalSeatCount / 8)
+        XCTAssertEqual(interactor.currentTotalSeatCount, FeatureLimit.maxTotalSeatCount)
+        XCTAssertEqual(interactor.tableAddDecision(additionalCapacity: 8), .blockedHardLimit(.totalSeat))
     }
 
     func test_セッション解放後は3列以上も適用でき画面を跨いでも維持される() throws {

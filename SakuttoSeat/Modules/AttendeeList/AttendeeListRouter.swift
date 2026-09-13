@@ -34,7 +34,10 @@ final class AttendeeListRouter: AttendeeListRouterProtocol {
         favoriteGateway: GroupFavoriteGatewayBase = InMemoryGroupFavoriteGateway(),
         templateGateway: SeatingTemplateGatewayBase = InMemorySeatingTemplateGateway()
     ) -> some View {
-        let interactor = AttendeeListInteractor(favoriteGateway: favoriteGateway)
+        let interactor = AttendeeListInteractor(
+            favoriteGateway: favoriteGateway,
+            featureUnlock: SessionFeatureUnlock.shared
+        )
         let router = AttendeeListRouter(
             templateGateway: templateGateway,
             rewardedAd: SessionRewardedAd.shared

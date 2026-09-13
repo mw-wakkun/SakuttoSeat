@@ -41,6 +41,17 @@ nonisolated struct TableEditDraft: Equatable {
     }
 }
 
+enum TableEditRoute: Identifiable, Equatable {
+    case seatShortage
+
+    var id: String {
+        switch self {
+        case .seatShortage:
+            return "seatShortage"
+        }
+    }
+}
+
 /// View が消費する表示専用モデル
 struct TableEditViewData: Equatable {
     let name: String
@@ -61,6 +72,7 @@ struct TableEditViewData: Equatable {
 @MainActor
 protocol TableEditPresenterProtocol: AnyObject {
     var viewData: TableEditViewData { get }
+    var route: TableEditRoute? { get set }
 
     func didChangeName(_ name: String)
     func didChangeCapacity(_ capacity: Int)
@@ -69,6 +81,8 @@ protocol TableEditPresenterProtocol: AnyObject {
     func didChangeLayoutText(_ text: String)
     func didToggleApplyToAllTables(_ isOn: Bool)
     func didTapSave()
+    func didConfirmApplyDespiteSeatShortage()
+    func dismissRoute()
     func didTapDelete()
     func didTapCancel()
 }
@@ -90,6 +104,7 @@ nonisolated protocol TableEditInteractorProtocol: AnyObject {
     @discardableResult func updateApplyToAllTables(_ isOn: Bool) -> TableEditDraft
 
     func makeUpdateRequest() -> TableUpdateRequest
+    func needsSeatShortageConfirmation() -> Bool
 }
 
 // MARK: - Presenter -> 親モジュール

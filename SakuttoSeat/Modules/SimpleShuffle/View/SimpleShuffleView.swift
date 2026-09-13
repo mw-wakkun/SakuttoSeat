@@ -7,6 +7,7 @@
 //  refactor_simple.md Phase 4（空状態 / insetGrouped。大量行の spring 抑制は未計測のため入れない）
 //  番号札は inset がバナーのみ。幅は AdBannerContainer が containerRelativeFrame で確定する
 //  refactor_Ad.md Phase 5（余白は Container 内。inset 背景だけ画面側）
+//  v2.1 Phase 3（発表はナビ左。Cover 中はバナー inset を外す）
 //
 
 import SwiftUI
@@ -25,13 +26,28 @@ struct SimpleShuffleView: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            AdBannerContainer()
-                .frame(maxWidth: .infinity)
-                .background(Color(.systemGroupedBackground))
+            if !isPresenting {
+                AdBannerContainer()
+                    .frame(maxWidth: .infinity)
+                    .background(Color(.systemGroupedBackground))
+            }
+        }
+        .background {
+            InteractivePopGestureController(isEnabled: !isPresenting)
         }
         .navigationTitle(SimpleShuffleCopy.navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    presenter.didTapPresent()
+                } label: {
+                    Image(systemName: "rectangle.inset.filled")
+                }
+                .disabled(presenter.viewData.isEmpty)
+                .accessibilityLabel(PresentationCopy.presentAccessibilityLabel)
+                .accessibilityHint(PresentationCopy.numberedPresentAccessibilityHint)
+            }
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Button {
                     presenter.didTapShare()
@@ -61,10 +77,31 @@ struct SimpleShuffleView: View {
             }
         }
         .shareFlow(presenter.share)
+        .fullScreenCover(item: presentationRouteBinding) { route in
+            presenter.makePresentationCover(route)
+        }
     }
 }
 
 private extension SimpleShuffleView {
+    var isPresenting: Bool {
+        presenter.route?.presentsAsFullScreenCover == true
+    }
+
+    var presentationRouteBinding: Binding<SimpleShuffleRoute?> {
+        Binding(
+            get: {
+                guard let route = presenter.route, route.presentsAsFullScreenCover else { return nil }
+                return route
+            },
+            set: { newValue in
+                if newValue == nil, presenter.route?.presentsAsFullScreenCover == true {
+                    presenter.dismissRoute()
+                }
+            }
+        )
+    }
+
     var emptyContent: some View {
         EmptyStateView(
             systemImage: "person.3",

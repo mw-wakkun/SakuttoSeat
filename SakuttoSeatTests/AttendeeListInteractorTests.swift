@@ -359,7 +359,9 @@ final class AttendeeListInteractorTests: XCTestCase {
 
         let loaded = try interactor.loadFavorite(id: id)
 
-        XCTAssertEqual(names(of: loaded), ["新1", "新2", "新3"])
+        XCTAssertEqual(names(of: loaded.attendees), ["新1", "新2", "新3"])
+        XCTAssertEqual(loaded.decision, .allowed)
+        XCTAssertTrue(loaded.overflowNames.isEmpty)
         XCTAssertEqual(names(of: interactor.allAttendees()), ["新1", "新2", "新3"])
     }
 
@@ -372,7 +374,8 @@ final class AttendeeListInteractorTests: XCTestCase {
 
         let loaded = try interactor.loadFavorite(id: id)
 
-        XCTAssertTrue(loaded.isEmpty)
+        XCTAssertTrue(loaded.attendees.isEmpty)
+        XCTAssertEqual(loaded.decision, .allowed)
     }
 
     func test_お気に入り読込の永続化失敗はpersistenceFailedになる() {
@@ -432,5 +435,89 @@ final class AttendeeListInteractorTests: XCTestCase {
         interactor.attachFavoriteGateway(gateway)
 
         XCTAssertTrue(interactor.currentFavoriteGateway() === gateway)
+    }
+
+    // MARK: - 人数上限（v2.1）
+
+    private func numberedNames(_ count: Int, prefix: String = "P") -> [String] {
+        (1...count).map { "\(prefix)\($0)" }
+    }
+
+    func test_人数39から40は広告不要() {
+        let interactor = AttendeeListInteractor()
+        _ = interactor.add(fromText: numberedNames(39).joined(separator: ","))
+
+        XCTAssertEqual(interactor.attendeeCapacityDecision(addingCount: 1), .allowed)
+        let result = interactor.applyAttendeeAppend(["40人目"])
+
+        XCTAssertEqual(result.decision, .allowed)
+        XCTAssertEqual(result.attendees.count, FeatureLimit.freeAttendeeCount)
+        XCTAssertTrue(result.overflowNames.isEmpty)
+    }
+
+    func test_41人目は未解放なら広告が必要() {
+        let interactor = AttendeeListInteractor()
+        _ = interactor.add(fromText: numberedNames(FeatureLimit.freeAttendeeCount).joined(separator: ","))
+
+        XCTAssertEqual(interactor.attendeeCapacityDecision(addingCount: 1), .requiresUnlock)
+        let result = interactor.applyAttendeeAppend(["41人目"])
+
+        XCTAssertEqual(result.decision, .requiresUnlock)
+        XCTAssertEqual(result.attendees.count, FeatureLimit.freeAttendeeCount)
+        XCTAssertEqual(result.overflowNames, ["41人目"])
+    }
+
+    func test_41人目は解放済みなら追加される() {
+        let interactor = AttendeeListInteractor(featureUnlock: FeatureUnlockState(isSessionUnlocked: true))
+        _ = interactor.add(fromText: numberedNames(FeatureLimit.freeAttendeeCount).joined(separator: ","))
+
+        XCTAssertEqual(interactor.attendeeCapacityDecision(addingCount: 1), .allowed)
+        let result = interactor.applyAttendeeAppend(["41人目"])
+
+        XCTAssertEqual(result.decision, .allowed)
+        XCTAssertEqual(result.attendees.count, FeatureLimit.freeAttendeeCount + 1)
+        XCTAssertEqual(result.attendees.last?.name, "41人目")
+    }
+
+    func test_120人の次はハード上限() {
+        let interactor = AttendeeListInteractor(featureUnlock: FeatureUnlockState(isSessionUnlocked: true))
+        _ = interactor.add(fromText: numberedNames(FeatureLimit.maxAttendeeCount).joined(separator: ","))
+
+        XCTAssertEqual(interactor.attendeeCapacityDecision(addingCount: 1), .blockedHardLimit(.attendee))
+        let result = interactor.applyAttendeeAppend(["121人目"])
+
+        XCTAssertEqual(result.decision, .blockedHardLimit(.attendee))
+        XCTAssertEqual(result.attendees.count, FeatureLimit.maxAttendeeCount)
+        XCTAssertEqual(result.overflowNames, ["121人目"])
+    }
+
+    func test_一括追加は無料枠まで入れて溢れを返す() {
+        let interactor = AttendeeListInteractor()
+        _ = interactor.add(fromText: numberedNames(FeatureLimit.freeAttendeeCount).joined(separator: ","))
+
+        let result = interactor.applyAttendeeAppendFromText("余り1,余り2")
+
+        XCTAssertEqual(result.decision, .requiresUnlock)
+        XCTAssertEqual(result.attendees.count, FeatureLimit.freeAttendeeCount)
+        XCTAssertEqual(result.overflowNames, ["余り1", "余り2"])
+        XCTAssertEqual(result.triedCount, 2)
+        XCTAssertEqual(result.remainingFreeAtStart, 0)
+        XCTAssertEqual(result.remainingHardAtStart, FeatureLimit.maxAttendeeCount - FeatureLimit.freeAttendeeCount)
+    }
+
+    func test_お気に入り読込も無料枠で切って溢れを返す() throws {
+        let gateway = InMemoryGroupFavoriteGateway()
+        try gateway.insert(name: "大人数", members: numberedNames(45))
+        let interactor = AttendeeListInteractor(favoriteGateway: gateway)
+        let id = try XCTUnwrap(gateway.fetchSummaries().first?.id)
+
+        let result = try interactor.loadFavorite(id: id)
+
+        XCTAssertEqual(result.decision, .requiresUnlock)
+        XCTAssertEqual(result.attendees.count, FeatureLimit.freeAttendeeCount)
+        XCTAssertEqual(result.overflowNames.count, 5)
+        XCTAssertEqual(result.overflowNames.first, "P41")
+        XCTAssertEqual(result.triedCount, 45)
+        XCTAssertEqual(result.remainingFreeAtStart, FeatureLimit.freeAttendeeCount)
     }
 }

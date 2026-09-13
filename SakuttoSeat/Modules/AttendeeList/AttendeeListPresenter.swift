@@ -30,6 +30,15 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
     /// 上限到達後に名前確定済みなら、視聴成功後にその名前で保存する。
     private var pendingFavoriteName: String?
 
+    /// 人数解放のあとで流し込む名前（一括／お気に入り溢れ、または＋で待っている1件）。
+    private var pendingAttendeeNames: [String] = []
+    /// リワード提示中。アラート閉鎖の dismiss で running task を殺さない。
+    private var isPresentingVenueAd = false
+    /// ＋からの1件待ちなら、視聴成功後に入力欄を空にする。
+    private var shouldClearNameInputOnVenueUnlock = false
+    /// 入力欄を空にするための世代。追加成功のときだけ進める。
+    private var inputNonce = 0
+
     /// 広告待ちなど、画面寿命を超えて走らないようにする非同期作業。
     private var runningTask: Task<Void, Never>?
     /// 閉じたあとに完了した広告待ちが副作用を残さないための世代。
@@ -48,15 +57,31 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
         publishState()
     }
 
-    func didTapAdd(name: String) {
-        _ = interactor.add(name: name)
-        publishState()
+    @discardableResult
+    func didTapAdd(name: String) -> Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return false }
+        switch interactor.attendeeCapacityDecision(addingCount: 1) {
+        case .allowed:
+            _ = interactor.add(name: trimmedName)
+            consumeNameInput()
+            publishState()
+            return true
+        case .requiresUnlock:
+            pendingAttendeeNames = [trimmedName]
+            shouldClearNameInputOnVenueUnlock = true
+            setRoute(.alert(.attendeeUnlock(overflowTotal: nil, remainingFree: nil, remainingHard: nil)))
+            publishState()
+            return false
+        case .blockedHardLimit:
+            setRoute(.alert(.attendeeHardLimit))
+            publishState()
+            return false
+        }
     }
 
     func didTapBulkAdd(text: String) {
-        _ = interactor.add(fromText: text)
-        setRoute(nil)
-        publishState()
+        applyCappedResult(interactor.applyAttendeeAppendFromText(text))
     }
 
     func didDeleteAttendees(at offsets: IndexSet) {
@@ -70,6 +95,7 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
 
     func didConfirmReset() {
         _ = interactor.removeAll()
+        pendingAttendeeNames = []
         setRoute(nil)
         publishState()
     }
@@ -104,6 +130,35 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
         } catch {
             pendingFavoriteName = nil
             setRoute(.alert(.saveFailed(message: error.localizedDescription)))
+        }
+    }
+
+    /// 人数解放アラートで「動画を見て追加する」を選んだとき。お気に入り4枠目とは別経路。
+    func didConfirmWatchVenueAd() {
+        isPresentingVenueAd = true
+        setRoute(nil)
+        startRunningTask { [weak self] in
+            await self?.confirmWatchVenueAd()
+        }
+    }
+
+    /// 人数解放の結果をセッション解放とバッファ流し込みへ写す。テストはここを await する。
+    /// 視聴成功後はアラート閉鎖による task キャンセルがあっても、解放とバッファ流し込みは落とさない。
+    func confirmWatchVenueAd() async {
+        isPresentingVenueAd = true
+        setRoute(nil)
+        let pending = pendingAttendeeNames
+        let clearsInput = shouldClearNameInputOnVenueUnlock
+        do {
+            await router.waitUntilPresentable()
+            try await router.presentRewardedAd()
+            await applyRewardedAttendeeUnlock(pending: pending, clearsInput: clearsInput)
+        } catch RewardedAdError.notReady {
+            isPresentingVenueAd = false
+            setRoute(.alert(.adNotReady))
+        } catch {
+            isPresentingVenueAd = false
+            // notEarned / failed / キャンセル: 会場拡張は立てない。バッファは残す。
         }
     }
 
@@ -156,6 +211,10 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
     }
 
     func didTapBulkAddEntry() {
+        guard !isAttendeeHardLimited else {
+            setRoute(.alert(.attendeeHardLimit))
+            return
+        }
         setRoute(.bulkAdd)
     }
 
@@ -169,7 +228,9 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
 
     func dismissRoute() {
         let keepPendingFavoriteName = isFavoriteLimitAlert
-        cancelRunningTask()
+        if !isAttendeeUnlockAlert && !isPresentingVenueAd {
+            cancelRunningTask()
+        }
         if !keepPendingFavoriteName {
             pendingFavoriteName = nil
             interactor.revokeOneTimeFavoriteSaveBypass()
@@ -211,7 +272,78 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
     // MARK: - Private
 
     private func publishState() {
-        viewData = AttendeeListViewDataBuilder.build(attendees: interactor.allAttendees())
+        viewData = AttendeeListViewDataBuilder.build(
+            attendees: interactor.allAttendees(),
+            addControl: addControlState(from: interactor.attendeeCapacityDecision(addingCount: 1)),
+            inputNonce: inputNonce
+        )
+    }
+
+    private func addControlState(from decision: CapacityDecision) -> AttendeeAddControlState {
+        switch decision {
+        case .allowed:
+            return .available
+        case .requiresUnlock:
+            return .needsUnlock
+        case .blockedHardLimit:
+            return .hardLimited
+        }
+    }
+
+    private func consumeNameInput() {
+        inputNonce += 1
+    }
+
+    private func applyCappedResult(_ result: AttendeeAppendResult) {
+        pendingAttendeeNames = result.overflowNames
+        shouldClearNameInputOnVenueUnlock = false
+        switch result.decision {
+        case .allowed:
+            setRoute(nil)
+        case .requiresUnlock:
+            setRoute(.alert(.attendeeUnlock(
+                overflowTotal: result.triedCount,
+                remainingFree: result.remainingFreeAtStart,
+                remainingHard: result.remainingHardAtStart
+            )))
+        case .blockedHardLimit:
+            if result.remainingHardAtStart > 0 {
+                pendingAttendeeNames = []
+                setRoute(.alert(.attendeeHardLimitOverflow(
+                    triedCount: result.triedCount,
+                    remainingHard: result.remainingHardAtStart
+                )))
+            } else {
+                setRoute(.alert(.attendeeHardLimit))
+            }
+        }
+        publishState()
+    }
+
+    /// 視聴成功後の解放とバッファ流し込み。報酬コールバックが Main 以外でも、反映は Main で行う。
+    private func applyRewardedAttendeeUnlock(pending: [String], clearsInput: Bool) async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            DispatchQueue.main.async { [self] in
+                interactor.grantSessionUnlock()
+                if pending.isEmpty {
+                    pendingAttendeeNames = []
+                    shouldClearNameInputOnVenueUnlock = false
+                    isPresentingVenueAd = false
+                    publishState()
+                    continuation.resume()
+                    return
+                }
+                _ = interactor.applyAttendeeAppend(pending)
+                pendingAttendeeNames = []
+                shouldClearNameInputOnVenueUnlock = false
+                if clearsInput {
+                    consumeNameInput()
+                }
+                publishState()
+                isPresentingVenueAd = false
+                continuation.resume()
+            }
+        }
     }
 
     /// `didTapShowFavorites` で assemble 済みならそれを返す。未セットならここで 1 度だけ作る。
@@ -253,6 +385,18 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
         if case .alert(.favoriteLimitReached) = route { return true }
         return false
     }
+
+    private var isAttendeeUnlockAlert: Bool {
+        if case .alert(.attendeeUnlock) = route { return true }
+        return false
+    }
+
+    private var isAttendeeHardLimited: Bool {
+        if case .blockedHardLimit = interactor.attendeeCapacityDecision(addingCount: 1) {
+            return true
+        }
+        return false
+    }
 }
 
 // MARK: - 子モジュール Output
@@ -268,9 +412,8 @@ extension AttendeeListPresenter: FavoriteGroupModuleOutput {
 
     private func didSelectFavoriteGroup(id: FavoriteGroupID) {
         do {
-            _ = try interactor.loadFavorite(id: id)
-            setRoute(nil)
-            publishState()
+            let result = try interactor.loadFavorite(id: id)
+            applyCappedResult(result)
         } catch FavoriteSaveError.notFound {
             return
         } catch let error as FavoriteSaveError {

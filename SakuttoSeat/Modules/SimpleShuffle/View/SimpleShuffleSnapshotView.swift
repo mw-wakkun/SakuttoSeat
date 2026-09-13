@@ -62,9 +62,9 @@ struct SimpleShuffleSnapshotView: View {
     }
 
     /// 出力幅。`ImageExportRenderer` と共有する唯一の定義
-    static let exportWidth: CGFloat = 400
+    nonisolated static let exportWidth: CGFloat = 400
     /// 高画質は内容幅にフィット（目安 600〜834）
-    static let highResExportWidth: CGFloat = 680
+    nonisolated static let highResExportWidth: CGFloat = 680
 
     let viewData: SimpleShuffleViewData
     var layout: Layout = .standard

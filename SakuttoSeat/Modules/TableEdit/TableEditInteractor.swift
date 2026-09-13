@@ -15,11 +15,19 @@ nonisolated final class TableEditInteractor: TableEditInteractorProtocol {
     let layoutTextPresets: [String] = ["窓際", "ステージ側", "入り口側", "通路側"]
 
     private(set) var draft: TableEditDraft
+    private let attendeeCount: Int
+    private let tableCapacities: [TableID: Int]
 
     var columnCountRange: ClosedRange<Int> { 1...max(1, draft.capacity) }
 
-    init(draft: TableEditDraft) {
+    init(
+        draft: TableEditDraft,
+        attendeeCount: Int = 0,
+        tableCapacities: [TableID: Int] = [:]
+    ) {
         self.draft = draft
+        self.attendeeCount = max(0, attendeeCount)
+        self.tableCapacities = tableCapacities
         self.draft.name = Self.clamped(draft.name, maxLength: maxInputLength)
         self.draft.capacity = Self.clamped(draft.capacity, to: capacityRange)
         self.draft.columnCount = Self.clamped(draft.columnCount, to: 1...max(1, self.draft.capacity))
@@ -82,7 +90,28 @@ nonisolated final class TableEditInteractor: TableEditInteractorProtocol {
         )
     }
 
+    /// 40卓まで足しても全員を載せられないときだけ警告する。
+    /// 一括適用でない場合は、他卓の定員を残したうえで足りるかを見る。
+    func needsSeatShortageConfirmation() -> Bool {
+        maximumSeatsAfterApply() < attendeeCount
+    }
+
     // MARK: - Private
+
+    private func maximumSeatsAfterApply() -> Int {
+        let capacity = max(1, draft.capacity)
+        if draft.applyToAllTables {
+            return capacity * FeatureLimit.maxTableCount
+        }
+        var otherCapacity = 0
+        var otherCount = 0
+        for (id, existing) in tableCapacities where id != draft.tableID {
+            otherCapacity += existing
+            otherCount += 1
+        }
+        let remainingSlots = max(1, FeatureLimit.maxTableCount - otherCount)
+        return otherCapacity + capacity * remainingSlots
+    }
 
     private static func clamped(_ value: Int, to range: ClosedRange<Int>) -> Int {
         min(max(value, range.lowerBound), range.upperBound)

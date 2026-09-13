@@ -6,6 +6,7 @@
 //  Phase 5（子モジュール切り出し・Share モジュール化）
 //  refactor_templateListView.md Phase 3（テンプレート子は gatewayHolder。Presenter は Gateway 型を渡さない）
 //  refactor_templateListView.md Phase 4（テンプレートシートは Presenter 組み立てと View ラップを分離）
+//  v2.1 Phase 3（didTapPresent / 発表 Cover は Router 組み立て）
 //
 
 import SwiftUI
@@ -27,6 +28,7 @@ protocol SeatingChartPresenterProtocol: AnyObject {
     // MARK: View -> Presenter（ユーザー意図）
 
     func didTapAddTable()
+    func didConfirmWatchVenueAd()
     func didTapTable(id: TableID)
     func didTapSeat(tableID: TableID, memberID: MemberID)
     func didTapShuffle()
@@ -34,6 +36,7 @@ protocol SeatingChartPresenterProtocol: AnyObject {
     func didConfirmSaveTemplate(name: String)
     func didTapLoadTemplate()
     func didTapShare()
+    func didTapPresent()
     func didTapSettings()
     func dismissRoute()
 }
@@ -43,6 +46,8 @@ protocol SeatingChartPresenterProtocol: AnyObject {
 nonisolated protocol SeatingChartInteractorProtocol: AnyObject {
     func currentTables() -> [SeatingTable]
     func currentVenueSettings() -> VenueSettings
+    func currentAttendeeCount() -> Int
+    func currentTableCapacities() -> [TableID: Int]
 
     func buildInitialTables() -> [SeatingTable]
     func shuffleSeats() -> [SeatingTable]
@@ -50,6 +55,7 @@ nonisolated protocol SeatingChartInteractorProtocol: AnyObject {
     func toggleLock(tableID: TableID, memberID: MemberID) -> [SeatingTable]
 
     func addTable() -> [SeatingTable]
+    func tableAddDecision(additionalCapacity: Int?) -> CapacityDecision
     func deleteTable(id: TableID) -> [SeatingTable]
     func updateTable(_ request: TableUpdateRequest) -> [SeatingTable]
     func updateAllTables(_ request: TableUpdateRequest) -> [SeatingTable]
@@ -80,7 +86,12 @@ nonisolated protocol SeatingChartInteractorProtocol: AnyObject {
 ///
 /// 共有・広告の提示は Phase 5 で Share モジュール（`ShareRouter`）へ移した。
 protocol SeatingChartRouterProtocol: AnyObject {
-    @MainActor func makeTableEditModule(draft: TableEditDraft, output: (any TableEditModuleOutput)?) -> AnyView
+    @MainActor func makeTableEditModule(
+        draft: TableEditDraft,
+        attendeeCount: Int,
+        tableCapacities: [TableID: Int],
+        output: (any TableEditModuleOutput)?
+    ) -> AnyView
     @MainActor func makeVenueSettingsModule(
         currentColumnCount: Int,
         featureUnlock: FeatureUnlockState,
@@ -94,6 +105,14 @@ protocol SeatingChartRouterProtocol: AnyObject {
         output: (any SeatingTemplateModuleOutput)?
     ) -> SeatingTemplatePresenter
     @MainActor func makeTemplateListSheet(presenter: SeatingTemplatePresenter) -> AnyView
+    /// 発表 Cover。Presenter / Interactor は作らず、スナップショット View を返す。
+    @MainActor func makePresentationCover(
+        subject: PresentationSubject,
+        onDismiss: @escaping () -> Void
+    ) -> AnyView
+    @MainActor func setIdleTimerDisabled(_ disabled: Bool)
+    @MainActor func waitUntilPresentable() async
+    @MainActor func presentRewardedAd() async throws
 }
 
 // MARK: - 子モジュール Output

@@ -49,6 +49,14 @@ nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
         venueSettings
     }
 
+    func currentAttendeeCount() -> Int {
+        attendees.count
+    }
+
+    func currentTableCapacities() -> [TableID: Int] {
+        Dictionary(uniqueKeysWithValues: tables.map { ($0.id, $0.capacity) })
+    }
+
     var isSessionUnlocked: Bool {
         featureUnlock.isSessionUnlocked
     }
@@ -58,8 +66,13 @@ nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
     @discardableResult
     func buildInitialTables() -> [SeatingTable] {
         let attendeeCount = attendees.count
-        let baseCapacity = venueSettings.defaultCapacity
-        let numberOfTables = max(1, Int(ceil(Double(attendeeCount) / Double(baseCapacity))))
+        let baseCapacity = max(1, venueSettings.defaultCapacity)
+        var numberOfTables = max(1, Int(ceil(Double(attendeeCount) / Double(baseCapacity))))
+        numberOfTables = min(numberOfTables, FeatureLimit.maxTableCount)
+        numberOfTables = min(numberOfTables, max(1, FeatureLimit.maxTotalSeatCount / baseCapacity))
+        if !featureUnlock.isSessionUnlocked {
+            numberOfTables = min(numberOfTables, FeatureLimit.freeTableCount)
+        }
 
         var initialTables: [SeatingTable] = []
         for index in 0..<numberOfTables {
@@ -117,9 +130,35 @@ nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
         addTable(capacity: nil, columnCount: nil)
     }
 
+    func tableAddDecision(additionalCapacity: Int? = nil) -> CapacityDecision {
+        let resolvedCapacity = max(1, additionalCapacity ?? venueSettings.defaultCapacity)
+        let nextTableCount = tables.count + 1
+        let nextSeatCount = currentTotalSeatCount + resolvedCapacity
+        if nextTableCount > FeatureLimit.maxTableCount {
+            return .blockedHardLimit(.table)
+        }
+        if nextSeatCount > FeatureLimit.maxTotalSeatCount {
+            return .blockedHardLimit(.totalSeat)
+        }
+        if nextTableCount > FeatureLimit.freeTableCount && !featureUnlock.isSessionUnlocked {
+            return .requiresUnlock
+        }
+        return .allowed
+    }
+
+    var currentTotalSeatCount: Int {
+        tables.reduce(0) { $0 + $1.capacity }
+    }
+
     @discardableResult
     func addTable(capacity: Int?, columnCount: Int?) -> [SeatingTable] {
         let resolvedCapacity = max(1, capacity ?? venueSettings.defaultCapacity)
+        switch tableAddDecision(additionalCapacity: resolvedCapacity) {
+        case .allowed:
+            break
+        case .requiresUnlock, .blockedHardLimit:
+            return tables
+        }
         let resolvedColumnCount = min(max(1, columnCount ?? venueSettings.defaultColumnCount), resolvedCapacity)
         tables.append(
             SeatingTable(
@@ -159,7 +198,10 @@ nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
         }
 
         if capacityChanged {
-            ensureSufficientTables(targetCapacity: request.capacity, targetColumnCount: request.columnCount)
+            ensureSufficientTables(
+                targetCapacity: venueSettings.defaultCapacity,
+                targetColumnCount: venueSettings.defaultColumnCount
+            )
             _ = reassignInRegistrationOrder()
             removeEmptyTables()
         }
@@ -204,6 +246,7 @@ nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
 
     // MARK: - 会場設定と解放
 
+    /// 会場拡張フラグを見る。列専用の Bool は足さない。
     func columnCountChangeRequirement(for count: Int) -> UnlockRequirement {
         if count <= FeatureLimit.freeColumnCount {
             return .none
@@ -213,12 +256,13 @@ nonisolated final class SeatingChartInteractor: SeatingChartInteractorProtocol {
 
     @discardableResult
     func applyColumnCount(_ count: Int) throws -> VenueSettings {
-        switch columnCountChangeRequirement(for: count) {
+        let clamped = min(max(count, 1), FeatureLimit.maxColumnCount)
+        switch columnCountChangeRequirement(for: clamped) {
         case .none:
-            venueSettings.globalColumnCount = count
+            venueSettings.globalColumnCount = clamped
             return venueSettings
         case .rewardedAd:
-            throw VenueSettingsError.unlockRequired(requested: count)
+            throw VenueSettingsError.unlockRequired(requested: clamped)
         }
     }
 

@@ -22,18 +22,35 @@ nonisolated struct AttendeeListViewData: Equatable {
     let canStartSeating: Bool
     let canSaveFavorite: Bool
     let canReset: Bool
+    /// ＋ボタンの見た目。判断は Interactor の CapacityDecision を写す。
+    let addControl: AttendeeAddControlState
+    /// 追加成功のたびに増える。View はこれを見て入力欄を空にする。
+    let inputNonce: Int
 
     static let empty = AttendeeListViewData(
         rows: [],
         isEmpty: true,
         canStartSeating: false,
         canSaveFavorite: false,
-        canReset: false
+        canReset: false,
+        addControl: .available,
+        inputNonce: 0
     )
 }
 
+/// View が＋の色／バッジ／disabled 見た目を切り替えるための状態。
+nonisolated enum AttendeeAddControlState: Equatable {
+    case available
+    case needsUnlock
+    case hardLimited
+}
+
 nonisolated enum AttendeeListViewDataBuilder {
-    static func build(attendees: [Attendee]) -> AttendeeListViewData {
+    static func build(
+        attendees: [Attendee],
+        addControl: AttendeeAddControlState = .available,
+        inputNonce: Int = 0
+    ) -> AttendeeListViewData {
         let rows = attendees.enumerated().map { index, attendee in
             AttendeeListViewData.Row(
                 id: attendee.id,
@@ -47,7 +64,9 @@ nonisolated enum AttendeeListViewDataBuilder {
             isEmpty: !hasAttendees,
             canStartSeating: hasAttendees,
             canSaveFavorite: hasAttendees,
-            canReset: hasAttendees
+            canReset: hasAttendees,
+            addControl: addControl,
+            inputNonce: inputNonce
         )
     }
 }

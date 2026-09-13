@@ -68,9 +68,18 @@ struct AttendeeListView: View {
             .sheet(item: sheetRouteBinding) { route in
                 presenter.makeRouteSheet(route)
             }
+            .onChange(of: presenter.viewData.inputNonce) { _, _ in
+                newName = ""
+            }
+            .onChange(of: presenter.viewData.addControl) { _, control in
+                if control == .hardLimited {
+                    newName = ""
+                    isTextFieldFocused = false
+                }
+            }
             .onAppear {
                 presenter.onAppear()
-                isTextFieldFocused = true
+                isTextFieldFocused = presenter.viewData.addControl != .hardLimited
             }
             .navigationDestination(item: navigationRouteBinding) { route in
                 presenter.makeRouteView(route)
@@ -139,6 +148,12 @@ private extension AttendeeListView {
             return String(localized: "保存に失敗しました")
         case .adNotReady:
             return RewardedAdCopy.notReadyTitle
+        case .attendeeUnlock:
+            return VenueExpansionCopy.attendeeUnlockTitle
+        case .attendeeHardLimit:
+            return VenueExpansionCopy.hardLimitTitle
+        case .attendeeHardLimitOverflow:
+            return VenueExpansionCopy.hardLimitOverflowTitle
         case .none:
             return ""
         }
@@ -170,8 +185,13 @@ private extension AttendeeListView {
             Button(String(localized: "動画を見て1枠追加（今回だけ）")) {
                 presenter.didConfirmWatchAd()
             }
-        case .saveFailed, .adNotReady:
-            Button("OK", role: .cancel) { }
+        case .saveFailed, .adNotReady, .attendeeHardLimit, .attendeeHardLimitOverflow:
+            Button(VenueExpansionCopy.ok, role: .cancel) { }
+        case .attendeeUnlock:
+            Button(VenueExpansionCopy.later, role: .cancel) { }
+            Button(VenueExpansionCopy.attendeeUnlockPrimary) {
+                presenter.didConfirmWatchVenueAd()
+            }
         }
     }
 
@@ -185,6 +205,23 @@ private extension AttendeeListView {
             Text(message)
         case .adNotReady:
             Text(RewardedAdCopy.notReadyMessage)
+        case .attendeeUnlock(let overflowTotal, let remainingFree, let remainingHard):
+            if let overflowTotal, let remainingFree, let remainingHard {
+                Text(VenueExpansionCopy.attendeeOverflowMessage(
+                    triedCount: overflowTotal,
+                    remainingFree: remainingFree,
+                    remainingHard: remainingHard
+                ))
+            } else {
+                Text(VenueExpansionCopy.attendeeUnlockMessage)
+            }
+        case .attendeeHardLimit:
+            Text(VenueExpansionCopy.attendeeHardLimitMessage)
+        case .attendeeHardLimitOverflow(let triedCount, let remainingHard):
+            Text(VenueExpansionCopy.attendeeHardLimitOverflowMessage(
+                triedCount: triedCount,
+                remainingHard: remainingHard
+            ))
         }
     }
 }
@@ -209,22 +246,32 @@ private extension AttendeeListView {
 
     var inputSection: some View {
         HStack {
-            TextField("参加者の名前を入力", text: $newName)
+            TextField(nameFieldPlaceholder, text: $newName)
                 .textFieldStyle(.roundedBorder)
                 .focused($isTextFieldFocused)
+                .disabled(isAttendeeHardLimited)
                 .onSubmit { addAttendeeProcess() }
                 .submitLabel(.done)
                 .accessibilityLabel(String(localized: "参加者の名前"))
-                .accessibilityHint(String(localized: "追加する参加者の名前を入力します"))
+                .accessibilityHint(nameFieldAccessibilityHint)
 
             Button(action: addAttendeeProcess) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(newName.isEmpty ? .gray.opacity(0.4) : .sakuttoBlueStart)
+                ZStack(alignment: .bottomTrailing) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(addButtonForeground)
+                        .opacity(addButtonOpacity)
+                    if presenter.viewData.addControl == .needsUnlock {
+                        Image(systemName: "play.rectangle.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                            .offset(x: 2, y: 2)
+                    }
+                }
             }
-            .disabled(newName.isEmpty)
+            .disabled(newName.isEmpty || isAttendeeHardLimited)
             .accessibilityLabel(String(localized: "参加者を追加"))
-            .accessibilityHint(String(localized: "入力した名前をリストに追加します"))
+            .accessibilityHint(addButtonAccessibilityHint)
         }
         .padding()
     }
@@ -339,7 +386,10 @@ private extension AttendeeListView {
                     isTextFieldFocused = false
                     presenter.didTapBulkAddEntry()
                 },
-                accessibilityHint: String(localized: "複数の参加者をまとめて追加します")
+                isDisabled: isAttendeeHardLimited,
+                accessibilityHint: isAttendeeHardLimited
+                    ? VenueExpansionCopy.attendeeHardLimitMessage
+                    : String(localized: "複数の参加者をまとめて追加します")
             ),
             button3: .init(
                 title: String(localized: "保存"),
@@ -366,11 +416,57 @@ private extension AttendeeListView {
         )
     }
 
+    var isAttendeeHardLimited: Bool {
+        presenter.viewData.addControl == .hardLimited
+    }
+
+    var nameFieldPlaceholder: String {
+        isAttendeeHardLimited
+            ? VenueExpansionCopy.attendeeInputHardLimitPlaceholder
+            : String(localized: "参加者の名前を入力")
+    }
+
+    var nameFieldAccessibilityHint: String {
+        isAttendeeHardLimited
+            ? VenueExpansionCopy.attendeeHardLimitMessage
+            : String(localized: "追加する参加者の名前を入力します")
+    }
+
+    var addButtonForeground: Color {
+        if newName.isEmpty {
+            return .gray.opacity(0.4)
+        }
+        switch presenter.viewData.addControl {
+        case .available:
+            return .sakuttoBlueStart
+        case .needsUnlock:
+            return .secondary
+        case .hardLimited:
+            return .sakuttoBlueStart
+        }
+    }
+
+    var addButtonOpacity: Double {
+        presenter.viewData.addControl == .hardLimited ? 0.35 : 1
+    }
+
+    var addButtonAccessibilityHint: String {
+        switch presenter.viewData.addControl {
+        case .available:
+            return String(localized: "入力した名前をリストに追加します")
+        case .needsUnlock:
+            return String(localized: "動画を見ると人数を追加できます")
+        case .hardLimited:
+            return String(localized: "これ以上は追加できません")
+        }
+    }
+
     func addAttendeeProcess() {
         let trimmedName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
-        newName = ""
-        presenter.didTapAdd(name: trimmedName)
+        if presenter.didTapAdd(name: trimmedName) {
+            newName = ""
+        }
         isTextFieldFocused = true
     }
 

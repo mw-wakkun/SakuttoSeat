@@ -23,8 +23,9 @@ protocol AttendeeListPresenterProtocol: AnyObject {
     var route: AttendeeListRoute? { get set }
 
     func onAppear()
-    func didTapAdd(name: String)
+    @discardableResult func didTapAdd(name: String) -> Bool
     func didTapBulkAdd(text: String)
+    func didConfirmWatchVenueAd()
     func didDeleteAttendees(at offsets: IndexSet)
     func didTapReset()
     func didConfirmReset()
@@ -45,15 +46,21 @@ nonisolated protocol AttendeeListInteractorProtocol: AnyObject {
     func allAttendees() -> [Attendee]
     func add(name: String) -> [Attendee]
     func add(fromText text: String) -> [Attendee]
+    func attendeeCapacityDecision(addingCount: Int) -> CapacityDecision
+    func applyAttendeeAppend(_ names: [String]) -> AttendeeAppendResult
+    func applyAttendeeAppendFromText(_ text: String) -> AttendeeAppendResult
     func replaceAll(names: [String]) -> [Attendee]
     func remove(atOffsets offsets: IndexSet) -> [Attendee]
     func removeAll() -> [Attendee]
+
+    var isSessionUnlocked: Bool { get }
+    func grantSessionUnlock()
 
     func favoriteSaveAvailability() -> FavoriteSaveAvailability
     func grantOneTimeFavoriteSaveBypass()
     func revokeOneTimeFavoriteSaveBypass()
     func saveCurrentAsFavorite(named name: String) throws
-    func loadFavorite(id: FavoriteGroupID) throws -> [Attendee]
+    func loadFavorite(id: FavoriteGroupID) throws -> AttendeeAppendResult
 
     /// テスト用の差し替え。本番は assemble 時に注入済み。View / PresenterProtocol からは呼ばない。
     func attachFavoriteGateway(_ gateway: GroupFavoriteGatewayBase)

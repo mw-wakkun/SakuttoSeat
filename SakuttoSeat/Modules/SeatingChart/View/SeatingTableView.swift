@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_seating.md Phase 1（ファイル分割）/ Phase 2（ViewData 化）
+//  v2.1 Phase 3（発表は読み取り専用 chrome）
 //
 
 import SwiftUI
@@ -13,8 +14,11 @@ import SwiftUI
 /// Phase 6 で `SnapshotSeatingTableView` と統合して `SeatingTableCard` にする予定。
 struct SeatingTableView: View {
     let table: TableViewData
-    let onEditTarget: () -> Void
-    let onTapSeat: (MemberID) -> Void
+    var chrome: SeatingChrome = .interactive
+    var onEditTarget: () -> Void = {}
+    var onTapSeat: (MemberID) -> Void = { _ in }
+
+    private var isInteractive: Bool { chrome == .interactive }
 
     @ViewBuilder
     private func badgeTop() -> some View {
@@ -84,7 +88,7 @@ struct SeatingTableView: View {
         VStack(alignment: .center, spacing: 8) {
             VStack(spacing: 4) {
                 Text(table.name)
-                    .font(.caption)
+                    .font(chrome == .presentation ? .headline : .caption)
                     .bold()
                     .foregroundColor(.secondary)
                     .lineLimit(1)
@@ -92,7 +96,7 @@ struct SeatingTableView: View {
 
                 if let layoutLabel = table.layoutLabel {
                     Text(layoutLabel)
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: chrome == .presentation ? 13 : 10, weight: .semibold))
                         .foregroundColor(.blue)
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -103,7 +107,7 @@ struct SeatingTableView: View {
                 }
             }
 
-            let minSeatWidth: CGFloat = 72
+            let minSeatWidth: CGFloat = chrome == .presentation ? 96 : 72
             let columnCount = table.columnCount
             let desiredWidth = CGFloat(columnCount) * minSeatWidth
 
@@ -118,13 +122,17 @@ struct SeatingTableView: View {
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
-            .animation(.spring(response: 0.6, dampingFraction: 0.8), value: table.seats)
+            .animation(
+                isInteractive ? .spring(response: 0.6, dampingFraction: 0.8) : nil,
+                value: table.seats
+            )
         }
-        .padding(15)
+        .padding(chrome == .presentation ? 20 : 15)
         .frame(maxWidth: .infinity)
         .frame(minHeight: 120)
         .contentShape(Rectangle())
         .onTapGesture {
+            guard isInteractive else { return }
             onEditTarget()
         }
         .accessibilityElement(children: .contain)
@@ -153,15 +161,15 @@ struct SeatingTableView: View {
             minCellWidth: minCellWidth
         ) {
             ForEach(seats) { seat in
-                if let memberID = seat.memberID {
+                if isInteractive, let memberID = seat.memberID {
                     Button {
                         onTapSeat(memberID)
                     } label: {
-                        SeatView(seat: seat)
+                        SeatView(seat: seat, chrome: chrome)
                     }
                     .buttonStyle(.plain)
                 } else {
-                    SeatView(seat: seat)
+                    SeatView(seat: seat, chrome: chrome)
                 }
             }
         }

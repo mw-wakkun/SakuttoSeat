@@ -144,6 +144,12 @@ final class SimpleShuffleViewDataTests: XCTestCase {
         XCTAssertFalse(two.isEmpty)
     }
 
+    func test_発表Copyは入口と終了が対になる() {
+        XCTAssertEqual(PresentationCopy.presentAccessibilityLabel, "発表")
+        XCTAssertEqual(PresentationCopy.dismissAccessibilityLabel, "発表を終了")
+        XCTAssertFalse(PresentationCopy.tapToDismissHint.isEmpty)
+    }
+
     func test_画面見出しと共有画像見出しは意図的に別文言() {
         XCTAssertNotEqual(SimpleShuffleCopy.listHeader, SimpleShuffleCopy.snapshotTitle)
         XCTAssertTrue(SimpleShuffleCopy.snapshotTitle.contains("番号札"))
@@ -226,6 +232,57 @@ final class SimpleShufflePresenterTests: XCTestCase {
         )
 
         XCTAssertTrue(presenter.share === share)
+    }
+
+    func test_空状態では発表できない() {
+        let presenter = makePresenter(attendees: [])
+
+        presenter.didTapPresent()
+
+        XCTAssertTrue(presenter.viewData.isEmpty)
+        XCTAssertNil(presenter.route)
+    }
+
+    func test_発表はタップ時点のスナップショットをCover用Routeに載せる() {
+        let presenter = makePresenter(attendees: [Attendee(name: "太郎"), Attendee(name: "花子")])
+        let snapshot = presenter.viewData
+
+        presenter.didTapPresent()
+
+        guard case .presentation(_, let presented) = presenter.route else {
+            return XCTFail("発表 Route が開くべき")
+        }
+        XCTAssertEqual(presented, snapshot)
+        XCTAssertTrue(presenter.route?.presentsAsFullScreenCover == true)
+        presenter.dismissRoute()
+    }
+
+    func test_発表中は共有もシャッフルも出さない() {
+        let attendees = [Attendee(name: "太郎"), Attendee(name: "花子")]
+        let presenter = makePresenter(attendees: attendees)
+        presenter.didTapPresent()
+        let opened = presenter.route
+        let viewData = presenter.viewData
+
+        presenter.didTapShare()
+        presenter.didTapShuffle()
+
+        XCTAssertEqual(presenter.route, opened)
+        XCTAssertNil(presenter.share.route)
+        XCTAssertEqual(presenter.viewData, viewData)
+        presenter.dismissRoute()
+    }
+
+    func test_発表を閉じると通常操作に戻る() {
+        let presenter = makePresenter(attendees: [Attendee(name: "太郎")])
+        presenter.didTapPresent()
+        XCTAssertNotNil(presenter.route)
+
+        presenter.dismissRoute()
+
+        XCTAssertNil(presenter.route)
+        presenter.didTapShare()
+        XCTAssertEqual(presenter.share.route, .selection)
     }
 
     func test_共有は初期ViewDataをShareへ渡す() {

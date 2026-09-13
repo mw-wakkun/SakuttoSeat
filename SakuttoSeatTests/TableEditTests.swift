@@ -122,6 +122,52 @@ final class TableEditInteractorTests: XCTestCase {
             )
         )
     }
+
+    func test_定員かける卓上限で全員を載せられないときだけ警告が必要() {
+        let tableID = UUID()
+        let applyAllShortage = TableEditInteractor(
+            draft: TableEditDraft(
+                tableID: tableID,
+                name: "卓",
+                capacity: 1,
+                columnCount: 1,
+                applyToAllTables: true
+            ),
+            attendeeCount: FeatureLimit.maxAttendeeCount
+        )
+        XCTAssertTrue(applyAllShortage.needsSeatShortageConfirmation())
+
+        let applyAllFits = TableEditInteractor(
+            draft: TableEditDraft(
+                tableID: tableID,
+                name: "卓",
+                capacity: 3,
+                columnCount: 1,
+                applyToAllTables: true
+            ),
+            attendeeCount: FeatureLimit.maxTableCount * 3
+        )
+        XCTAssertFalse(applyAllFits.needsSeatShortageConfirmation())
+    }
+
+    func test_一括適用しないなら他卓の定員で足りるときは警告しない() {
+        let tableA = UUID()
+        let otherIDs = (0..<29).map { _ in UUID() }
+        var capacities: [TableID: Int] = [tableA: 4]
+        for id in otherIDs {
+            capacities[id] = 4
+        }
+
+        let singleTable = TableEditInteractor(
+            draft: TableEditDraft(tableID: tableA, name: "テーブルA", capacity: 1, columnCount: 1),
+            attendeeCount: FeatureLimit.maxAttendeeCount,
+            tableCapacities: capacities
+        )
+        XCTAssertFalse(singleTable.needsSeatShortageConfirmation())
+
+        singleTable.updateApplyToAllTables(true)
+        XCTAssertTrue(singleTable.needsSeatShortageConfirmation())
+    }
 }
 
 // MARK: - Presenter
@@ -141,11 +187,23 @@ final class TableEditPresenterTests: XCTestCase {
 
     private func makePresenter(
         tableID: TableID = UUID(),
+        capacity: Int = 4,
+        attendeeCount: Int = 0,
+        applyToAll: Bool = false,
+        tableCapacities: [TableID: Int] = [:],
         output: OutputSpy
     ) -> TableEditPresenter {
         TableEditPresenter(
             interactor: TableEditInteractor(
-                draft: TableEditDraft(tableID: tableID, name: "テーブルA", capacity: 4, columnCount: 2)
+                draft: TableEditDraft(
+                    tableID: tableID,
+                    name: "テーブルA",
+                    capacity: capacity,
+                    columnCount: min(2, capacity),
+                    applyToAllTables: applyToAll
+                ),
+                attendeeCount: attendeeCount,
+                tableCapacities: tableCapacities
             ),
             output: output
         )
@@ -194,5 +252,78 @@ final class TableEditPresenterTests: XCTestCase {
 
         XCTAssertEqual(output.deleted, [tableID])
         XCTAssertEqual(output.cancelCount, 1)
+    }
+
+    func test_座席不足のときは保存せず警告を出す() {
+        let output = OutputSpy()
+        let presenter = makePresenter(
+            capacity: 1,
+            attendeeCount: FeatureLimit.maxAttendeeCount,
+            applyToAll: true,
+            output: output
+        )
+
+        presenter.didTapSave()
+
+        XCTAssertEqual(presenter.route, .seatShortage)
+        XCTAssertTrue(output.committed.isEmpty)
+    }
+
+    func test_座席不足の確認後は適用しキャンセルでは適用しない() {
+        let output = OutputSpy()
+        let presenter = makePresenter(
+            capacity: 1,
+            attendeeCount: FeatureLimit.maxAttendeeCount,
+            applyToAll: true,
+            output: output
+        )
+
+        presenter.didTapSave()
+        presenter.dismissRoute()
+
+        XCTAssertNil(presenter.route)
+        XCTAssertTrue(output.committed.isEmpty)
+
+        presenter.didTapSave()
+        presenter.didConfirmApplyDespiteSeatShortage()
+
+        XCTAssertNil(presenter.route)
+        XCTAssertEqual(output.committed.count, 1)
+        XCTAssertEqual(output.committed.first?.capacity, 1)
+    }
+
+    func test_座席が足りるときは警告なしで保存する() {
+        let output = OutputSpy()
+        let presenter = makePresenter(
+            capacity: 4,
+            attendeeCount: FeatureLimit.maxAttendeeCount,
+            output: output
+        )
+
+        presenter.didTapSave()
+
+        XCTAssertNil(presenter.route)
+        XCTAssertEqual(output.committed.count, 1)
+    }
+
+    func test_一括適用しない120人定員1は他卓が残るので警告しない() {
+        let tableA = UUID()
+        var capacities: [TableID: Int] = [tableA: 4]
+        for _ in 0..<29 {
+            capacities[UUID()] = 4
+        }
+        let output = OutputSpy()
+        let presenter = makePresenter(
+            tableID: tableA,
+            capacity: 1,
+            attendeeCount: FeatureLimit.maxAttendeeCount,
+            tableCapacities: capacities,
+            output: output
+        )
+
+        presenter.didTapSave()
+
+        XCTAssertNil(presenter.route)
+        XCTAssertEqual(output.committed.count, 1)
     }
 }

@@ -39,6 +39,8 @@ struct SeatingChartViewData: Equatable {
     let isShareEnabled: Bool
     /// 画像出力・共有テキスト用に Presenter が保持する会場列数の写し
     let globalColumnCount: Int
+    let showsAddTableUnlockBadge: Bool
+    let tableLimitCaption: String?
 
     static let empty = SeatingChartViewData(
         rows: [],
@@ -46,7 +48,9 @@ struct SeatingChartViewData: Equatable {
         isShuffleEnabled: false,
         isSaveEnabled: false,
         isShareEnabled: false,
-        globalColumnCount: 2
+        globalColumnCount: 2,
+        showsAddTableUnlockBadge: false,
+        tableLimitCaption: nil
     )
 }
 
@@ -78,14 +82,32 @@ enum SeatingChartViewDataBuilder {
     private static let tableMinWidthWithSpacing: CGFloat = 140 + 16
     private static let gridPadding: CGFloat = 32
 
-    static func build(tables: [SeatingTable], globalColumnCount: Int) -> SeatingChartViewData {
+    static func build(
+        tables: [SeatingTable],
+        globalColumnCount: Int,
+        addTableDecision: CapacityDecision = .allowed
+    ) -> SeatingChartViewData {
         let columnCount = max(1, globalColumnCount)
         // 関数参照ではなくクロージャで渡す（関数参照だと呼び出し側の隔離を引き継げない）
         let tableViewData = tables.map { makeTableViewData(from: $0) }
         let hasTables = !tables.isEmpty
 
         var items: [SeatingChartViewData.Item] = tableViewData.map { .table($0) }
-        items.append(.addButton)
+        let showsUnlockBadge: Bool
+        let tableLimitCaption: String?
+        switch addTableDecision {
+        case .allowed:
+            items.append(.addButton)
+            showsUnlockBadge = false
+            tableLimitCaption = nil
+        case .requiresUnlock:
+            items.append(.addButton)
+            showsUnlockBadge = true
+            tableLimitCaption = nil
+        case .blockedHardLimit:
+            showsUnlockBadge = false
+            tableLimitCaption = VenueExpansionCopy.tableLimitCaption
+        }
 
         let rows: [SeatingChartViewData.Row] = stride(from: 0, to: items.count, by: columnCount).map { start in
             let slice = Array(items[start..<min(start + columnCount, items.count)])
@@ -105,7 +127,9 @@ enum SeatingChartViewDataBuilder {
             isShuffleEnabled: true,
             isSaveEnabled: hasTables,
             isShareEnabled: hasTables,
-            globalColumnCount: columnCount
+            globalColumnCount: columnCount,
+            showsAddTableUnlockBadge: showsUnlockBadge,
+            tableLimitCaption: tableLimitCaption
         )
     }
 
