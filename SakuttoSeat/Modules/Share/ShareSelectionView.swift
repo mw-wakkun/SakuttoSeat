@@ -76,10 +76,13 @@ struct ShareSelectionView: View {
                         Text(subtitle)
                             .font(.caption)
                             .foregroundColor(.secondary)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
