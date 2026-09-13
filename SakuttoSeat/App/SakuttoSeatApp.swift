@@ -29,7 +29,7 @@ struct SakuttoSeatApp: App {
         UINavigationBar.appearance().tintColor = .white
 
         // バナー Representable の start() より前に置く。TestFlight 実機でもテスト広告にする。
-        MobileAds.shared.requestConfiguration.testDeviceIdentifiers = ["D374BA5B-0A77-495D-BF7A-3284400B242E"]
+        MobileAds.shared.requestConfiguration.testDeviceIdentifiers = ["557fccee376951b04f8f7d415d3c1a8a"]
 
         // GroupFavorite / SeatingLayoutTemplate は Core/Persistence。画面モジュールではない。
         // Gateway は assemble 時点で注入する（View onAppear の後差しはしない）。
@@ -62,7 +62,7 @@ struct SakuttoSeatApp: App {
                 )
                 .task {
                     // start 完了後にだけリワードを preload。バナーは Representable 側でも start を待つ。
-                    MobileAds.shared.requestConfiguration.testDeviceIdentifiers = ["D374BA5B-0A77-495D-BF7A-3284400B242E"]
+                    MobileAds.shared.requestConfiguration.testDeviceIdentifiers = ["557fccee376951b04f8f7d415d3c1a8a"]
                     await MobileAds.shared.start()
                     SessionRewardedAd.shared.preload()
                 }
