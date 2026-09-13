@@ -4,6 +4,7 @@
 //
 //  refactor_seating.md Phase 5（共有フローの仲介）
 //  refactor_Ad.md Phase 4（リワード分岐を await 可能なメソッドに切り出し、テストから駆動する）
+//  v2.0 hotfix（視聴成功後は待機→presentShareSheet まで切らない）
 //
 
 import Combine
@@ -61,6 +62,7 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
     }
 
     func didConfirmImageShare() {
+        // dismissRoute は使わない。確認アラートを閉じるだけで、書き出しタスクは殺さない。
         route = nil
         guard let subject else { return }
 
@@ -70,12 +72,13 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
     }
 
     /// 広告提示の結果を Route / 画像出力へ写す。View は `didConfirmImageShare` 経由。テストはここを await する。
+    /// 視聴成功後は広告 VC の解体待ち → 画像生成 → presentShareSheet まで切らない。
     func confirmImageShare(for subject: ShareSubject) async {
         let taskID = runningTaskID
         do {
             try await router.presentRewardedAd()
             guard isCurrentTask(taskID) else { return }
-            await exportAndShareImage(for: subject)
+            await presentImageAfterReward(for: subject)
         } catch RewardedAdError.notReady {
             guard isCurrentTask(taskID) else { return }
             route = .alert(.adNotReady)
@@ -84,7 +87,20 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
         }
     }
 
+    /// 視聴完了後の画像提示。親 Task のキャンセルを引き継がない。
+    private func presentImageAfterReward(for subject: ShareSubject) async {
+        await Task { @MainActor in
+            await self.router.waitUntilPresentable()
+            await self.exportAndShareImage(for: subject)
+        }.value
+    }
+
     func dismissRoute() {
+        // 確認アラートの Binding dismiss では書き出しタスクを殺さない。
+        if case .alert(.confirmImageShareWithAd) = route {
+            route = nil
+            return
+        }
         cancelRunningTask()
         route = nil
     }

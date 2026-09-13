@@ -6,6 +6,7 @@
 //  refactor_simple.md Phase 2（番号札画像も ViewData 駆動）
 //  refactor_Ad.md Phase 2（リワードは Gateway 具象を assemble 時に注入）
 //  refactor_Ad.md Phase 4（テストがシェアシート呼び出しを記録できるよう具象のまま継承可能にする）
+//  v2.0 hotfix（標準画像のシェアシート提示を1回リトライする）
 //
 
 import SwiftUI
@@ -42,6 +43,7 @@ class ShareRouter: ShareRouterProtocol {
 
     @MainActor
     func presentShareSheet(image: UIImage) async {
+        await waitUntilPresentable()
         await ShareSheetPresenter.presentWhenReady(items: [image])
     }
 
