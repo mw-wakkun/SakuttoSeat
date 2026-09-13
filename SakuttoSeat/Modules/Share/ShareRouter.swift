@@ -9,6 +9,7 @@
 //  v2.1 Phase 1（CSV 一時ファイル）
 //  v2.1 Phase 2（高画質は quality 付きレンダ + PNG 一時ファイル）
 //  v2.1 Phase 2 hotfix（ファイル提示失敗を呼び出し側へ返す）
+//  v2.0 hotfix（標準画像のシェアシート提示前に waitUntilPresentable）
 //
 
 import SwiftUI
@@ -45,6 +46,7 @@ class ShareRouter: ShareRouterProtocol {
 
     @MainActor
     func presentShareSheet(image: UIImage) async {
+        await waitUntilPresentable()
         await ShareSheetPresenter.presentWhenReady(items: [image])
     }
 

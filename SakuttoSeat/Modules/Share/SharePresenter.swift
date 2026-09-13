@@ -7,6 +7,7 @@
 //  v2.1 Phase 1（4択・書き出し解放）
 //  v2.1 Phase 2（高画質は quality 分岐 + PNG ファイル提示）
 //  v2.1 Phase 2 hotfix（視聴成功後は解放→待機→シェアシートまで切らない）
+//  v2.0 hotfix（確認アラート dismiss でタスクを殺さない／視聴後は親 Task のキャンセルを引き継がない）
 //
 
 import Combine
@@ -95,9 +96,7 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
             try await router.presentRewardedAd()
             guard isCurrentTask(taskID) else { return }
             interactor.grantExportUnlock()
-            await router.waitUntilPresentable()
-            guard isCurrentTask(taskID) else { return }
-            await exportAndShare(kind: kind, subject: subject)
+            await presentExportAfterReward(kind: kind, subject: subject)
         } catch RewardedAdError.notReady {
             guard isCurrentTask(taskID) else { return }
             route = .alert(.adNotReady)
@@ -106,7 +105,20 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
         }
     }
 
+    /// 視聴完了後の書き出し。親 Task のキャンセルを引き継がない。
+    private func presentExportAfterReward(kind: ShareSelectionKind, subject: ShareSubject) async {
+        await Task { @MainActor in
+            await self.router.waitUntilPresentable()
+            await self.exportAndShare(kind: kind, subject: subject)
+        }.value
+    }
+
     func dismissRoute() {
+        // 確認アラートの Binding dismiss では書き出しタスクを殺さない。
+        if case .alert(let alert) = route, alert.isConfirmExport {
+            route = nil
+            return
+        }
         cancelRunningTask()
         route = nil
     }
