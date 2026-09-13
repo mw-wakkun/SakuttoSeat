@@ -728,9 +728,6 @@
         }
       }
     },
-    "設定" : {
-
-    },
     "読み込みに失敗しました" : {
       "extractionState" : "manual",
       "localizations" : {
