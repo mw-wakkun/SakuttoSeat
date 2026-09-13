@@ -9,6 +9,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct AttendeeListView: View {
     @StateObject var presenter: AttendeeListPresenter
@@ -33,7 +34,11 @@ struct AttendeeListView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 bottomChromeBar
             }
-            .background(Color(.systemBackground))
+            .background {
+                Color(.systemBackground)
+                    .contentShape(Rectangle())
+                    .onTapGesture { dismissKeyboard() }
+            }
             .navigationTitle("サクッと席決め")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Color.sakuttoBlueStart, for: .navigationBar)
@@ -196,6 +201,8 @@ private extension AttendeeListView {
                 spacing: AppSpacing.emptyStateSpacing
             )
             .padding(.horizontal, AppSpacing.screenHorizontal)
+            .contentShape(Rectangle())
+            .onTapGesture { dismissKeyboard() }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -232,7 +239,25 @@ private extension AttendeeListView {
             }
         }
         .listStyle(.insetGrouped)
-        .scrollDismissesKeyboard(.immediately)
+        .scrollDismissesKeyboard(.interactively)
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                isTextFieldFocused = false
+            }
+        )
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 16).onChanged { _ in
+                guard isTextFieldFocused else { return }
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                isTextFieldFocused = false
+            }
+        )
+        .scrollContentBackground(.hidden)
+        .background {
+            Color(.systemGroupedBackground)
+                .onTapGesture { dismissKeyboard() }
+        }
     }
 
     var seatingDisabled: Bool {
@@ -255,6 +280,7 @@ private extension AttendeeListView {
             Color(.systemBackground)
                 .shadow(color: .black.opacity(0.05), radius: 3, y: -3)
                 .ignoresSafeArea(edges: .bottom)
+                .onTapGesture { dismissKeyboard() }
         )
     }
 
@@ -346,6 +372,11 @@ private extension AttendeeListView {
         newName = ""
         presenter.didTapAdd(name: trimmedName)
         isTextFieldFocused = true
+    }
+
+    func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        isTextFieldFocused = false
     }
 }
 
