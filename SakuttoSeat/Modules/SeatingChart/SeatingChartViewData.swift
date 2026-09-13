@@ -142,8 +142,12 @@ enum SeatingChartViewDataBuilder {
         }
     }
 
-    /// スナップショット用に、追加ボタンを除いたテーブル行だけを返す
-    static func tableOnlyRows(from viewData: SeatingChartViewData) -> [SeatingChartViewData.Row] {
+    /// スナップショット用に、追加ボタンを除いたテーブル行だけを返す。
+    /// `hidesFillers` は会場列に合わせた空セルを切る（テーブル実体だけ残す）。
+    static func tableOnlyRows(
+        from viewData: SeatingChartViewData,
+        hidesFillers: Bool = false
+    ) -> [SeatingChartViewData.Row] {
         let tables = viewData.rows.flatMap { row in
             row.items.compactMap { item -> TableViewData? in
                 if case .table(let table) = item { return table }
@@ -157,7 +161,7 @@ enum SeatingChartViewDataBuilder {
             return SeatingChartViewData.Row(
                 id: items.first?.id ?? "snapshot-row-\(start)",
                 items: items,
-                trailingFillerCount: max(0, columnCount - slice.count)
+                trailingFillerCount: hidesFillers ? 0 : max(0, columnCount - slice.count)
             )
         }
     }

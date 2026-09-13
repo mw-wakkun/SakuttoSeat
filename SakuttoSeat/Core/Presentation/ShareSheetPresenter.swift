@@ -9,11 +9,14 @@ import UIKit
 
 @MainActor
 enum ShareSheetPresenter {
-    /// 最前面 VC へ即座にシェアシートを提示する
-    static func present(items: [Any], cleanup: (() -> Void)? = nil) {
-        guard let topViewController = UIApplication.shared.topViewController else {
-            cleanup?()
-            return
+    /// 最前面 VC へ即座にシェアシートを提示する。提示できなければ false（cleanup はしない）。
+    @discardableResult
+    static func present(items: [Any], cleanup: (() -> Void)? = nil) -> Bool {
+        guard let topViewController = UIApplication.shared.topViewController,
+              !topViewController.isBeingDismissed,
+              !topViewController.isBeingPresented,
+              topViewController.presentedViewController == nil else {
+            return false
         }
 
         let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
@@ -35,28 +38,34 @@ enum ShareSheetPresenter {
         }
 
         topViewController.present(activityVC, animated: true, completion: nil)
+        return true
     }
 
-    /// シート閉じ終わりなど、提示可能な状態になるまで待ってからシェアする
-    static func presentWhenReady(items: [Any], cleanup: (() -> Void)? = nil) async {
-        await waitUntilPresentable()
-        present(items: items, cleanup: cleanup)
+    /// シート閉じ終わりなど、提示可能な状態になるまで待ってからシェアする。
+    /// 待てなかった／キャンセルされたときは提示せず false。
+    @discardableResult
+    static func presentWhenReady(items: [Any], cleanup: (() -> Void)? = nil) async -> Bool {
+        guard await waitUntilPresentable() else { return false }
+        return present(items: items, cleanup: cleanup)
     }
 
-    /// ルート上に presented VC が無い／遷移中でない状態をポーリングで待つ
-    static func waitUntilPresentable(timeoutNanoseconds: UInt64 = 2_000_000_000) async {
+    /// ルート上に presented VC が無い／遷移中でない状態をポーリングで待つ。
+    /// 提示できる状態になったら true。タイムアウトやキャンセルは false。
+    @discardableResult
+    static func waitUntilPresentable(timeoutNanoseconds: UInt64 = 2_000_000_000) async -> Bool {
         let started = DispatchTime.now().uptimeNanoseconds
         while DispatchTime.now().uptimeNanoseconds - started < timeoutNanoseconds {
-            if Task.isCancelled { return }
+            if Task.isCancelled { return false }
             if isRootPresentable() {
-                return
+                return true
             }
             do {
                 try await Task.sleep(nanoseconds: 50_000_000)
             } catch {
-                return
+                return false
             }
         }
+        return isRootPresentable()
     }
 
     private static func isRootPresentable() -> Bool {

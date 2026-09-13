@@ -3,6 +3,7 @@
 //  SakuttoSeatTests
 //
 //  refactor_simple.md Phase 0〜4（番号札の回帰。初期表示は抽選済み。Share は ViewData を渡す）
+//  v2.1 Phase 2（Snapshot 高画質の幅・余白）
 //
 
 import XCTest
@@ -146,6 +147,28 @@ final class SimpleShuffleViewDataTests: XCTestCase {
     func test_画面見出しと共有画像見出しは意図的に別文言() {
         XCTAssertNotEqual(SimpleShuffleCopy.listHeader, SimpleShuffleCopy.snapshotTitle)
         XCTAssertTrue(SimpleShuffleCopy.snapshotTitle.contains("番号札"))
+    }
+
+    func test_SnapshotView_標準と高画質で幅と余白が分かれる() {
+        let viewData = SimpleShuffleViewDataBuilder.build(
+            seats: [NumberedSeat(id: UUID(), name: "A", number: 1)]
+        )
+        let standard = SimpleShuffleSnapshotView(viewData: viewData)
+        let highRes = SimpleShuffleSnapshotView(viewData: viewData, layout: .highRes)
+
+        XCTAssertEqual(standard.layout, .standard)
+        XCTAssertEqual(standard.layout.exportWidth, 400)
+        XCTAssertEqual(standard.layout.contentPadding, 20)
+        XCTAssertEqual(standard.layout.rowSpacing, 8)
+
+        XCTAssertEqual(highRes.layout, .highRes)
+        XCTAssertEqual(highRes.layout.exportWidth, 680)
+        XCTAssertEqual(highRes.layout.contentPadding, 8)
+        XCTAssertGreaterThan(highRes.layout.exportWidth, standard.layout.exportWidth)
+        XCTAssertGreaterThan(highRes.layout.rowSpacing, standard.layout.rowSpacing)
+        XCTAssertGreaterThan(highRes.layout.rowPadding, standard.layout.rowPadding)
+        XCTAssertEqual(SimpleShuffleSnapshotView.exportWidth, 400)
+        XCTAssertEqual(SimpleShuffleSnapshotView.highResExportWidth, 680)
     }
 }
 

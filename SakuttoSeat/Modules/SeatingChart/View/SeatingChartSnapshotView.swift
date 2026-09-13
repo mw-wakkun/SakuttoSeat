@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_seating.md Phase 1（ファイル分割）/ Phase 2（ViewData 化）
+//  v2.1 Phase 2（高画質はタイト余白・フィラー省略。画面用 View には広げない）
 //
 
 import SwiftUI
@@ -13,21 +14,56 @@ import SwiftUI
 ///
 /// Phase 6 で `SeatingTableCard` への統合を行う予定。
 struct SeatingChartSnapshotView: View {
+    /// 標準 / 高画質のレイアウト差。画面の `SeatingChartView` には使わない。
+    nonisolated enum Layout: Equatable, Sendable {
+        case standard
+        case highRes
+
+        var contentPadding: CGFloat {
+            switch self {
+            case .standard:
+                return SeatingChartSnapshotView.contentPadding
+            case .highRes:
+                return SeatingChartSnapshotView.highResContentPadding
+            }
+        }
+
+        var hidesFillers: Bool {
+            self == .highRes
+        }
+    }
+
     /// 出力幅の算出に使うレイアウト定数（`ImageExportRenderer` と共有する唯一の定義）
     static let tableWidth: CGFloat = 140
     static let tableSpacing: CGFloat = 16
     static let contentPadding: CGFloat = 32
+    static let highResContentPadding: CGFloat = 8
 
     /// 会場列数ぶんのテーブルが収まる幅。高さは `ImageRenderer` に実測させる。
-    static func intrinsicWidth(columnCount: Int) -> CGFloat {
+    static func intrinsicWidth(columnCount: Int, layout: Layout = .standard) -> CGFloat {
         let columns = CGFloat(max(1, columnCount))
-        return tableWidth * columns + tableSpacing * (columns - 1) + contentPadding * 2
+        return tableWidth * columns + tableSpacing * (columns - 1) + layout.contentPadding * 2
+    }
+
+    /// 高画質は空のフィラーを切るので、実在テーブルが占める列数で幅を決める。
+    static func exportColumnCount(for viewData: SeatingChartViewData, layout: Layout = .standard) -> Int {
+        let venueColumns = max(1, viewData.globalColumnCount)
+        guard layout.hidesFillers else { return venueColumns }
+
+        let tableCount = viewData.rows.flatMap(\.items).reduce(into: 0) { count, item in
+            if case .table = item { count += 1 }
+        }
+        return max(1, min(tableCount, venueColumns))
     }
 
     let viewData: SeatingChartViewData
+    var layout: Layout = .standard
 
     var body: some View {
-        let rows = SeatingChartViewDataBuilder.tableOnlyRows(from: viewData)
+        let rows = SeatingChartViewDataBuilder.tableOnlyRows(
+            from: viewData,
+            hidesFillers: layout.hidesFillers
+        )
         VStack(spacing: Self.tableSpacing) {
             ForEach(rows) { row in
                 HStack(alignment: .top, spacing: Self.tableSpacing) {
@@ -44,7 +80,7 @@ struct SeatingChartSnapshotView: View {
                 }
             }
         }
-        .padding(Self.contentPadding)
+        .padding(layout.contentPadding)
     }
 }
 

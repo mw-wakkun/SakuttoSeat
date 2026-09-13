@@ -8,6 +8,7 @@
 //  「選択シート + 広告確認アラート + 広告未準備アラート」の宣言。
 //  refactor_Ad.md Phase 4（未準備アラート文言を RewardedAdCopy に単一化）
 //  v2.1 Phase 1（形式別確認と CSV 失敗）
+//  v2.1 Phase 2（広告提示中の onDisappear で書き出しを殺さない）
 //
 
 import SwiftUI
@@ -30,7 +31,12 @@ struct ShareFlowModifier: ViewModifier {
                 }
             }
             .onDisappear {
-                presenter.cancelRunningTask()
+                // 選択シートが開いたまま親を離れたときだけ閉じる。
+                // リワードのフルスクリーン提示で onDisappear が来ることがあり、
+                // そこでタスクを殺すと視聴完了後の書き出しが消える。
+                if case .selection = presenter.route {
+                    presenter.dismissRoute()
+                }
             }
             .alert(
                 alertTitle,

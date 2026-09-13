@@ -30,7 +30,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				"SakuttoSeat-Bridging-Header.h",
 			);
 			target = 7F68159E2FA9A76800E0386C /* SakuttoSeat */;
 		};
@@ -47,8 +46,6 @@
 		};
 		7FBFFD472FAA1C6600797766 /* SakuttoSeatTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = SakuttoSeatTests;
 			sourceTree = "<group>";
 		};

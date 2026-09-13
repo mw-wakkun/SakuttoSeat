@@ -10,6 +10,7 @@
 //  refactor_Ad.md Phase 2（Router へ Gateway を注入。Presenter 分岐のケース追加は Phase 4）
 //  refactor_Ad.md Phase 4（Fake Gateway で未準備 / 成功 / 未獲得・失敗を固定）
 //  v2.1 Phase 1（CSV フォーマットと書き出し解放の状態遷移）
+//  v2.1 Phase 2（高画質は quality + PNG 経路）
 //
 
 import UIKit
@@ -237,6 +238,21 @@ final class ShareInteractorTests: XCTestCase {
         )
     }
 
+    func test_PNGファイル名は対象と日付を含む() {
+        let now = Date(timeIntervalSince1970: 1_704_067_200)
+        let utc = TimeZone(identifier: "UTC")!
+        let interactor = ShareInteractor()
+
+        XCTAssertEqual(
+            interactor.makePNGFileName(for: .seatingChart(.empty), now: now, timeZone: utc),
+            "座席表_20240101.png"
+        )
+        XCTAssertEqual(
+            interactor.makePNGFileName(for: .numberedList(.empty), now: now, timeZone: utc),
+            "番号札_20240101.png"
+        )
+    }
+
     // MARK: - 広告要否 / 解放フラグ
 
     func test_テキストは常に広告不要() {
@@ -399,9 +415,26 @@ final class SharePresenterTests: XCTestCase {
         XCTAssertNil(sut.presenter.route)
         XCTAssertEqual(sut.fake.presentCallCount, 1)
         XCTAssertEqual(sut.router.makeShareImageCallCount, 1)
+        XCTAssertEqual(sut.router.lastExportQuality, .standard)
         XCTAssertEqual(sut.router.presentedImageCount, 1)
+        XCTAssertGreaterThanOrEqual(sut.router.waitUntilPresentableCallCount, 1)
         XCTAssertTrue(sut.unlock.isSessionUnlocked)
         XCTAssertTrue(sut.presenter.isExportUnlocked)
+    }
+
+    func test_高画質確認_視聴完了なら解放してPNG出力へ進む() async throws {
+        let sut = makeExportSUT(outcome: .success)
+
+        try await confirmExport(sut.presenter, kind: .highResImage)
+
+        XCTAssertNil(sut.presenter.route)
+        XCTAssertEqual(sut.fake.presentCallCount, 1)
+        XCTAssertEqual(sut.router.makeShareImageCallCount, 1)
+        XCTAssertEqual(sut.router.lastExportQuality, .highRes)
+        XCTAssertEqual(sut.router.presentedPNGCount, 1)
+        XCTAssertEqual(sut.router.presentedImageCount, 0)
+        XCTAssertGreaterThanOrEqual(sut.router.waitUntilPresentableCallCount, 1)
+        XCTAssertTrue(sut.unlock.isSessionUnlocked)
     }
 
     func test_CSV確認_視聴完了なら解放してCSV提示へ進む() async throws {
@@ -413,6 +446,7 @@ final class SharePresenterTests: XCTestCase {
         XCTAssertEqual(sut.fake.presentCallCount, 1)
         XCTAssertEqual(sut.router.presentedCSVCount, 1)
         XCTAssertEqual(sut.router.makeShareImageCallCount, 0)
+        XCTAssertGreaterThanOrEqual(sut.router.waitUntilPresentableCallCount, 1)
         XCTAssertTrue(sut.unlock.isSessionUnlocked)
         XCTAssertEqual(sut.router.lastPresentedCSV?.hasPrefix(ShareInteractor.utf8BOM), true)
     }
@@ -459,15 +493,31 @@ final class SharePresenterTests: XCTestCase {
         XCTAssertEqual(sut.router.presentedImageCount, 0)
     }
 
-    func test_高画質はPhase1では標準画像と同じ出力経路() async {
+    func test_標準画像はdisplayScale経路のUIImageを出す() async {
+        let sut = makeExportSUT(exportUnlock: ExportUnlockState(isSessionUnlocked: true))
+        let subject = sut.presenter.subject!
+
+        await sut.presenter.exportOrRequestUnlock(kind: .image, for: subject)
+
+        XCTAssertEqual(sut.router.makeShareImageCallCount, 1)
+        XCTAssertEqual(sut.router.lastExportQuality, .standard)
+        XCTAssertEqual(sut.router.presentedImageCount, 1)
+        XCTAssertEqual(sut.router.presentedPNGCount, 0)
+        XCTAssertEqual(sut.fake.presentCallCount, 0)
+    }
+
+    func test_高画質は3xオプションでPNGファイルを出す() async {
         let sut = makeExportSUT(exportUnlock: ExportUnlockState(isSessionUnlocked: true))
         let subject = sut.presenter.subject!
 
         await sut.presenter.exportOrRequestUnlock(kind: .highResImage, for: subject)
 
         XCTAssertEqual(sut.router.makeShareImageCallCount, 1)
-        XCTAssertEqual(sut.router.presentedImageCount, 1)
+        XCTAssertEqual(sut.router.lastExportQuality, .highRes)
+        XCTAssertEqual(sut.router.presentedPNGCount, 1)
+        XCTAssertEqual(sut.router.presentedImageCount, 0)
         XCTAssertEqual(sut.fake.presentCallCount, 0)
+        XCTAssertEqual(sut.router.lastPresentedPNGFileName?.hasSuffix(".png"), true)
     }
 
     func test_ルートを閉じると広告待ちの画像共有は破棄される() async throws {
@@ -504,17 +554,32 @@ final class SharePresenterTests: XCTestCase {
 
 private final class ShareRouterSpy: ShareRouter {
     private(set) var makeShareImageCallCount = 0
+    private(set) var lastExportQuality: ExportQuality?
     private(set) var presentedImageCount = 0
+    private(set) var presentedPNGCount = 0
     private(set) var presentedCSVCount = 0
     private(set) var lastPresentedCSV: String?
+    private(set) var lastPresentedPNGFileName: String?
+    private(set) var waitUntilPresentableCallCount = 0
 
-    override func makeShareImage(for subject: ShareSubject) -> UIImage? {
+    override func waitUntilPresentable() async {
+        waitUntilPresentableCallCount += 1
+    }
+
+    override func makeShareImage(for subject: ShareSubject, quality: ExportQuality = .standard) -> UIImage? {
         makeShareImageCallCount += 1
+        lastExportQuality = quality
         return UIImage()
     }
 
     override func presentShareSheet(image: UIImage) async {
         presentedImageCount += 1
+    }
+
+    override func presentShareSheet(pngImage: UIImage, fileName: String) async -> Bool {
+        presentedPNGCount += 1
+        lastPresentedPNGFileName = fileName
+        return true
     }
 
     override func presentShareSheet(csv: String, fileName: String) async -> Bool {

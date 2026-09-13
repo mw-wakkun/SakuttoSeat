@@ -5,6 +5,7 @@
 //  refactor_seating.md Phase 5（共有ペイロードの生成と広告要否の判断）
 //  refactor_simple.md Phase 2（番号札テキストは ViewData.Row.number を使う）
 //  v2.1 Phase 1（CSV 生成と書き出し解放。UIKit は見ない）
+//  v2.1 Phase 2（高画質 PNG のファイル名。中身のレンダは Router）
 //
 //  もとは SeatingChartView / SimpleShuffleView / SeatingChartInteractor に
 //  分散していた共有テキストの整形をここへ集約する。
@@ -55,18 +56,39 @@ nonisolated final class ShareInteractor: ShareInteractorProtocol {
         now: Date = Date(),
         timeZone: TimeZone = .current
     ) -> String {
+        exportFileName(for: subject, pathExtension: "csv", now: now, timeZone: timeZone)
+    }
+
+    func makePNGFileName(
+        for subject: ShareSubject,
+        now: Date = Date(),
+        timeZone: TimeZone = .current
+    ) -> String {
+        exportFileName(for: subject, pathExtension: "png", now: now, timeZone: timeZone)
+    }
+
+    private func exportFileName(
+        for subject: ShareSubject,
+        pathExtension: String,
+        now: Date,
+        timeZone: TimeZone
+    ) -> String {
+        let stamp = Self.exportDateStamp(now: now, timeZone: timeZone)
+        switch subject {
+        case .seatingChart:
+            return "座席表_\(stamp).\(pathExtension)"
+        case .numberedList:
+            return "番号札_\(stamp).\(pathExtension)"
+        }
+    }
+
+    private static func exportDateStamp(now: Date, timeZone: TimeZone) -> String {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = timeZone
         formatter.dateFormat = "yyyyMMdd"
-        let stamp = formatter.string(from: now)
-        switch subject {
-        case .seatingChart:
-            return "座席表_\(stamp).csv"
-        case .numberedList:
-            return "番号札_\(stamp).csv"
-        }
+        return formatter.string(from: now)
     }
 
     /// テキストは常に無料。有料3種は未解放ならリワード、解放後は不要。

@@ -5,6 +5,7 @@
 //  refactor_seating.md Phase 5（共有フローの横断モジュール化）
 //  refactor_simple.md Phase 2（番号札は SimpleShuffleViewData を渡す）
 //  v2.1 Phase 1（4択・形式別確認・CSV 失敗）
+//  v2.1 Phase 2（ExportQuality。高画質は PNG 一時ファイル）
 //
 //  座席表・番号札の 2 画面に重複していた共有フロー
 //  （選択シート → 広告確認 → 画像出力 → シェアシート提示）を
@@ -22,6 +23,12 @@ enum ShareSelectionKind: Equatable, Hashable, CaseIterable {
     case image
     case highResImage
     case csv
+}
+
+/// 画像書き出しの画質。標準は画面の写し、高画質は余白カットの印刷向け。
+enum ExportQuality: Equatable {
+    case standard
+    case highRes
 }
 
 /// 選択シート・確認アラートの文言。View が組み立て、Interactor は知らない。
@@ -183,6 +190,7 @@ protocol ShareRouterProtocol: AnyObject {
     @MainActor func presentShareSheet(image: UIImage) async
     @MainActor func presentShareSheet(fileURL: URL) async
     @MainActor func presentShareSheet(csv: String, fileName: String) async -> Bool
+    @MainActor func presentShareSheet(pngImage: UIImage, fileName: String) async -> Bool
     @MainActor func presentRewardedAd() async throws
-    @MainActor func makeShareImage(for subject: ShareSubject) -> UIImage?
+    @MainActor func makeShareImage(for subject: ShareSubject, quality: ExportQuality) -> UIImage?
 }

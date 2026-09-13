@@ -4,6 +4,7 @@
 //
 //  refactor_seating.md Phase 2 / 3（ViewData / Route の回帰）
 //  refactor_templateListView.md Phase 3（テンプレート適用は ID。Gateway は Snapshot insert）
+//  v2.1 Phase 2（Snapshot 高画質のフィラー省略）
 //
 
 import XCTest
@@ -167,5 +168,90 @@ final class SeatingChartViewDataTests: XCTestCase {
         let availablePresenter = makePresenter(names: ["A"])
         availablePresenter.didTapSaveTemplate()
         XCTAssertEqual(availablePresenter.route, .saveTemplatePrompt)
+    }
+
+    func test_tableOnlyRows_標準は会場列に合わせてフィラーを残す() {
+        let interactor = SeatingChartInteractor(attendees: [Attendee(name: "A")])
+        let viewData = SeatingChartViewDataBuilder.build(
+            tables: interactor.currentTables(),
+            globalColumnCount: 2
+        )
+
+        let rows = SeatingChartViewDataBuilder.tableOnlyRows(from: viewData)
+
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows[0].items.count, 1)
+        XCTAssertEqual(rows[0].trailingFillerCount, 1)
+    }
+
+    func test_tableOnlyRows_高画質はフィラーを切る() {
+        let interactor = SeatingChartInteractor(attendees: [Attendee(name: "A")])
+        let viewData = SeatingChartViewDataBuilder.build(
+            tables: interactor.currentTables(),
+            globalColumnCount: 2
+        )
+
+        let rows = SeatingChartViewDataBuilder.tableOnlyRows(from: viewData, hidesFillers: true)
+
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows[0].items.count, 1)
+        XCTAssertEqual(rows[0].trailingFillerCount, 0)
+    }
+
+    func test_SnapshotView_標準と高画質で余白と列数が分かれる() {
+        let interactor = SeatingChartInteractor(attendees: [Attendee(name: "A")])
+        let viewData = SeatingChartViewDataBuilder.build(
+            tables: interactor.currentTables(),
+            globalColumnCount: 2
+        )
+
+        let standard = SeatingChartSnapshotView(viewData: viewData)
+        let highRes = SeatingChartSnapshotView(viewData: viewData, layout: .highRes)
+
+        XCTAssertEqual(standard.layout, .standard)
+        XCTAssertFalse(standard.layout.hidesFillers)
+        XCTAssertEqual(standard.layout.contentPadding, 32)
+        XCTAssertEqual(SeatingChartSnapshotView.exportColumnCount(for: viewData), 2)
+        XCTAssertEqual(
+            SeatingChartSnapshotView.intrinsicWidth(columnCount: 2),
+            140 * 2 + 16 + 32 * 2
+        )
+
+        XCTAssertEqual(highRes.layout, .highRes)
+        XCTAssertTrue(highRes.layout.hidesFillers)
+        XCTAssertEqual(highRes.layout.contentPadding, 8)
+        XCTAssertEqual(SeatingChartSnapshotView.exportColumnCount(for: viewData, layout: .highRes), 1)
+        XCTAssertEqual(
+            SeatingChartSnapshotView.intrinsicWidth(columnCount: 1, layout: .highRes),
+            140 + 8 * 2
+        )
+        XCTAssertLessThan(
+            SeatingChartSnapshotView.intrinsicWidth(
+                columnCount: SeatingChartSnapshotView.exportColumnCount(for: viewData, layout: .highRes),
+                layout: .highRes
+            ),
+            SeatingChartSnapshotView.intrinsicWidth(columnCount: 2)
+        )
+    }
+
+    func test_exportColumnCount_テーブルが会場列以上なら高画質も会場列幅() {
+        let interactor = SeatingChartInteractor(attendees: [Attendee(name: "A")])
+        _ = interactor.addTable()
+        _ = interactor.addTable()
+        let viewData = SeatingChartViewDataBuilder.build(
+            tables: interactor.currentTables(),
+            globalColumnCount: 2
+        )
+
+        XCTAssertEqual(interactor.currentTables().count, 3)
+        XCTAssertEqual(SeatingChartSnapshotView.exportColumnCount(for: viewData), 2)
+        XCTAssertEqual(SeatingChartSnapshotView.exportColumnCount(for: viewData, layout: .highRes), 2)
+
+        let rows = SeatingChartViewDataBuilder.tableOnlyRows(from: viewData, hidesFillers: true)
+        XCTAssertEqual(rows.count, 2)
+        XCTAssertEqual(rows[0].items.count, 2)
+        XCTAssertEqual(rows[0].trailingFillerCount, 0)
+        XCTAssertEqual(rows[1].items.count, 1)
+        XCTAssertEqual(rows[1].trailingFillerCount, 0)
     }
 }

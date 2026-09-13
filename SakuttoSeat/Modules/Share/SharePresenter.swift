@@ -4,7 +4,9 @@
 //
 //  refactor_seating.md Phase 5（共有フローの仲介）
 //  refactor_Ad.md Phase 4（リワード分岐を await 可能なメソッドに切り出し、テストから駆動する）
-//  v2.1 Phase 1（4択・書き出し解放。高画質レンダは Phase 2）
+//  v2.1 Phase 1（4択・書き出し解放）
+//  v2.1 Phase 2（高画質は quality 分岐 + PNG ファイル提示）
+//  v2.1 Phase 2 hotfix（視聴成功後は解放→待機→シェアシートまで切らない）
 //
 
 import Combine
@@ -33,6 +35,10 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
         self.router = router
     }
 
+    /// @MainActor クラスの isolated deinit 経路での解放不整合を避ける
+    /// （SeatingChartPresenter と同じ。子として保持されたとき malloc abort しない）
+    nonisolated deinit {}
+
     var isExportUnlocked: Bool {
         interactor.isExportUnlocked
     }
@@ -60,8 +66,9 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
     }
 
     func didConfirmExport() {
-        route = nil
         guard let subject, let kind = selectedKind else { return }
+        // dismissRoute は使わない。確認アラートを閉じるだけで、書き出しタスクは殺さない。
+        route = nil
 
         startRunningTask { [weak self] in
             await self?.confirmExport(for: subject, kind: kind)
@@ -81,12 +88,15 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
     }
 
     /// 広告提示の結果を Route / 成果物へ写す。View は `didConfirmExport` 経由。テストはここを await する。
+    /// 成功時は解放 → 広告 VC の解体待ち → 形式に応じた生成とシェアシート、の順。
     func confirmExport(for subject: ShareSubject, kind: ShareSelectionKind) async {
         let taskID = runningTaskID
         do {
             try await router.presentRewardedAd()
             guard isCurrentTask(taskID) else { return }
             interactor.grantExportUnlock()
+            await router.waitUntilPresentable()
+            guard isCurrentTask(taskID) else { return }
             await exportAndShare(kind: kind, subject: subject)
         } catch RewardedAdError.notReady {
             guard isCurrentTask(taskID) else { return }
@@ -112,20 +122,30 @@ final class SharePresenter: ObservableObject, SharePresenterProtocol {
         switch kind {
         case .text:
             await router.presentShareSheet(text: interactor.makeShareText(for: subject))
-        case .image, .highResImage:
-            // Phase 2 で高画質レンダを分岐する。Phase 1 は標準画像と同じ経路。
-            await exportAndShareImage(for: subject)
+        case .image:
+            await exportAndShareImage(for: subject, quality: .standard)
+        case .highResImage:
+            await exportAndShareImage(for: subject, quality: .highRes)
         case .csv:
             await exportAndShareCSV(for: subject)
         }
     }
 
-    private func exportAndShareImage(for subject: ShareSubject) async {
-        guard let image = router.makeShareImage(for: subject) else {
+    private func exportAndShareImage(for subject: ShareSubject, quality: ExportQuality) async {
+        guard let image = router.makeShareImage(for: subject, quality: quality) else {
             route = .alert(.imageExportFailed)
             return
         }
-        await router.presentShareSheet(image: image)
+        switch quality {
+        case .standard:
+            await router.presentShareSheet(image: image)
+        case .highRes:
+            let fileName = interactor.makePNGFileName(for: subject)
+            let succeeded = await router.presentShareSheet(pngImage: image, fileName: fileName)
+            if !succeeded {
+                route = .alert(.imageExportFailed)
+            }
+        }
     }
 
     private func exportAndShareCSV(for subject: ShareSubject) async {
