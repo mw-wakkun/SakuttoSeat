@@ -95,10 +95,13 @@ struct ShareSelectionView: View {
                         Text(subtitle)
                             .font(.caption)
                             .foregroundColor(.secondary)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 if showsRewardBadge {
                     Image(systemName: "play.rectangle.fill")
