@@ -42,16 +42,17 @@ struct VenueSettingsView: View {
                 Spacer()
             }
             .padding()
-            .navigationTitle("設定")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("適用") { presenter.didTapApply() }
-                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("キャンセル") {
                         presenter.cancelRunningTask()
                         dismiss()
                     }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("適用") { presenter.didTapApply() }
+                        .fontWeight(.semibold)
                 }
             }
             .alert(RewardedAdCopy.notReadyTitle, isPresented: adNotReadyBinding) {
