@@ -4,6 +4,7 @@
 //
 //  refactor_seating.md Phase 5（共有ペイロードの生成と広告要否の判断）
 //  refactor_simple.md Phase 2（番号札テキストは ViewData.Row.number を使う）
+//  v2.1 Phase 1（CSV 生成と書き出し解放。UIKit は見ない）
 //
 //  もとは SeatingChartView / SimpleShuffleView / SeatingChartInteractor に
 //  分散していた共有テキストの整形をここへ集約する。
@@ -20,6 +21,17 @@ nonisolated final class ShareInteractor: ShareInteractorProtocol {
         let memberNames: [String]
     }
 
+    /// Protocol existential は保持しない（deinit の malloc abort 回避）
+    private let exportUnlock: ExportUnlockState
+
+    init(exportUnlock: ExportUnlockState = ExportUnlockState()) {
+        self.exportUnlock = exportUnlock
+    }
+
+    var isExportUnlocked: Bool {
+        exportUnlock.isSessionUnlocked
+    }
+
     func makeShareText(for subject: ShareSubject) -> String {
         switch subject {
         case .seatingChart(let viewData):
@@ -29,9 +41,46 @@ nonisolated final class ShareInteractor: ShareInteractorProtocol {
         }
     }
 
-    /// 画像共有は常にリワード広告が必要
-    func imageShareRequirement() -> UnlockRequirement {
-        .rewardedAd
+    func makeCSV(for subject: ShareSubject) -> String {
+        switch subject {
+        case .seatingChart(let viewData):
+            return makeSeatingChartCSV(tables: Self.tableContents(from: viewData))
+        case .numberedList(let viewData):
+            return makeNumberedListCSV(viewData: viewData)
+        }
+    }
+
+    func makeCSVFileName(
+        for subject: ShareSubject,
+        now: Date = Date(),
+        timeZone: TimeZone = .current
+    ) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "yyyyMMdd"
+        let stamp = formatter.string(from: now)
+        switch subject {
+        case .seatingChart:
+            return "座席表_\(stamp).csv"
+        case .numberedList:
+            return "番号札_\(stamp).csv"
+        }
+    }
+
+    /// テキストは常に無料。有料3種は未解放ならリワード、解放後は不要。
+    func exportRequirement(for kind: ShareSelectionKind) -> UnlockRequirement {
+        switch kind {
+        case .text:
+            return .none
+        case .image, .highResImage, .csv:
+            return exportUnlock.isSessionUnlocked ? .none : .rewardedAd
+        }
+    }
+
+    func grantExportUnlock() {
+        exportUnlock.grantSessionUnlock()
     }
 
     // MARK: - テキスト整形
@@ -76,6 +125,32 @@ nonisolated final class ShareInteractor: ShareInteractorProtocol {
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    // MARK: - CSV
+
+    /// UTF-8 BOM + LF。空席は出さない。ロック状態は出さない。
+    func makeSeatingChartCSV(tables: [TableContent]) -> String {
+        var lines = ["テーブル,行,列,氏名"]
+        for table in tables {
+            let colCount = max(1, table.columnCount)
+            for (index, name) in table.memberNames.enumerated() {
+                let row = (index / colCount) + 1
+                let col = (index % colCount) + 1
+                lines.append(
+                    [csvEscape(table.name), "\(row)", "\(col)", csvEscape(name)].joined(separator: ",")
+                )
+            }
+        }
+        return Self.utf8BOM + lines.joined(separator: "\n")
+    }
+
+    func makeNumberedListCSV(viewData: SimpleShuffleViewData) -> String {
+        var lines = ["番号,氏名"]
+        for row in viewData.rows {
+            lines.append(["\(row.number)", csvEscape(row.name)].joined(separator: ","))
+        }
+        return Self.utf8BOM + lines.joined(separator: "\n")
+    }
+
     // MARK: - 表示専用モデルからの取り出し
 
     /// 追加ボタンと空席パディングを除き、テーブルの並び順どおりに取り出す
@@ -90,5 +165,17 @@ nonisolated final class ShareInteractor: ShareInteractorProtocol {
                     memberNames: table.seats.filter { !$0.isEmpty }.map(\.displayName)
                 )
             }
+    }
+
+    // MARK: - CSV helpers
+
+    static let utf8BOM = "\u{FEFF}"
+
+    /// 氏名内のカンマ・引用符・改行を RFC 4180 相当でエスケープする
+    func csvEscape(_ field: String) -> String {
+        if field.contains(",") || field.contains("\"") || field.contains("\n") || field.contains("\r") {
+            return "\"\(field.replacingOccurrences(of: "\"", with: "\"\""))\""
+        }
+        return field
     }
 }

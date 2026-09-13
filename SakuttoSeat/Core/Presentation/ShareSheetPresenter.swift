@@ -10,10 +10,18 @@ import UIKit
 @MainActor
 enum ShareSheetPresenter {
     /// 最前面 VC へ即座にシェアシートを提示する
-    static func present(items: [Any]) {
-        guard let topViewController = UIApplication.shared.topViewController else { return }
+    static func present(items: [Any], cleanup: (() -> Void)? = nil) {
+        guard let topViewController = UIApplication.shared.topViewController else {
+            cleanup?()
+            return
+        }
 
         let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        if let cleanup {
+            activityVC.completionWithItemsHandler = { _, _, _, _ in
+                cleanup()
+            }
+        }
 
         if let popoverController = activityVC.popoverPresentationController {
             popoverController.sourceView = topViewController.view
@@ -30,9 +38,9 @@ enum ShareSheetPresenter {
     }
 
     /// シート閉じ終わりなど、提示可能な状態になるまで待ってからシェアする
-    static func presentWhenReady(items: [Any]) async {
+    static func presentWhenReady(items: [Any], cleanup: (() -> Void)? = nil) async {
         await waitUntilPresentable()
-        present(items: items)
+        present(items: items, cleanup: cleanup)
     }
 
     /// ルート上に presented VC が無い／遷移中でない状態をポーリングで待つ

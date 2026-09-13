@@ -7,6 +7,7 @@
 //  もとは SeatingChartView / SimpleShuffleView に重複していた
 //  「選択シート + 広告確認アラート + 広告未準備アラート」の宣言。
 //  refactor_Ad.md Phase 4（未準備アラート文言を RewardedAdCopy に単一化）
+//  v2.1 Phase 1（形式別確認と CSV 失敗）
 //
 
 import SwiftUI
@@ -24,7 +25,7 @@ struct ShareFlowModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .sheet(item: selectionBinding) { _ in
-                ShareSelectionView { kind in
+                ShareSelectionView(isExportUnlocked: presenter.isExportUnlocked) { kind in
                     presenter.didSelectKind(kind)
                 }
             }
@@ -77,11 +78,17 @@ struct ShareFlowModifier: ViewModifier {
     private var alertTitle: String {
         switch presentedAlert {
         case .confirmImageShareWithAd:
-            return "画像で共有"
+            return ShareCopy.title(for: .image)
+        case .confirmHighResImageShareWithAd:
+            return ShareCopy.title(for: .highResImage)
+        case .confirmCSVExportWithAd:
+            return ShareCopy.title(for: .csv)
         case .adNotReady:
             return RewardedAdCopy.notReadyTitle
         case .imageExportFailed:
-            return "画像出力に失敗しました"
+            return ShareCopy.imageExportFailedTitle
+        case .csvExportFailed:
+            return ShareCopy.csvExportFailedTitle
         case .none:
             return ""
         }
@@ -90,10 +97,10 @@ struct ShareFlowModifier: ViewModifier {
     @ViewBuilder
     private func alertButtons(for alert: ShareAlert) -> some View {
         switch alert {
-        case .confirmImageShareWithAd:
+        case .confirmImageShareWithAd, .confirmHighResImageShareWithAd, .confirmCSVExportWithAd:
             Button("キャンセル", role: .cancel) { }
-            Button("OK") { presenter.didConfirmImageShare() }
-        case .adNotReady, .imageExportFailed:
+            Button("OK") { presenter.didConfirmExport() }
+        case .adNotReady, .imageExportFailed, .csvExportFailed:
             Button("OK", role: .cancel) { }
         }
     }
@@ -101,11 +108,17 @@ struct ShareFlowModifier: ViewModifier {
     private func alertMessage(for alert: ShareAlert) -> Text {
         switch alert {
         case .confirmImageShareWithAd:
-            Text("動画を見て、きれいな座席表画像を保存・送信しますか？")
+            Text(ShareCopy.confirmMessage(for: .image))
+        case .confirmHighResImageShareWithAd:
+            Text(ShareCopy.confirmMessage(for: .highResImage))
+        case .confirmCSVExportWithAd:
+            Text(ShareCopy.confirmMessage(for: .csv))
         case .adNotReady:
             Text(RewardedAdCopy.notReadyMessage)
         case .imageExportFailed:
-            Text("画像の出力に失敗しました。もう一度お試しください。")
+            Text(ShareCopy.imageExportFailedMessage)
+        case .csvExportFailed:
+            Text(ShareCopy.csvExportFailedMessage)
         }
     }
 }

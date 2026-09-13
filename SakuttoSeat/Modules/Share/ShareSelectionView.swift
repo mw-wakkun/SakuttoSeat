@@ -4,6 +4,7 @@
 //
 //  Created by masafumi wakugawa on 2026/08/23.
 //  refactor_seating.md Phase 5 で Modules/Common から Share モジュールへ移動。
+//  v2.1 Phase 1（4択。未解放の有料は動画アイコン、解放済みは南京錠なし）
 //
 
 import SwiftUI
@@ -13,27 +14,22 @@ import SwiftUI
 /// 選択後のシート閉じは Presenter（`route = nil`）が行うため、ここでは通知だけを行う。
 struct ShareSelectionView: View {
     @Environment(\.dismiss) private var dismiss
+    let isExportUnlocked: Bool
     let onSelect: (ShareSelectionKind) -> Void
 
     var body: some View {
-        VStack(spacing: 24) { // タイトルがない分、少し余白を広げてバランスをとる
-            VStack(spacing: 12) {
-                shareOptionButton(
-                    icon: "doc.text",
-                    title: "テキストで共有",
-                    subtitle: "無料ですぐに共有できます",
-                    tint: .sakuttoBlueStart
-                ) {
-                    onSelect(.text)
-                }
-
-                shareOptionButton(
-                    icon: "photo",
-                    title: "画像で共有",
-                    subtitle: "動画を見てきれいな座席表画像を保存・送信",
-                    tint: .purple
-                ) {
-                    onSelect(.image)
+        VStack(spacing: 16) {
+            VStack(spacing: 8) {
+                ForEach(ShareSelectionKind.allCases, id: \.self) { kind in
+                    shareOptionButton(
+                        icon: ShareCopy.iconName(for: kind),
+                        title: ShareCopy.title(for: kind),
+                        subtitle: ShareCopy.subtitle(for: kind, isExportUnlocked: isExportUnlocked),
+                        tint: tint(for: kind),
+                        showsRewardBadge: needsRewardBadge(for: kind)
+                    ) {
+                        onSelect(kind)
+                    }
                 }
             }
 
@@ -45,10 +41,32 @@ struct ShareSelectionView: View {
             .padding(.bottom, 8)
         }
         .padding(.horizontal, 20)
-        .padding(.top, 24) // 上部にも余白を持たせて上下中央に配置
+        .padding(.top, 16)
         .padding(.bottom, 8)
-        .presentationDetents([.fraction(0.3), .medium])
+        .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+    }
+
+    private func needsRewardBadge(for kind: ShareSelectionKind) -> Bool {
+        switch kind {
+        case .text:
+            return false
+        case .image, .highResImage, .csv:
+            return !isExportUnlocked
+        }
+    }
+
+    private func tint(for kind: ShareSelectionKind) -> Color {
+        switch kind {
+        case .text:
+            return .sakuttoBlueStart
+        case .image:
+            return .purple
+        case .highResImage:
+            return .indigo
+        case .csv:
+            return .teal
+        }
     }
 
     private func shareOptionButton(
@@ -56,6 +74,7 @@ struct ShareSelectionView: View {
         title: String,
         subtitle: String?,
         tint: Color,
+        showsRewardBadge: Bool,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -80,6 +99,13 @@ struct ShareSelectionView: View {
                 }
 
                 Spacer()
+
+                if showsRewardBadge {
+                    Image(systemName: "play.rectangle.fill")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .accessibilityLabel(ShareCopy.rewardBadgeAccessibilityLabel)
+                }
 
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
