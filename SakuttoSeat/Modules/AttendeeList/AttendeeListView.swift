@@ -7,6 +7,7 @@
 //  refactor_Ad.md Phase 5（バナー余白は AdBannerContainer 内）
 //  リワード復帰では空のとき以外キーボードを出さない。ボトムクロムは geometryGroup で祖先アニメーションから切り離す。
 //  refactor_groupFavorite.md Phase 4（View は ModelContext / Gateway を知らない）
+//  v2.1 UI/UX（未確定名でも CTA、＋のヒット領域）
 //
 
 import SwiftUI
@@ -257,7 +258,7 @@ private extension AttendeeListView {
                 .focused($isTextFieldFocused)
                 .disabled(isAttendeeHardLimited)
                 .onSubmit { addAttendeeProcess() }
-                .submitLabel(.done)
+                .submitLabel(.join)
                 .accessibilityLabel(String(localized: "参加者の名前"))
                 .accessibilityHint(nameFieldAccessibilityHint)
 
@@ -274,6 +275,8 @@ private extension AttendeeListView {
                             .offset(x: 2, y: 2)
                     }
                 }
+                .frame(minWidth: AppSpacing.minTapTarget, minHeight: AppSpacing.minTapTarget)
+                .contentShape(Rectangle())
             }
             .disabled(newName.isEmpty || isAttendeeHardLimited)
             .accessibilityLabel(String(localized: "参加者を追加"))
@@ -314,7 +317,12 @@ private extension AttendeeListView {
     }
 
     var seatingDisabled: Bool {
-        !presenter.viewData.canStartSeating || !newName.isEmpty
+        !presenter.viewData.canStartSeating && pendingName.isEmpty
+    }
+
+    /// 未確定入力。CTA はこれがあるときも押せる。
+    var pendingName: String {
+        newName.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     var bottomChromeBar: some View {
@@ -347,8 +355,7 @@ private extension AttendeeListView {
 
             VStack(spacing: AppSpacing.ctaStackSpacing) {
                 Button {
-                    isTextFieldFocused = false
-                    presenter.didTapSeatingChart()
+                    startSeating { presenter.didTapSeatingChart() }
                 } label: {
                     HStack {
                         Image(systemName: "square.grid.2x2.fill")
@@ -360,8 +367,7 @@ private extension AttendeeListView {
                 .accessibilityHint(String(localized: "参加者の座席表を開きます"))
 
                 Button {
-                    isTextFieldFocused = false
-                    presenter.didTapSimpleShuffle()
+                    startSeating { presenter.didTapSimpleShuffle() }
                 } label: {
                     HStack {
                         Image(systemName: "list.number")
@@ -478,6 +484,19 @@ private extension AttendeeListView {
             newName = ""
         }
         isTextFieldFocused = true
+    }
+
+    /// 未確定名があれば先に追加する。解放やハード上限なら遷移しない。
+    func startSeating(_ start: () -> Void) {
+        isTextFieldFocused = false
+        if pendingName.isEmpty {
+            start()
+            return
+        }
+        if presenter.didTapAdd(name: pendingName) {
+            newName = ""
+            start()
+        }
     }
 
     func dismissKeyboard() {
