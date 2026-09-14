@@ -175,6 +175,31 @@ final class SimpleShuffleViewDataTests: XCTestCase {
         XCTAssertGreaterThan(highRes.layout.rowPadding, standard.layout.rowPadding)
         XCTAssertEqual(SimpleShuffleSnapshotView.exportWidth, 400)
         XCTAssertEqual(SimpleShuffleSnapshotView.highResExportWidth, 680)
+        XCTAssertEqual(SimpleShuffleSnapshotView.highResMultiColumnExportWidth, 834)
+        XCTAssertEqual(SimpleShuffleSnapshotView.highResRowsPerColumn, 30)
+    }
+
+    func test_高画質は人数に応じて列と幅を増やす() {
+        let highRes = SimpleShuffleSnapshotView.Layout.highRes
+        let standard = SimpleShuffleSnapshotView.Layout.standard
+
+        XCTAssertEqual(standard.columnCount(rowCount: FeatureLimit.maxAttendeeCount), 1)
+        XCTAssertEqual(highRes.columnCount(rowCount: 1), 1)
+        XCTAssertEqual(highRes.columnCount(rowCount: 30), 1)
+        XCTAssertEqual(highRes.columnCount(rowCount: 31), 2)
+        XCTAssertEqual(highRes.columnCount(rowCount: 60), 2)
+        XCTAssertEqual(highRes.columnCount(rowCount: 61), 3)
+        XCTAssertEqual(highRes.columnCount(rowCount: FeatureLimit.maxAttendeeCount), 4)
+
+        XCTAssertEqual(highRes.exportWidth(rowCount: 1), SimpleShuffleSnapshotView.highResExportWidth)
+        XCTAssertEqual(
+            highRes.exportWidth(rowCount: FeatureLimit.maxAttendeeCount),
+            SimpleShuffleSnapshotView.highResMultiColumnExportWidth
+        )
+        XCTAssertGreaterThan(
+            highRes.exportWidth(rowCount: FeatureLimit.maxAttendeeCount),
+            highRes.exportWidth(rowCount: 1)
+        )
     }
 }
 

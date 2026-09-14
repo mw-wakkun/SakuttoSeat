@@ -6,6 +6,7 @@
 //  Phase 5（出力サイズの実測化・`UIScreen.main` 依存の排除）
 //  refactor_simple.md Phase 2（番号札は Snapshot の exportWidth と ViewData を使う）
 //  v2.1 Phase 2（高画質は scale 3.0 以上・タイト余白。PNG は一時ファイル）
+//  v2.1 hotfix（巨大スナップショットは長辺をクランプし ImageRenderer の失敗を避ける）
 //
 
 import SwiftUI
@@ -15,6 +16,8 @@ import UIKit
 enum ImageExportRenderer {
     /// 高画質の最低スケール。端末がそれ以上なら displayScale を使う。
     static let highResScale: CGFloat = 3
+    /// `ImageRenderer.uiImage` が nil になる GPU 長辺の目安。超えた分はスケールを落とす。
+    static let maxPixelDimension: CGFloat = 8192
 
     /// 幅はスナップショット View のレイアウト定数から確定させ、
     /// 高さは提案しない（`ImageRenderer` に実測させる）。
@@ -39,7 +42,7 @@ enum ImageExportRenderer {
         quality: ExportQuality = .standard
     ) -> UIImage? {
         let layout = shuffleLayout(for: quality)
-        let exportWidth = layout.exportWidth
+        let exportWidth = layout.exportWidth(rowCount: viewData.rows.count)
         let exportView = SimpleShuffleSnapshotView(viewData: viewData, layout: layout)
             .frame(width: exportWidth)
             .background(Color(.systemGroupedBackground))
@@ -70,13 +73,52 @@ enum ImageExportRenderer {
         }
     }
 
+    /// 長辺が `maxPixelDimension` を超えないよう、希望スケールを上限で切る。
+    static func clampedRenderScale(
+        for quality: ExportQuality,
+        contentSize: CGSize,
+        displayScale: CGFloat? = nil
+    ) -> CGFloat {
+        let desired = renderScale(for: quality, displayScale: displayScale)
+        let longest = max(contentSize.width, contentSize.height)
+        guard longest > 0 else { return desired }
+        return min(desired, maxPixelDimension / longest)
+    }
+
     private static func render<Content: View>(
         _ content: Content,
         width: CGFloat,
         quality: ExportQuality
     ) -> UIImage? {
+        let contentSize = measure(content, width: width)
+            ?? CGSize(width: width, height: maxPixelDimension)
+        let scale = clampedRenderScale(for: quality, contentSize: contentSize)
+        if let image = rasterize(content, width: width, scale: scale) {
+            return image
+        }
+        // 端末によっては 8192 でも失敗するので、長辺を段階的に下げて再試行する。
+        for dimension in [4096, 2048] as [CGFloat] {
+            let longest = max(contentSize.width, contentSize.height, 1 as CGFloat)
+            let fallbackScale = min(scale, dimension / longest)
+            if let image = rasterize(content, width: width, scale: fallbackScale) {
+                return image
+            }
+        }
+        return nil
+    }
+
+    /// 実寸測りはごく小さいスケールで行い、巨大ビットマップを作らない。
+    private static func measure<Content: View>(_ content: Content, width: CGFloat) -> CGSize? {
+        rasterize(content, width: width, scale: 0.05)?.size
+    }
+
+    private static func rasterize<Content: View>(
+        _ content: Content,
+        width: CGFloat,
+        scale: CGFloat
+    ) -> UIImage? {
         let renderer = ImageRenderer(content: content)
-        renderer.scale = renderScale(for: quality)
+        renderer.scale = max(scale, 0.01)
         renderer.proposedSize = ProposedViewSize(width: width, height: nil)
         return renderer.uiImage
     }
