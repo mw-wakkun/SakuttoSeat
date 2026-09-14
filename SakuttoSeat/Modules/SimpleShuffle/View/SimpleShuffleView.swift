@@ -8,6 +8,7 @@
 //  番号札は inset がバナーのみ。幅は AdBannerContainer が containerRelativeFrame で確定する
 //  refactor_Ad.md Phase 5（余白は Container 内。inset 背景だけ画面側）
 //  v2.1 Phase 3（発表はナビ左。Cover 中はバナー inset を外す）
+//  v2.1 UI/UX（発表ツールバーにラベル、無効時 Hint）
 //
 
 import SwiftUI
@@ -39,14 +40,14 @@ struct SimpleShuffleView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                Button {
+                PresentToolbarButton(
+                    isEnabled: !presenter.viewData.isEmpty,
+                    accessibilityHint: presenter.viewData.isEmpty
+                        ? PresentationCopy.numberedPresentDisabledHint
+                        : PresentationCopy.numberedPresentAccessibilityHint
+                ) {
                     presenter.didTapPresent()
-                } label: {
-                    Image(systemName: "rectangle.inset.filled")
                 }
-                .disabled(presenter.viewData.isEmpty)
-                .accessibilityLabel(PresentationCopy.presentAccessibilityLabel)
-                .accessibilityHint(PresentationCopy.numberedPresentAccessibilityHint)
             }
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Button {

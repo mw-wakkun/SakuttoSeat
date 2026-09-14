@@ -4,6 +4,7 @@
 //
 //  refactor_seating.md Phase 1（ファイル分割）/ Phase 2（ViewData 化）
 //  v2.1 Phase 3（発表はロック印なし・席名を大きく）
+//  v2.1 UI/UX（発表席名は title3、人アイコンは title2）
 //
 
 import SwiftUI
@@ -25,7 +26,7 @@ struct SeatView: View {
         VStack(spacing: chrome == .presentation ? 6 : 4) {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: iconName)
-                    .font(.system(size: chrome == .presentation ? 32 : 24))
+                    .font(iconFont)
                     .foregroundColor(iconColor)
 
                 if showsLockBadge {
@@ -37,7 +38,7 @@ struct SeatView: View {
             }
 
             Text(seat.displayName)
-                .font(.system(size: nameFontSize, weight: nameWeight))
+                .font(nameFont)
                 .foregroundColor(nameColor)
                 .lineLimit(1)
                 .minimumScaleFactor(chrome == .presentation ? 0.7 : 1)
@@ -66,12 +67,19 @@ struct SeatView: View {
         return .blue
     }
 
-    private var nameFontSize: CGFloat {
-        chrome == .presentation ? 16 : 11
+    private var iconFont: Font {
+        chrome == .presentation ? .title2 : .system(size: 24)
+    }
+
+    private var nameFont: Font {
+        if chrome == .presentation {
+            return .title3.weight(.semibold)
+        }
+        return .system(size: 11, weight: nameWeight)
     }
 
     private var nameWeight: Font.Weight {
-        showsLockBadge ? .bold : (chrome == .presentation ? .semibold : .medium)
+        showsLockBadge ? .bold : .medium
     }
 
     private var nameColor: Color {

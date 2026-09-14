@@ -6,6 +6,7 @@
 //  refactor_Ad.md Phase 5（バナー余白は AdBannerContainer 内。上下とも同じトークン）
 //  View は ModelContext / Gateway を知らない。assemble 時点で注入済み。
 //  v2.1 Phase 3（発表はナビ左。Cover 中はバナー inset を外す）
+//  v2.1 UI/UX（発表ツールバーにラベル、無効時 Hint）
 //
 
 import SwiftUI
@@ -130,14 +131,14 @@ struct SeatingChartView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                Button {
+                PresentToolbarButton(
+                    isEnabled: presenter.viewData.isShareEnabled,
+                    accessibilityHint: presenter.viewData.isShareEnabled
+                        ? PresentationCopy.presentAccessibilityHint
+                        : PresentationCopy.seatingPresentDisabledHint
+                ) {
                     presenter.didTapPresent()
-                } label: {
-                    Image(systemName: "rectangle.inset.filled")
                 }
-                .disabled(!presenter.viewData.isShareEnabled)
-                .accessibilityLabel(PresentationCopy.presentAccessibilityLabel)
-                .accessibilityHint(PresentationCopy.presentAccessibilityHint)
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { presenter.didTapSettings() }) {

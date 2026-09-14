@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  v2.1 Phase 3（発表専用の全画面 View。VIPER にはしない。編集・広告・ナビは持たない）
+//  v2.1 UI/UX（ヒント、スワイプ閉じは先頭時のみ、番号札列数、閉じるのヒット領域）
 //
 
 import SwiftUI
@@ -14,6 +15,7 @@ struct PresentationCanvas: View {
 
     @State private var showsHint = true
     @State private var showsCloseControl = false
+    @State private var isScrollAtTop = true
     @State private var hintTask: Task<Void, Never>?
     @State private var closeTask: Task<Void, Never>?
 
@@ -46,9 +48,9 @@ private extension PresentationCanvas {
     var canvasContent: some View {
         switch subject {
         case .seatingChart(let viewData):
-            PresentationSeatingChartView(viewData: viewData)
+            PresentationSeatingChartView(viewData: viewData, isScrollAtTop: $isScrollAtTop)
         case .numberedList(let viewData):
-            PresentationNumberedListView(viewData: viewData)
+            PresentationNumberedListView(viewData: viewData, isScrollAtTop: $isScrollAtTop)
         }
     }
 }
@@ -84,7 +86,9 @@ private extension PresentationCanvas {
                 .labelStyle(.titleAndIcon)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
+                .frame(minWidth: AppSpacing.minTapTarget, minHeight: AppSpacing.minTapTarget)
                 .background(.ultraThinMaterial, in: Capsule())
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .opacity(showsCloseControl ? 1 : 0)
@@ -96,10 +100,12 @@ private extension PresentationCanvas {
     var dismissDragGesture: some Gesture {
         DragGesture(minimumDistance: 40)
             .onEnded { value in
-                guard value.startLocation.y < 56 else { return }
-                if value.translation.height > 80 {
-                    onDismiss()
-                }
+                guard PresentationDismissGesture.shouldDismiss(
+                    translation: value.translation,
+                    startLocation: value.startLocation,
+                    isScrollAtTop: isScrollAtTop
+                ) else { return }
+                onDismiss()
             }
     }
 
@@ -143,6 +149,7 @@ private extension PresentationCanvas {
 
 private struct PresentationSeatingChartView: View {
     let viewData: SeatingChartViewData
+    @Binding var isScrollAtTop: Bool
 
     var body: some View {
         let rows = SeatingChartViewDataBuilder.tableOnlyRows(from: viewData)
@@ -169,6 +176,14 @@ private struct PresentationSeatingChartView: View {
             .frame(minWidth: viewData.minGridWidth)
             .frame(maxWidth: .infinity)
         }
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            PresentationDismissGesture.isScrollAtTop(
+                offsetY: geometry.contentOffset.y,
+                insetTop: geometry.contentInsets.top
+            )
+        } action: { _, atTop in
+            isScrollAtTop = atTop
+        }
         .accessibilityLabel(String(localized: "座席表"))
     }
 }
@@ -177,44 +192,58 @@ private struct PresentationSeatingChartView: View {
 
 private struct PresentationNumberedListView: View {
     let viewData: SimpleShuffleViewData
-
-    private var columns: [GridItem] {
-        let count = viewData.rows.count <= 1 ? 1 : 2
-        return Array(repeating: GridItem(.flexible(), spacing: 16), count: count)
-    }
+    @Binding var isScrollAtTop: Bool
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(viewData.rows) { row in
-                    VStack(spacing: 10) {
-                        Text("\(row.number)")
-                            .font(.system(size: 44, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color.sakuttoBlueStart)
-                        Text(row.name)
-                            .font(.title2.weight(.semibold))
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.7)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 140)
-                    .padding(.vertical, 20)
-                    .padding(.horizontal, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(.secondarySystemGroupedBackground))
-                    )
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(
-                        NumberedPersonCopy.accessibilityLabel(
-                            number: row.number,
-                            name: row.name,
-                            accessory: SimpleShuffleCopy.accessory
+        GeometryReader { proxy in
+            let columnCount = PresentationNumberedLayout.columnCount(
+                rowCount: viewData.rows.count,
+                containerWidth: proxy.size.width
+            )
+            let columns = Array(
+                repeating: GridItem(.flexible(), spacing: 16),
+                count: columnCount
+            )
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(viewData.rows) { row in
+                        VStack(spacing: 10) {
+                            Text("\(row.number)")
+                                .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                                .foregroundStyle(Color.sakuttoBlueStart)
+                            Text(row.name)
+                                .font(.title2.weight(.semibold))
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.7)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 140)
+                        .padding(.vertical, 20)
+                        .padding(.horizontal, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color(.secondarySystemGroupedBackground))
                         )
-                    )
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(
+                            NumberedPersonCopy.accessibilityLabel(
+                                number: row.number,
+                                name: row.name,
+                                accessory: SimpleShuffleCopy.accessory
+                            )
+                        )
+                    }
                 }
+                .padding(24)
             }
-            .padding(24)
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                PresentationDismissGesture.isScrollAtTop(
+                    offsetY: geometry.contentOffset.y,
+                    insetTop: geometry.contentInsets.top
+                )
+            } action: { _, atTop in
+                isScrollAtTop = atTop
+            }
         }
     }
 }

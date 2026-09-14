@@ -205,6 +205,17 @@
     "テーブル追加" : {
 
     },
+    "テーブルがないと発表できません" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テーブルがないと発表できません"
+          }
+        }
+      }
+    },
     "テンプレートを削除できるようにします" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -409,6 +420,17 @@
     },
     "動画を見ると人数を追加できます" : {
 
+    },
+    "参加者がいないと発表できません" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参加者がいないと発表できません"
+          }
+        }
+      }
     },
     "参加者がいません" : {
       "extractionState" : "manual",
@@ -626,13 +648,13 @@
         }
       }
     },
-    "画面をタップして終了" : {
+    "画面をタップすると閉じるボタンが出ます" : {
       "extractionState" : "manual",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "画面をタップして終了"
+            "value" : "画面をタップすると閉じるボタンが出ます"
           }
         }
       }

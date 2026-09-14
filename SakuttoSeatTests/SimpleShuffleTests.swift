@@ -146,8 +146,12 @@ final class SimpleShuffleViewDataTests: XCTestCase {
 
     func test_発表Copyは入口と終了が対になる() {
         XCTAssertEqual(PresentationCopy.presentAccessibilityLabel, "発表")
+        XCTAssertEqual(PresentationCopy.presentToolbarTitle, "発表")
         XCTAssertEqual(PresentationCopy.dismissAccessibilityLabel, "発表を終了")
-        XCTAssertFalse(PresentationCopy.tapToDismissHint.isEmpty)
+        XCTAssertTrue(PresentationCopy.tapToDismissHint.contains("閉じるボタン"))
+        XCTAssertFalse(PresentationCopy.tapToDismissHint.contains("終了"))
+        XCTAssertEqual(PresentationCopy.seatingPresentDisabledHint, "テーブルがないと発表できません")
+        XCTAssertEqual(PresentationCopy.numberedPresentDisabledHint, "参加者がいないと発表できません")
     }
 
     func test_画面見出しと共有画像見出しは意図的に別文言() {

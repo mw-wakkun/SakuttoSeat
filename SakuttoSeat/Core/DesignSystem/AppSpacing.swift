@@ -3,6 +3,7 @@
 //  SakuttoSeat
 //
 //  refactor_AttendeeList.md Phase 6（ボトム余白・バナーサイズ・CTA 寸法）
+//  v2.1 UI/UX（HIG 最小タップ領域）
 //
 
 import CoreGraphics
@@ -25,4 +26,6 @@ enum AppSpacing {
     static let bannerFallbackHeight: CGFloat = 50
     /// 空状態アイコンと文言の間隔
     static let emptyStateSpacing: CGFloat = 20
+    /// HIG の最小タップ領域
+    static let minTapTarget: CGFloat = 44
 }
