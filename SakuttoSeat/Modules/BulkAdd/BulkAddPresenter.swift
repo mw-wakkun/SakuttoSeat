@@ -24,6 +24,7 @@ final class BulkAddPresenter: ObservableObject, BulkAddPresenterProtocol {
     }
 
     func didChangeText(_ text: String) {
+        guard text != interactor.text else { return }
         interactor.updateText(text)
         publishState()
     }
@@ -38,10 +39,12 @@ final class BulkAddPresenter: ObservableObject, BulkAddPresenterProtocol {
     }
 
     private func publishState() {
-        viewData = BulkAddViewData(
+        let next = BulkAddViewData(
             text: interactor.text,
             canConfirm: interactor.canConfirm,
             delimiterHint: interactor.delimiterHint
         )
+        guard next != viewData else { return }
+        viewData = next
     }
 }

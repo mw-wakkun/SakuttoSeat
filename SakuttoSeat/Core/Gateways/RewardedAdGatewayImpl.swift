@@ -58,22 +58,19 @@ nonisolated final class RewardedAdGatewayImpl: RewardedAdGatewayBase, FullScreen
         let isPresenting = withPresentationLock { presentation.isPresenting }
         guard !isPresenting, !isLoadInFlight, !isReady else { return }
         isLoadInFlight = true
+        defer { isLoadInFlight = false }
+
         let request = Request()
         let unitID = await AdConfiguration.resolvedRewardedUnitID()
-        RewardedAd.load(with: unitID, request: request) { ad, error in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                self.isLoadInFlight = false
-                if let error = error {
-                    print("リワード広告読み込み失敗: \(error.localizedDescription)")
-                    self.isReady = false
-                    return
-                }
-                self.rewardedAd = ad
-                self.rewardedAd?.fullScreenContentDelegate = self
-                self.isReady = true
-                print("リワード広告の準備が完了しました")
-            }
+        do {
+            let ad = try await RewardedAd.load(with: unitID, request: request)
+            rewardedAd = ad
+            rewardedAd?.fullScreenContentDelegate = self
+            isReady = true
+            print("リワード広告の準備が完了しました")
+        } catch {
+            print("リワード広告読み込み失敗: \(error.localizedDescription)")
+            isReady = false
         }
     }
 

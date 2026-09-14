@@ -5,6 +5,7 @@
 //  refactor_AttendeeList.md Phase 5（一括追加子モジュールの回帰）
 //
 
+import Combine
 import XCTest
 @testable import SakuttoSeat
 
@@ -67,6 +68,18 @@ final class BulkAddPresenterTests: XCTestCase {
         XCTAssertEqual(presenter.viewData.text, "太郎\n花子")
         XCTAssertTrue(presenter.viewData.canConfirm)
         XCTAssertEqual(presenter.viewData.delimiterHint, BulkAddCopy.delimiterHint)
+    }
+
+    func test_同一テキストではobjectWillChangeを発火しない() {
+        let presenter = BulkAddPresenter(output: OutputSpy())
+        presenter.didChangeText("太郎")
+
+        var changeCount = 0
+        let cancellable = presenter.objectWillChange.sink { changeCount += 1 }
+        presenter.didChangeText("太郎")
+
+        XCTAssertEqual(changeCount, 0)
+        _ = cancellable
     }
 
     func test_空の確定はOutputへ送らない() {
