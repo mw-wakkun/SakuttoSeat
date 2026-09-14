@@ -9,6 +9,7 @@
 //  refactor_Ad.md Phase 4（未準備アラート文言を RewardedAdCopy に単一化）
 //  v2.1 Phase 1（形式別確認と CSV 失敗）
 //  v2.1 Phase 2（広告提示中の onDisappear で書き出しを殺さない）
+//  v2.1 UI/UX（対象別確認文・主ボタンの動詞化）
 //
 
 import SwiftUI
@@ -26,7 +27,10 @@ struct ShareFlowModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .sheet(item: selectionBinding) { _ in
-                ShareSelectionView(isExportUnlocked: presenter.isExportUnlocked) { kind in
+                ShareSelectionView(
+                    isExportUnlocked: presenter.isExportUnlocked,
+                    subject: presenter.subject
+                ) { kind in
                     presenter.didSelectKind(kind)
                 }
             }
@@ -105,7 +109,7 @@ struct ShareFlowModifier: ViewModifier {
         switch alert {
         case .confirmImageShareWithAd, .confirmHighResImageShareWithAd, .confirmCSVExportWithAd:
             Button("キャンセル", role: .cancel) { }
-            Button("OK") { presenter.didConfirmExport() }
+            Button(ShareCopy.confirmPrimary) { presenter.didConfirmExport() }
         case .adNotReady, .imageExportFailed, .csvExportFailed:
             Button("OK", role: .cancel) { }
         }
@@ -114,11 +118,11 @@ struct ShareFlowModifier: ViewModifier {
     private func alertMessage(for alert: ShareAlert) -> Text {
         switch alert {
         case .confirmImageShareWithAd:
-            Text(ShareCopy.confirmMessage(for: .image))
+            Text(ShareCopy.confirmMessage(for: .image, subject: presenter.subject))
         case .confirmHighResImageShareWithAd:
-            Text(ShareCopy.confirmMessage(for: .highResImage))
+            Text(ShareCopy.confirmMessage(for: .highResImage, subject: presenter.subject))
         case .confirmCSVExportWithAd:
-            Text(ShareCopy.confirmMessage(for: .csv))
+            Text(ShareCopy.confirmMessage(for: .csv, subject: presenter.subject))
         case .adNotReady:
             Text(RewardedAdCopy.notReadyMessage)
         case .imageExportFailed:

@@ -11,6 +11,7 @@
 //  refactor_Ad.md Phase 4（Fake Gateway で未準備 / 成功 / 未獲得・失敗を固定）
 //  v2.1 Phase 1（CSV フォーマットと書き出し解放の状態遷移）
 //  v2.1 Phase 2（高画質は quality + PNG 経路）
+//  v2.1 UI/UX（対象別コピー・確認主ボタン）
 //
 
 import UIKit
@@ -296,15 +297,89 @@ final class ShareInteractorTests: XCTestCase {
     }
 
     func test_選択肢は4種でテキスト以外は解放で字幕が変わる() {
+        let seating: ShareSubject = .seatingChart(.empty)
+        let numbered: ShareSubject = .numberedList(.empty)
+
         XCTAssertEqual(ShareSelectionKind.allCases, [.text, .image, .highResImage, .csv])
-        XCTAssertEqual(ShareCopy.subtitle(for: .text, isExportUnlocked: false), "無料ですぐに共有できます")
-        XCTAssertEqual(ShareCopy.subtitle(for: .text, isExportUnlocked: true), "無料ですぐに共有できます")
-        XCTAssertEqual(ShareCopy.subtitle(for: .image, isExportUnlocked: false), "動画を見てきれいな座席表画像を保存・送信")
-        XCTAssertEqual(ShareCopy.subtitle(for: .csv, isExportUnlocked: false), "Excel・名簿ソフトで二次利用")
-        XCTAssertEqual(ShareCopy.subtitle(for: .highResImage, isExportUnlocked: false), "余白カット・印刷や投影向き")
+        XCTAssertEqual(
+            ShareCopy.subtitle(for: .text, isExportUnlocked: false, subject: seating),
+            "無料ですぐに共有できます"
+        )
+        XCTAssertEqual(
+            ShareCopy.subtitle(for: .text, isExportUnlocked: true, subject: seating),
+            "無料ですぐに共有できます"
+        )
+        XCTAssertEqual(
+            ShareCopy.subtitle(for: .image, isExportUnlocked: false, subject: seating),
+            "動画を見てきれいな座席表画像を保存・送信"
+        )
+        XCTAssertEqual(
+            ShareCopy.subtitle(for: .csv, isExportUnlocked: false, subject: seating),
+            "Excel・名簿ソフトで二次利用"
+        )
+        XCTAssertEqual(
+            ShareCopy.subtitle(for: .highResImage, isExportUnlocked: false, subject: seating),
+            "余白カット・印刷や投影向き"
+        )
         for kind in [ShareSelectionKind.image, .highResImage, .csv] {
-            XCTAssertEqual(ShareCopy.subtitle(for: kind, isExportUnlocked: true), "この起動中はすぐに書き出せます")
+            XCTAssertEqual(
+                ShareCopy.subtitle(for: kind, isExportUnlocked: true, subject: seating),
+                "この起動中はすぐに書き出せます"
+            )
+            XCTAssertEqual(
+                ShareCopy.subtitle(for: kind, isExportUnlocked: true, subject: numbered),
+                "この起動中はすぐに書き出せます"
+            )
         }
+    }
+
+    func test_画像の未解放字幕は対象で座席表と番号札に分かれる() {
+        let seatingSubtitle = ShareCopy.subtitle(
+            for: .image,
+            isExportUnlocked: false,
+            subject: .seatingChart(.empty)
+        )
+        let numberedSubtitle = ShareCopy.subtitle(
+            for: .image,
+            isExportUnlocked: false,
+            subject: .numberedList(.empty)
+        )
+
+        XCTAssertTrue(seatingSubtitle.contains("座席表"))
+        XCTAssertFalse(seatingSubtitle.contains("番号札"))
+        XCTAssertTrue(numberedSubtitle.contains("番号札"))
+        XCTAssertFalse(numberedSubtitle.contains("座席表"))
+        XCTAssertEqual(
+            ShareCopy.subtitle(for: .image, isExportUnlocked: false, subject: nil),
+            seatingSubtitle
+        )
+    }
+
+    func test_確認本文の画像は対象で分岐し高画質とCSVは中立() {
+        XCTAssertEqual(
+            ShareCopy.confirmMessage(for: .image, subject: .seatingChart(.empty)),
+            "動画を見て、きれいな座席表画像を保存・送信しますか？"
+        )
+        XCTAssertEqual(
+            ShareCopy.confirmMessage(for: .image, subject: .numberedList(.empty)),
+            "動画を見て、きれいな番号札画像を保存・送信しますか？"
+        )
+        XCTAssertEqual(
+            ShareCopy.confirmMessage(for: .image, subject: nil),
+            "動画を見て、きれいな座席表画像を保存・送信しますか？"
+        )
+        XCTAssertEqual(
+            ShareCopy.confirmMessage(for: .highResImage, subject: .numberedList(.empty)),
+            "動画を見て、余白を切った高画質画像を保存・送信しますか？"
+        )
+        XCTAssertEqual(
+            ShareCopy.confirmMessage(for: .csv, subject: .numberedList(.empty)),
+            "動画を見て、Excelで開けるCSVを書き出しますか？"
+        )
+    }
+
+    func test_確認の主ボタンは動画を見て書き出す() {
+        XCTAssertEqual(ShareCopy.confirmPrimary, "動画を見て書き出す")
     }
 }
 

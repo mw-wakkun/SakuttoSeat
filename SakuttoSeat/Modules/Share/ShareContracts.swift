@@ -6,6 +6,7 @@
 //  refactor_simple.md Phase 2（番号札は SimpleShuffleViewData を渡す）
 //  v2.1 Phase 1（4択・形式別確認・CSV 失敗）
 //  v2.1 Phase 2（ExportQuality。高画質は PNG 一時ファイル）
+//  v2.1 UI/UX（対象別コピー・確認主ボタンの動詞化）
 //
 //  座席表・番号札の 2 画面に重複していた共有フロー
 //  （選択シート → 広告確認 → 画像出力 → シェアシート提示）を
@@ -46,24 +47,24 @@ enum ShareCopy {
         }
     }
 
-    static func subtitle(for kind: ShareSelectionKind, isExportUnlocked: Bool) -> String {
+    /// `subject` が nil のときは座席表側の文言にフォールバックする。
+    static func subtitle(
+        for kind: ShareSelectionKind,
+        isExportUnlocked: Bool,
+        subject: ShareSubject?
+    ) -> String {
         switch kind {
         case .text:
             return "無料ですぐに共有できます"
-        case .image, .highResImage, .csv:
-            if isExportUnlocked {
-                return "この起動中はすぐに書き出せます"
-            }
-            switch kind {
-            case .image:
-                return "動画を見てきれいな座席表画像を保存・送信"
-            case .highResImage:
-                return "余白カット・印刷や投影向き"
-            case .csv:
-                return "Excel・名簿ソフトで二次利用"
-            case .text:
-                return "無料ですぐに共有できます"
-            }
+        case .image:
+            if isExportUnlocked { return unlockedPaidSubtitle }
+            return "動画を見てきれいな\(imageProductName(for: subject))画像を保存・送信"
+        case .highResImage:
+            if isExportUnlocked { return unlockedPaidSubtitle }
+            return "余白カット・印刷や投影向き"
+        case .csv:
+            if isExportUnlocked { return unlockedPaidSubtitle }
+            return "Excel・名簿ソフトで二次利用"
         }
     }
 
@@ -80,10 +81,11 @@ enum ShareCopy {
         }
     }
 
-    static func confirmMessage(for kind: ShareSelectionKind) -> String {
+    /// `subject` が nil のときは座席表側の文言にフォールバックする。
+    static func confirmMessage(for kind: ShareSelectionKind, subject: ShareSubject?) -> String {
         switch kind {
         case .text, .image:
-            return "動画を見て、きれいな座席表画像を保存・送信しますか？"
+            return "動画を見て、きれいな\(imageProductName(for: subject))画像を保存・送信しますか？"
         case .highResImage:
             return "動画を見て、余白を切った高画質画像を保存・送信しますか？"
         case .csv:
@@ -91,11 +93,23 @@ enum ShareCopy {
         }
     }
 
+    static let confirmPrimary = "動画を見て書き出す"
     static let csvExportFailedTitle = "CSVの書き出しに失敗しました"
     static let csvExportFailedMessage = "CSVの書き出しに失敗しました。もう一度お試しください。"
     static let imageExportFailedTitle = "画像出力に失敗しました"
     static let imageExportFailedMessage = "画像の出力に失敗しました。もう一度お試しください。"
     static let rewardBadgeAccessibilityLabel = "動画の視聴が必要"
+
+    private static let unlockedPaidSubtitle = "この起動中はすぐに書き出せます"
+
+    private static func imageProductName(for subject: ShareSubject?) -> String {
+        switch subject {
+        case .numberedList:
+            return "番号札"
+        case .seatingChart, .none:
+            return "座席表"
+        }
+    }
 }
 
 /// 共有対象。呼び出し側の画面が「何を共有するか」だけを渡す。
