@@ -119,9 +119,9 @@ extension AdBannerView {
         private var loadGeneration = 0
 
         /// load はしない。初回 load は `updateUIView` → `updateAdSizeIfNeeded` の単一路。
+        /// ユニット ID は `AppTransaction` 待ちのあと `loadBanner` で付ける。
         func makeBanner(adSize: AdSize) -> BannerView {
             let banner = BannerView(adSize: adSize)
-            banner.adUnitID = AdConfiguration.bannerUnitID
             banner.delegate = self
             return banner
         }
@@ -149,6 +149,8 @@ extension AdBannerView {
             // 失敗し、同じサイズでは再試行されない。App の Gateway preload と二重でも安全。
             // Phase 3: バナー側の start() 待ちは外さない。
             _ = await MobileAds.shared.start()
+            guard loadGeneration == generation else { return }
+            banner.adUnitID = await AdConfiguration.resolvedBannerUnitID()
             guard loadGeneration == generation else { return }
 
             guard let rootViewController = await resolveRootViewController() else {

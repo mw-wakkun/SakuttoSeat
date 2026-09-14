@@ -50,16 +50,17 @@ nonisolated final class RewardedAdGatewayImpl: RewardedAdGatewayBase, FullScreen
     @MainActor
     private func loadAdAfterSDKStart() async {
         _ = await MobileAds.shared.start()
-        loadAd()
+        await loadAd()
     }
 
     @MainActor
-    private func loadAd() {
+    private func loadAd() async {
         let isPresenting = withPresentationLock { presentation.isPresenting }
         guard !isPresenting, !isLoadInFlight, !isReady else { return }
         isLoadInFlight = true
         let request = Request()
-        RewardedAd.load(with: AdConfiguration.rewardedUnitID, request: request) { ad, error in
+        let unitID = await AdConfiguration.resolvedRewardedUnitID()
+        RewardedAd.load(with: unitID, request: request) { ad, error in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.isLoadInFlight = false

@@ -12,6 +12,7 @@
 //  refactor_Ad.md Phase 6（非表示時は mount しない。SKAdNetwork 拡充。ATT は出さない）
 //
 
+import StoreKit
 import XCTest
 @testable import SakuttoSeat
 
@@ -93,18 +94,92 @@ final class AdBannerChromeTests: XCTestCase {
     }
 }
 
-// MARK: - AdConfiguration（Phase 1。DEBUG は Google サンプル ID）
+// MARK: - AdConfiguration（Phase 1。DEBUG / TestFlight は Google サンプル ID）
 
 final class AdConfigurationTests: XCTestCase {
 
-    func test_ユニットIDはビルド構成に応じた値である() {
-        #if DEBUG
-        XCTAssertEqual(AdConfiguration.bannerUnitID, "ca-app-pub-3940256099942544/2934735716")
-        XCTAssertEqual(AdConfiguration.rewardedUnitID, "ca-app-pub-3940256099942544/5224354917")
-        #else
-        XCTAssertEqual(AdConfiguration.bannerUnitID, "ca-app-pub-9676260030977388/3254679876")
-        XCTAssertEqual(AdConfiguration.rewardedUnitID, "ca-app-pub-9676260030977388/5413826350")
-        #endif
+    func test_サンプルと本番のユニットID定数を固定する() {
+        XCTAssertEqual(
+            AdConfiguration.googleSampleBannerUnitID,
+            "ca-app-pub-3940256099942544/2934735716"
+        )
+        XCTAssertEqual(
+            AdConfiguration.googleSampleRewardedUnitID,
+            "ca-app-pub-3940256099942544/5224354917"
+        )
+        XCTAssertEqual(
+            AdConfiguration.productionBannerUnitID,
+            "ca-app-pub-9676260030977388/3254679876"
+        )
+        XCTAssertEqual(
+            AdConfiguration.productionRewardedUnitID,
+            "ca-app-pub-9676260030977388/5413826350"
+        )
+    }
+
+    func test_DEBUGビルドは配信環境に関係なくテスト広告() {
+        XCTAssertTrue(
+            AdConfiguration.selectsTestAdUnits(
+                isDebugBuild: true,
+                distribution: .appStoreProduction
+            )
+        )
+        XCTAssertTrue(
+            AdConfiguration.selectsTestAdUnits(
+                isDebugBuild: true,
+                distribution: .testFlightOrUnknown
+            )
+        )
+    }
+
+    func test_ReleaseのTestFlightはテスト広告() {
+        XCTAssertTrue(
+            AdConfiguration.selectsTestAdUnits(
+                isDebugBuild: false,
+                distribution: .testFlightOrUnknown
+            )
+        )
+    }
+
+    func test_ReleaseのAppStoreは本番広告() {
+        XCTAssertFalse(
+            AdConfiguration.selectsTestAdUnits(
+                isDebugBuild: false,
+                distribution: .appStoreProduction
+            )
+        )
+    }
+
+    func test_StoreKitのproductionだけ本番配信とみなす() {
+        XCTAssertEqual(
+            AdConfiguration.distribution(from: .production),
+            .appStoreProduction
+        )
+        XCTAssertEqual(
+            AdConfiguration.distribution(from: .sandbox),
+            .testFlightOrUnknown
+        )
+        XCTAssertEqual(
+            AdConfiguration.distribution(from: .xcode),
+            .testFlightOrUnknown
+        )
+        XCTAssertEqual(
+            AdConfiguration.distribution(from: nil),
+            .testFlightOrUnknown
+        )
+    }
+
+    func test_解決したユニットIDは判定結果に一致する() async {
+        let usesTestAdUnits = await AdConfiguration.resolvedUsesTestAdUnits()
+        let bannerUnitID = await AdConfiguration.resolvedBannerUnitID()
+        let rewardedUnitID = await AdConfiguration.resolvedRewardedUnitID()
+        if usesTestAdUnits {
+            XCTAssertEqual(bannerUnitID, AdConfiguration.googleSampleBannerUnitID)
+            XCTAssertEqual(rewardedUnitID, AdConfiguration.googleSampleRewardedUnitID)
+        } else {
+            XCTAssertEqual(bannerUnitID, AdConfiguration.productionBannerUnitID)
+            XCTAssertEqual(rewardedUnitID, AdConfiguration.productionRewardedUnitID)
+        }
     }
 }
 
