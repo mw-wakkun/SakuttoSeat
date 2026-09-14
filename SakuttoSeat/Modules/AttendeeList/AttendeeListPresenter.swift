@@ -152,7 +152,7 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
         do {
             await router.waitUntilPresentable()
             try await router.presentRewardedAd()
-            await applyRewardedAttendeeUnlock(pending: pending, clearsInput: clearsInput)
+            applyRewardedAttendeeUnlock(pending: pending, clearsInput: clearsInput)
         } catch RewardedAdError.notReady {
             isPresentingVenueAd = false
             setRoute(.alert(.adNotReady))
@@ -271,12 +271,22 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
 
     // MARK: - Private
 
-    private func publishState() {
-        viewData = AttendeeListViewDataBuilder.build(
+    private func publishState(disablesAnimations: Bool = false) {
+        let next = AttendeeListViewDataBuilder.build(
             attendees: interactor.allAttendees(),
             addControl: addControlState(from: interactor.attendeeCapacityDecision(addingCount: 1)),
             inputNonce: inputNonce
         )
+        guard next != viewData else { return }
+        if disablesAnimations {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                viewData = next
+            }
+        } else {
+            viewData = next
+        }
     }
 
     private func addControlState(from decision: CapacityDecision) -> AttendeeAddControlState {
@@ -320,30 +330,26 @@ final class AttendeeListPresenter: ObservableObject, AttendeeListPresenterProtoc
         publishState()
     }
 
-    /// 視聴成功後の解放とバッファ流し込み。報酬コールバックが Main 以外でも、反映は Main で行う。
-    private func applyRewardedAttendeeUnlock(pending: [String], clearsInput: Bool) async {
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            DispatchQueue.main.async { [self] in
-                interactor.grantSessionUnlock()
-                if pending.isEmpty {
-                    pendingAttendeeNames = []
-                    shouldClearNameInputOnVenueUnlock = false
-                    isPresentingVenueAd = false
-                    publishState()
-                    continuation.resume()
-                    return
-                }
-                _ = interactor.applyAttendeeAppend(pending)
-                pendingAttendeeNames = []
-                shouldClearNameInputOnVenueUnlock = false
-                if clearsInput {
-                    consumeNameInput()
-                }
-                publishState()
-                isPresentingVenueAd = false
-                continuation.resume()
-            }
+    /// 視聴成功後の解放とバッファ流し込み。
+    /// `present()` は dismiss を MainActor で resume するので、次ランループへ送らずその場で反映する。
+    /// 広告閉じるアニメーションに 80 人分の挿入を乗せるとボトムクロムがチラつくため、アニメーションは切る。
+    private func applyRewardedAttendeeUnlock(pending: [String], clearsInput: Bool) {
+        interactor.grantSessionUnlock()
+        if pending.isEmpty {
+            pendingAttendeeNames = []
+            shouldClearNameInputOnVenueUnlock = false
+            isPresentingVenueAd = false
+            publishState(disablesAnimations: true)
+            return
         }
+        _ = interactor.applyAttendeeAppend(pending)
+        pendingAttendeeNames = []
+        shouldClearNameInputOnVenueUnlock = false
+        if clearsInput {
+            consumeNameInput()
+        }
+        isPresentingVenueAd = false
+        publishState(disablesAnimations: true)
     }
 
     /// `didTapShowFavorites` で assemble 済みならそれを返す。未セットならここで 1 度だけ作る。

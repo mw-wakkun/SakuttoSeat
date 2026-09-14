@@ -26,6 +26,10 @@ nonisolated struct AttendeeListViewData: Equatable {
     let addControl: AttendeeAddControlState
     /// 追加成功のたびに増える。View はこれを見て入力欄を空にする。
     let inputNonce: Int
+    /// 空のときだけ名前欄をフォーカスする。人数がいる復帰ではキーボードを出さず、バナー着脱のチラつきを防ぐ。
+    var shouldFocusNameField: Bool {
+        isEmpty && addControl != .hardLimited
+    }
 
     static let empty = AttendeeListViewData(
         rows: [],

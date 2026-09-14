@@ -794,6 +794,8 @@ final class AttendeeListPresenterTests: XCTestCase {
         XCTAssertEqual(names(of: presenter).count, FeatureLimit.maxAttendeeCount)
         XCTAssertTrue(names(of: presenter).contains("追加1"))
         XCTAssertFalse(names(of: presenter).contains("追加\(overflowCount)"))
+        XCTAssertEqual(presenter.viewData.addControl, .hardLimited)
+        XCTAssertFalse(presenter.viewData.shouldFocusNameField)
         XCTAssertNil(presenter.route)
     }
 

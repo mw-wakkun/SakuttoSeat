@@ -5,6 +5,7 @@
 //  Created by masafumi wakugawa on 2026/05/05.
 //  refactor_AttendeeList.md Phase 6（DesignSystem / safeAreaInset / A11y / キーボード）
 //  refactor_Ad.md Phase 5（バナー余白は AdBannerContainer 内）
+//  リワード復帰では空のとき以外キーボードを出さない。ボトムクロムは geometryGroup で祖先アニメーションから切り離す。
 //  refactor_groupFavorite.md Phase 4（View は ModelContext / Gateway を知らない）
 //
 
@@ -74,12 +75,17 @@ struct AttendeeListView: View {
             .onChange(of: presenter.viewData.addControl) { _, control in
                 if control == .hardLimited {
                     newName = ""
-                    isTextFieldFocused = false
+                    dismissKeyboard()
+                }
+            }
+            .onChange(of: presenter.route) { _, newRoute in
+                if newRoute != nil {
+                    dismissKeyboard()
                 }
             }
             .onAppear {
                 presenter.onAppear()
-                isTextFieldFocused = presenter.viewData.addControl != .hardLimited
+                isTextFieldFocused = presenter.viewData.shouldFocusNameField
             }
             .navigationDestination(item: navigationRouteBinding) { route in
                 presenter.makeRouteView(route)
@@ -329,6 +335,10 @@ private extension AttendeeListView {
                 .ignoresSafeArea(edges: .bottom)
                 .onTapGesture { dismissKeyboard() }
         )
+        // リワード復帰やキーボード inset の祖先アニメーションから切り離し、CTA+バナーのクリップ→復帰を防ぐ。
+        .geometryGroup()
+        .animation(nil, value: presenter.viewData.addControl)
+        .animation(nil, value: presenter.viewData.rows.count)
     }
 
     var shuffleButton: some View {

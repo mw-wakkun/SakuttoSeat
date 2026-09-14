@@ -34,6 +34,19 @@ final class AttendeeListViewDataTests: XCTestCase {
         XCTAssertFalse(viewData.isEmpty)
     }
 
+    func test_名前欄の自動フォーカスは空のリストだけ() {
+        XCTAssertTrue(AttendeeListViewData.empty.shouldFocusNameField)
+
+        let withPeople = AttendeeListViewDataBuilder.build(attendees: [Attendee(name: "A")])
+        XCTAssertFalse(withPeople.shouldFocusNameField)
+
+        let hardLimited = AttendeeListViewDataBuilder.build(
+            attendees: [Attendee(name: "A")],
+            addControl: .hardLimited
+        )
+        XCTAssertFalse(hardLimited.shouldFocusNameField)
+    }
+
     func test_Routeの提示区分() {
         XCTAssertTrue(AttendeeListRoute.favoriteList.presentsAsSheet)
         XCTAssertTrue(AttendeeListRoute.bulkAdd.presentsAsSheet)
