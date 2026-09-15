@@ -394,6 +394,10 @@ final class AdPrivacyConfigurationTests: XCTestCase {
         XCTAssertNil(description)
     }
 
+    func test_輸出コンプライアンスは非免除暗号を使わない() {
+        XCTAssertEqual(appInfoDictionary()["ITSAppUsesNonExemptEncryption"] as? Bool, false)
+    }
+
     private func skAdNetworkIdentifiers() -> [String] {
         let items = appInfoDictionary()["SKAdNetworkItems"] as? [[String: String]] ?? []
         return items.compactMap { $0["SKAdNetworkIdentifier"] }

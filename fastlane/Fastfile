@@ -91,7 +91,9 @@ platform :ios do
       api_key: api_key,
       ipa: ipa_path,
       distribute_external: false,
-      skip_waiting_for_build_processing: true
+      skip_waiting_for_build_processing: true,
+      # Info.plist の ITSAppUsesNonExemptEncryption=false と揃える
+      uses_non_exempt_encryption: false
     )
 
     UI.important("#{XCODEPROJ} のビルド番号が変更されています。コミットの要否を確認してください。")
