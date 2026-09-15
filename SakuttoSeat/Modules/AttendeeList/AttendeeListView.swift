@@ -240,6 +240,7 @@ private extension AttendeeListView {
             EmptyStateView(
                 systemImage: "person.3.fill",
                 message: String(localized: "参加者を追加してください"),
+                imagePointSize: AppSpacing.emptyStateHeroIconSize,
                 imageColor: .sakuttoBlueStart.opacity(0.3),
                 spacing: AppSpacing.emptyStateSpacing
             )

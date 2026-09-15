@@ -26,6 +26,10 @@ enum AppSpacing {
     static let bannerFallbackHeight: CGFloat = 50
     /// 空状態アイコンと文言の間隔
     static let emptyStateSpacing: CGFloat = 20
+    /// 一覧シートなど、行の空状態アイコン
+    static let emptyStateIconSize: CGFloat = 50
+    /// 参加者リスト／番号札のヒーロー空状態アイコン（v2.0 と同じ基準サイズ）
+    static let emptyStateHeroIconSize: CGFloat = 80
     /// HIG の最小タップ領域
     static let minTapTarget: CGFloat = 44
 }
