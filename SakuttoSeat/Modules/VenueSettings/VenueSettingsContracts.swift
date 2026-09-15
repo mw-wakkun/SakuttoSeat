@@ -3,9 +3,16 @@
 //  SakuttoSeat
 //
 //  refactor_seating.md Phase 5（子 VIPER モジュール化）
+//  v2.1 UI/UX（会場設定の A11y 名）
 //
 
 import Foundation
+
+enum VenueSettingsCopy {
+    static var navigationTitle: String { String(localized: "会場設定") }
+    static var columnCountPickerLabel: String { String(localized: "列数") }
+    static var openHint: String { String(localized: "列数など会場の設定を開きます") }
+}
 
 // MARK: - 表示専用モデル / ルーティング
 

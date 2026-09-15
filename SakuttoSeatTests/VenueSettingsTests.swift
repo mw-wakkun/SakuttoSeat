@@ -244,3 +244,13 @@ final class VenueSettingsRouterTests: XCTestCase {
         }
     }
 }
+
+// MARK: - Copy
+
+final class VenueSettingsCopyTests: XCTestCase {
+    func test_会場設定のタイトルとピッカーとHint() {
+        XCTAssertEqual(VenueSettingsCopy.navigationTitle, "会場設定")
+        XCTAssertEqual(VenueSettingsCopy.columnCountPickerLabel, "列数")
+        XCTAssertEqual(VenueSettingsCopy.openHint, "列数など会場の設定を開きます")
+    }
+}

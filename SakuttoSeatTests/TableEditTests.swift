@@ -327,3 +327,13 @@ final class TableEditPresenterTests: XCTestCase {
         XCTAssertEqual(output.committed.count, 1)
     }
 }
+
+final class TableEditCopyTests: XCTestCase {
+    func test_方向ボタンは上下左右の名前() {
+        XCTAssertEqual(LayoutDirection.top.rawValue, "上")
+        XCTAssertEqual(LayoutDirection.left.rawValue, "左")
+        XCTAssertEqual(LayoutDirection.right.rawValue, "右")
+        XCTAssertEqual(LayoutDirection.bottom.rawValue, "下")
+        XCTAssertEqual(LayoutDirection.none.rawValue, "指定なし")
+    }
+}

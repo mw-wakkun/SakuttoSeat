@@ -1,9 +1,6 @@
 {
   "sourceLanguage" : "ja",
   "strings" : {
-    "" : {
-
-    },
     "【サクッと席決め】" : {
 
     },
@@ -190,8 +187,30 @@
     "すべてのテーブルに適用" : {
 
     },
+    "テーブルがないと発表できません" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テーブルがないと発表できません"
+          }
+        }
+      }
+    },
     "テーブルの並び列数" : {
 
+    },
+    "テーブルを追加" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テーブルを追加"
+          }
+        }
+      }
     },
     "テーブル名（例: テーブルA・最大%lld文字）" : {
 
@@ -204,17 +223,6 @@
     },
     "テーブル追加" : {
 
-    },
-    "テーブルがないと発表できません" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "テーブルがないと発表できません"
-          }
-        }
-      }
     },
     "テンプレートを削除できるようにします" : {
       "extractionState" : "manual",
@@ -255,6 +263,17 @@
     },
     "会場レイアウト（向き）" : {
 
+    },
+    "会場設定" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "会場設定"
+          }
+        }
+      }
     },
     "例: 窓際（%lld文字まで）" : {
 
@@ -341,6 +360,17 @@
         }
       }
     },
+    "保存済みレイアウトの一覧を開きます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存済みレイアウトの一覧を開きます"
+          }
+        }
+      }
+    },
     "入力した参加者をリストに追加します" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -385,6 +415,28 @@
         }
       }
     },
+    "列数" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "列数"
+          }
+        }
+      }
+    },
+    "列数など会場の設定を開きます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "列数など会場の設定を開きます"
+          }
+        }
+      }
+    },
     "削除" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -414,6 +466,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "動画を見て1枠追加（今回だけ）"
+          }
+        }
+      }
+    },
+    "動画を見るとテーブルを増やせます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "動画を見るとテーブルを増やせます"
           }
         }
       }
@@ -606,6 +669,17 @@
         }
       }
     },
+    "座席表を共有します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "座席表を共有します"
+          }
+        }
+      }
+    },
     "指定なし" : {
 
     },
@@ -633,6 +707,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "現在のメンバーをグループとして保存します。"
+          }
+        }
+      }
+    },
+    "現在のレイアウトをテンプレートとして保存します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在のレイアウトをテンプレートとして保存します"
           }
         }
       }

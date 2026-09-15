@@ -7,6 +7,7 @@
 //  View は ModelContext / Gateway を知らない。assemble 時点で注入済み。
 //  v2.1 Phase 3（発表はナビ左。Cover 中はバナー inset を外す）
 //  v2.1 UI/UX（発表ツールバーにラベル、無効時 Hint）
+//  v2.1 UI/UX（会場設定・卓追加・下段の A11y 名）
 //
 
 import SwiftUI
@@ -62,13 +63,21 @@ struct SeatingChartView: View {
                                                                 .offset(x: 6, y: 4)
                                                         }
                                                     }
-                                                    Text("テーブル追加")
+                                                    Text(SeatingChartCopy.addTableTitle)
                                                 }
                                                 .frame(maxWidth: .infinity)
                                                 .frame(minHeight: 120)
                                                 .background(Color.secondary.opacity(0.1))
                                                 .cornerRadius(12)
                                             }
+                                            .accessibilityLabel(SeatingChartCopy.addTableAccessibilityLabel)
+                                            .modifier(
+                                                OptionalAccessibilityHint(
+                                                    hint: presenter.viewData.showsAddTableUnlockBadge
+                                                        ? SeatingChartCopy.addTableUnlockHint
+                                                        : nil
+                                                )
+                                            )
                                             .frame(minWidth: 140)
                                             .frame(maxWidth: .infinity, alignment: .top)
                                         }
@@ -141,9 +150,13 @@ struct SeatingChartView: View {
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { presenter.didTapSettings() }) {
-                    Image(systemName: "gearshape")
+                Button {
+                    presenter.didTapSettings()
+                } label: {
+                    Label(VenueSettingsCopy.navigationTitle, systemImage: "gearshape")
+                        .labelStyle(.iconOnly)
                 }
+                .accessibilityHint(VenueSettingsCopy.openHint)
             }
         }
         .sheet(item: sheetRouteBinding) { route in
@@ -296,19 +309,19 @@ extension SeatingChartView {
             ActionButtonsView(
                 button1: .init(title: "お気に入り", icon: "star.fill", color: .orange, action: {
                     presenter.didTapLoadTemplate()
-                }),
+                }, accessibilityHint: SeatingChartCopy.loadTemplateHint),
                 button2: .init(title: "保存", icon: "square.and.arrow.down", color: .green, action: {
                     templateName = ""
                     presenter.didTapSaveTemplate()
-                }, isDisabled: !presenter.viewData.isSaveEnabled),
+                }, isDisabled: !presenter.viewData.isSaveEnabled, accessibilityHint: SeatingChartCopy.saveHint),
                 button3: .init(title: "共有", icon: "square.and.arrow.up", color: .blue, action: {
                     presenter.didTapShare()
-                }, isDisabled: !presenter.viewData.isShareEnabled),
+                }, isDisabled: !presenter.viewData.isShareEnabled, accessibilityHint: SeatingChartCopy.shareHint),
                 button4: .init(title: "シャッフル", icon: "shuffle", color: .purple, action: {
                     withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
                         presenter.didTapShuffle()
                     }
-                }, isDisabled: !presenter.viewData.isShuffleEnabled)
+                }, isDisabled: !presenter.viewData.isShuffleEnabled, accessibilityHint: SeatingChartCopy.shuffleHint)
             )
             .padding(.horizontal, 16)
 

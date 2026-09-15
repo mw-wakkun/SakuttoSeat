@@ -255,3 +255,15 @@ final class SeatingChartViewDataTests: XCTestCase {
         XCTAssertEqual(rows[1].trailingFillerCount, 0)
     }
 }
+
+final class SeatingChartCopyTests: XCTestCase {
+    func test_卓追加と下段Hint() {
+        XCTAssertEqual(SeatingChartCopy.addTableTitle, "テーブル追加")
+        XCTAssertEqual(SeatingChartCopy.addTableAccessibilityLabel, "テーブルを追加")
+        XCTAssertEqual(SeatingChartCopy.addTableUnlockHint, "動画を見るとテーブルを増やせます")
+        XCTAssertEqual(SeatingChartCopy.loadTemplateHint, "保存済みレイアウトの一覧を開きます")
+        XCTAssertEqual(SeatingChartCopy.saveHint, "現在のレイアウトをテンプレートとして保存します")
+        XCTAssertEqual(SeatingChartCopy.shareHint, "座席表を共有します")
+        XCTAssertEqual(SeatingChartCopy.shuffleHint, "席順をシャッフルします")
+    }
+}

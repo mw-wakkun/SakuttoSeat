@@ -5,6 +5,7 @@
 //  refactor_seating.md Phase 5（子 VIPER モジュール化）
 //  Entity の @State 焼き込みを廃止し、Presenter の ViewData だけを読む。
 //  シートの開閉は親（SeatingChartPresenter.route）が Output 経由で制御する。
+//  v2.1 UI/UX（方向ボタンの A11y 名）
 //
 
 import SwiftUI
@@ -140,6 +141,7 @@ private extension TableEditView {
                 .foregroundColor(isSelected ? .white : .primary)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(direction.rawValue)
     }
 
     // テキストのプリセットと自由入力

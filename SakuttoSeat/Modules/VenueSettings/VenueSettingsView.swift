@@ -6,6 +6,7 @@
 //  列数の課金ルールは VenueSettingsInteractor、広告提示は VenueSettingsRouter が持つ。
 //  refactor_Ad.md Phase 4（未準備アラート文言を RewardedAdCopy に単一化）
 //  v2.0 hotfix（確認ダイアログは3列以降。広告提示中の onDisappear で適用を殺さない）
+//  v2.1 UI/UX（navigationTitle と列数ピッカーのラベル）
 //
 
 import SwiftUI
@@ -23,7 +24,7 @@ struct VenueSettingsView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    Picker(selection: selectionBinding, label: Text("")) {
+                    Picker(VenueSettingsCopy.columnCountPickerLabel, selection: selectionBinding) {
                         ForEach(presenter.viewData.selectableRange, id: \.self) { count in
                             Text("\(count)列").tag(count)
                         }
@@ -43,6 +44,7 @@ struct VenueSettingsView: View {
                 Spacer()
             }
             .padding()
+            .navigationTitle(VenueSettingsCopy.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
