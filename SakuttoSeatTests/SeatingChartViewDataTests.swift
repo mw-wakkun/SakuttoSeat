@@ -74,6 +74,15 @@ final class SeatingChartViewDataTests: XCTestCase {
         XCTAssertEqual(tableData?.needsHorizontalScroll, false)
     }
 
+    func test_accessibilitySummaryは氏名を並べず着席数と定員() {
+        let presenter = makePresenter(names: ["太郎", "花子"])
+        let summary = firstTable(in: presenter.viewData)?.accessibilitySummary
+
+        XCTAssertEqual(summary, "テーブルA、2人着席、定員4")
+        XCTAssertFalse(summary?.contains("太郎") ?? true)
+        XCTAssertFalse(summary?.contains("花子") ?? true)
+    }
+
     func test_ViewData_列数が5以上なら横スクロールが必要() {
         let presenter = makePresenter(names: ["A"])
         let tableID = tableIDs(in: presenter.viewData)[0]
@@ -265,5 +274,10 @@ final class SeatingChartCopyTests: XCTestCase {
         XCTAssertEqual(SeatingChartCopy.saveHint, "現在のレイアウトをテンプレートとして保存します")
         XCTAssertEqual(SeatingChartCopy.shareHint, "座席表を共有します")
         XCTAssertEqual(SeatingChartCopy.shuffleHint, "席順をシャッフルします")
+        XCTAssertEqual(SeatingChartCopy.loadTemplateTitle, "テンプレート")
+        XCTAssertEqual(SeatingChartCopy.editTableHint, "ダブルタップでテーブルを編集します")
+        XCTAssertEqual(SeatingChartCopy.lockedValue, "ロック中")
+        XCTAssertEqual(SeatingChartCopy.lockSeatHint, "ダブルタップでロックします")
+        XCTAssertEqual(SeatingChartCopy.unlockSeatHint, "ダブルタップでロックを解除します")
     }
 }

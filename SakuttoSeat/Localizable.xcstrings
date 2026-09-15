@@ -148,6 +148,39 @@
     "これ以上は追加できません" : {
 
     },
+    "ダブルタップでテーブルを編集します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ダブルタップでテーブルを編集します"
+          }
+        }
+      }
+    },
+    "ダブルタップでロックします" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ダブルタップでロックします"
+          }
+        }
+      }
+    },
+    "ダブルタップでロックを解除します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ダブルタップでロックを解除します"
+          }
+        }
+      }
+    },
     "サクッと席決め" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -224,6 +257,17 @@
     "テーブル追加" : {
 
     },
+    "テンプレート" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テンプレート"
+          }
+        }
+      }
+    },
     "テンプレートを削除できるようにします" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -249,6 +293,17 @@
     },
     "レイアウトを保存" : {
 
+    },
+    "ロック中" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ロック中"
+          }
+        }
+      }
     },
     "一括入力" : {
       "extractionState" : "manual",

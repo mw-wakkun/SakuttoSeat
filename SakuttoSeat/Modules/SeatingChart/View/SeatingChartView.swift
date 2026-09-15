@@ -8,6 +8,7 @@
 //  v2.1 Phase 3（発表はナビ左。Cover 中はバナー inset を外す）
 //  v2.1 UI/UX（発表ツールバーにラベル、無効時 Hint）
 //  v2.1 UI/UX（会場設定・卓追加・下段の A11y 名）
+//  v2.1 UI/UX（下段ボタンはテンプレート）
 //
 
 import SwiftUI
@@ -307,7 +308,7 @@ extension SeatingChartView {
     private var bottomChromeBar: some View {
         VStack(spacing: 8) {
             ActionButtonsView(
-                button1: .init(title: "お気に入り", icon: "star.fill", color: .orange, action: {
+                button1: .init(title: SeatingChartCopy.loadTemplateTitle, icon: "square.grid.2x2", color: .orange, action: {
                     presenter.didTapLoadTemplate()
                 }, accessibilityHint: SeatingChartCopy.loadTemplateHint),
                 button2: .init(title: "保存", icon: "square.and.arrow.down", color: .green, action: {

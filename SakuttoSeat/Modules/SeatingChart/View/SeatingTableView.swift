@@ -4,6 +4,7 @@
 //
 //  refactor_seating.md Phase 1（ファイル分割）/ Phase 2（ViewData 化）
 //  v2.1 Phase 3（発表は読み取り専用 chrome）
+//  v2.1 UI/UX（卓の鉛筆、席の A11y。発表では出さない）
 //
 
 import SwiftUI
@@ -87,12 +88,27 @@ struct SeatingTableView: View {
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
             VStack(spacing: 4) {
-                Text(table.name)
-                    .font(chrome == .presentation ? .headline : .caption)
-                    .bold()
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                HStack(spacing: 4) {
+                    Text(table.name)
+                        .font(chrome == .presentation ? .headline : .caption)
+                        .bold()
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    if isInteractive {
+                        Image(systemName: "pencil")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(table.accessibilitySummary)
+                .modifier(
+                    OptionalAccessibilityHint(
+                        hint: isInteractive ? SeatingChartCopy.editTableHint : nil
+                    )
+                )
 
                 if let layoutLabel = table.layoutLabel {
                     Text(layoutLabel)
@@ -136,7 +152,6 @@ struct SeatingTableView: View {
             onEditTarget()
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(table.accessibilitySummary)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(.secondarySystemGroupedBackground))
@@ -168,8 +183,18 @@ struct SeatingTableView: View {
                         SeatView(seat: seat, chrome: chrome)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(seat.displayName)
+                    .accessibilityValue(seat.isLocked ? SeatingChartCopy.lockedValue : "")
+                    .modifier(
+                        OptionalAccessibilityHint(
+                            hint: seat.isLocked
+                                ? SeatingChartCopy.unlockSeatHint
+                                : SeatingChartCopy.lockSeatHint
+                        )
+                    )
                 } else {
                     SeatView(seat: seat, chrome: chrome)
+                        .accessibilityLabel(seat.displayName)
                 }
             }
         }
