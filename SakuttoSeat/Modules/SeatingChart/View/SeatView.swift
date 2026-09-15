@@ -5,6 +5,7 @@
 //  refactor_seating.md Phase 1（ファイル分割）/ Phase 2（ViewData 化）
 //  v2.1 Phase 3（発表はロック印なし・席名を大きく）
 //  v2.1 UI/UX（発表席名は title3、人アイコンは title2）
+//  v2.1 UI/UX（画面の席名は Dynamic Type。書き出しは固定 pt）
 //
 
 import SwiftUI
@@ -13,6 +14,8 @@ import SwiftUI
 enum SeatingChrome: Equatable {
     case interactive
     case presentation
+    /// 画像書き出し。端末の文字サイズに依存させない。
+    case snapshot
 }
 
 /// 1つ1つの「座席」
@@ -54,7 +57,7 @@ struct SeatView: View {
     }
 
     private var showsLockBadge: Bool {
-        chrome == .interactive && seat.isLocked
+        chrome != .presentation && seat.isLocked
     }
 
     private var iconName: String {
@@ -72,10 +75,14 @@ struct SeatView: View {
     }
 
     private var nameFont: Font {
-        if chrome == .presentation {
+        switch chrome {
+        case .presentation:
             return .title3.weight(.semibold)
+        case .interactive:
+            return .caption.weight(nameWeight)
+        case .snapshot:
+            return .system(size: 11, weight: nameWeight)
         }
-        return .system(size: 11, weight: nameWeight)
     }
 
     private var nameWeight: Font.Weight {

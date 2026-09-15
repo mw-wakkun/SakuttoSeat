@@ -107,7 +107,6 @@ private extension SimpleShuffleView {
         EmptyStateView(
             systemImage: "person.3",
             message: SimpleShuffleCopy.emptyMessage,
-            imageFont: .system(size: 80),
             imageColor: .sakuttoBlueStart.opacity(0.3),
             spacing: AppSpacing.emptyStateSpacing
         )

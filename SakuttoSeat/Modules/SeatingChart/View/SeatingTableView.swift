@@ -5,6 +5,7 @@
 //  refactor_seating.md Phase 1（ファイル分割）/ Phase 2（ViewData 化）
 //  v2.1 Phase 3（発表は読み取り専用 chrome）
 //  v2.1 UI/UX（卓の鉛筆、席の A11y。発表では出さない）
+//  v2.1 UI/UX（向きラベルは Dynamic Type）
 //
 
 import SwiftUI
@@ -112,7 +113,7 @@ struct SeatingTableView: View {
 
                 if let layoutLabel = table.layoutLabel {
                     Text(layoutLabel)
-                        .font(.system(size: chrome == .presentation ? 13 : 10, weight: .semibold))
+                        .font((chrome == .presentation ? Font.footnote : Font.caption2).weight(.semibold))
                         .foregroundColor(.blue)
                         .lineLimit(1)
                         .truncationMode(.tail)

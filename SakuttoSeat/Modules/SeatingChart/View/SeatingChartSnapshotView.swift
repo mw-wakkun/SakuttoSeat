@@ -4,6 +4,7 @@
 //
 //  refactor_seating.md Phase 1（ファイル分割）/ Phase 2（ViewData 化）
 //  v2.1 Phase 2（高画質はタイト余白・フィラー省略。画面用 View には広げない）
+//  v2.1 UI/UX（席名は snapshot chrome で固定 pt）
 //
 
 import SwiftUI
@@ -120,7 +121,7 @@ struct SnapshotSeatingTableView: View {
                         ForEach(0..<colCount, id: \.self) { colIndex in
                             let index = rowIndex * colCount + colIndex
                             if index < seats.count {
-                                SeatView(seat: seats[index])
+                                SeatView(seat: seats[index], chrome: .snapshot)
                             } else {
                                 Color.clear
                             }
