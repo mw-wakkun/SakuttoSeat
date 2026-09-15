@@ -96,8 +96,8 @@ struct SeatingTableView: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                     if isInteractive {
-                        Image(systemName: "pencil")
-                            .font(.caption)
+                        Image(systemName: "square.and.pencil")
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
                             .accessibilityHidden(true)
                     }
