@@ -38,7 +38,8 @@ struct EmptyStateView: View {
 private struct EmptyStateIcon: View {
     let systemImage: String
     let color: Color
-    @ScaledMetric(relativeTo: .largeTitle) private var size: CGFloat
+    /// 宣言側に初期値が必要。init で呼び出し側の pt に差し替える。
+    @ScaledMetric(relativeTo: .largeTitle) private var size: CGFloat = AppSpacing.emptyStateIconSize
 
     init(systemImage: String, pointSize: CGFloat, color: Color) {
         self.systemImage = systemImage
